@@ -74,7 +74,7 @@ public class Experiments {
                 int B = 1;
                 while (!same_obj){
         
-                    EVRPTW evrptw = new EVRPTW(name, 0, B, false);
+                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "tuning");
                     EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
         
                     Double obj = Solver.upperBound;
@@ -115,7 +115,7 @@ public class Experiments {
             Element unb_B = (Element) instance_element.getElementsByTagName("unb_B").item(0);
             int B = Integer.parseInt(unb_B.getElementsByTagName("K").item(0).getTextContent());
 
-            EVRPTW evrptw = new EVRPTW(name, 0, B, false);
+            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "tuning");
             EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
             deleteStaticObject(Configuration.class, "instance");
@@ -155,7 +155,7 @@ public class Experiments {
 
                         Double last_obj = 10000.;
                         for (int B=max_chargers; B >= min_chargers; B--){
-                            EVRPTW evrptw = new EVRPTW(name, 0, B, false);
+                            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "tuning");
                             EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
                             Double obj = Solver.upperBound;
@@ -193,7 +193,7 @@ public class Experiments {
                 try {
                     if (!name.equals("")) {
                         
-                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true);
+                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "tuning");
                         EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
             
                         deleteStaticObject(Configuration.class, "instance");
