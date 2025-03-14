@@ -1,0 +1,12 @@
+target/
+bin/
+experiments/
+results/
+*.log
+*.xml
+*.class
+*.jar
+.project
+.idea/
+.vscode/
+cplex_studio2212.linux_x86_64.bin
