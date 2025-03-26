@@ -238,10 +238,8 @@ public final class EVRPTWSolver {
 	public static void main(String[] args) throws IOException{
 
 		int gamma = Integer.parseInt(args[1]);
-		int B = Integer.parseInt(args[2]);
-		boolean print_log = Boolean.parseBoolean(args[3]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, B, print_log, args[4]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Yamin 2024", args[2]);
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
