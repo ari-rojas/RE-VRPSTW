@@ -74,7 +74,7 @@ public class Experiments {
                 int B = 1;
                 while (!same_obj){
         
-                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "tuning");
+                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW","tuning");
                     EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
         
                     Double obj = Solver.upperBound;
@@ -115,7 +115,7 @@ public class Experiments {
             Element unb_B = (Element) instance_element.getElementsByTagName("unb_B").item(0);
             int B = Integer.parseInt(unb_B.getElementsByTagName("K").item(0).getTextContent());
 
-            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "tuning");
+            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning");
             EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
             deleteStaticObject(Configuration.class, "instance");
@@ -155,7 +155,7 @@ public class Experiments {
 
                         Double last_obj = 10000.;
                         for (int B=max_chargers; B >= min_chargers; B--){
-                            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "tuning");
+                            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning");
                             EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
                             Double obj = Solver.upperBound;
@@ -182,7 +182,7 @@ public class Experiments {
 
     }
 
-    public static void run_experiments(String instances_prefix, int gamma){
+    public static void run_experiments(String instances_prefix, int gamma, String experiment){
 
         try{
 
@@ -193,7 +193,7 @@ public class Experiments {
                 try {
                     if (!name.equals("")) {
                         
-                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "tuning");
+                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "RE-VRSPTW", experiment);
                         EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
             
                         deleteStaticObject(Configuration.class, "instance");
@@ -211,15 +211,15 @@ public class Experiments {
 
     }
 
-    public static void run_experiments(int gamma){
+    public static void run_experiments(int gamma, String experiment){
 
-        run_experiments("", gamma);
+        run_experiments("", gamma, experiment);
 
     }
 
     public static void main(String[] args){
 
-        run_experiments(args[0], Integer.parseInt(args[1]));
+        run_experiments(args[0], Integer.parseInt(args[1]), args[2]);
     
     }
 }

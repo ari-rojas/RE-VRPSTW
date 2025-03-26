@@ -64,6 +64,7 @@ public final class EVRPTW implements ModelInterface {
 
 	//Log file creation
 	public boolean print_log;
+	public String algorithm;
 	public String experiment;
 
 	/**
@@ -71,7 +72,7 @@ public final class EVRPTW implements ModelInterface {
 	 * @param instanceName input instance.
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
-	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String experiment) throws IOException {
+	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment) throws IOException {
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}
@@ -82,13 +83,14 @@ public final class EVRPTW implements ModelInterface {
 		this.graph = new DirectedWeightedMultigraph<Integer, EVRPTW.Arc>(Arc.class);
 		this.numArcs = 0;
 		this.gamma = gamma;
+		this.algorithm = algorithm;
 		this.experiment = experiment;
 		this.print_log = print_log;
 		this.B = num_chargers;
 
 		//create a new file output stream.
 		if (this.print_log){
-			PrintStream fileOut = new PrintStream("./results/log/"+this.experiment+"/"+this.getName()+".log");
+			PrintStream fileOut = new PrintStream("./results/log/"+this.algorithm+"/"+this.experiment+"/"+this.getName()+".log");
 			System.setOut(fileOut);
 		}
 
