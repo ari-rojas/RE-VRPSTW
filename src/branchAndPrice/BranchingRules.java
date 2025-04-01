@@ -92,10 +92,12 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			Route route1 = solution.get(r);
 			int t = route1.initialChargingTime + route1.chargingTime-1;
 			double flow = route1.value;
-			for (int r2 = r+1; r2 < solution.size(); r2++) {
-				Route route2 = solution.get(r2);
-				if(route2.initialChargingTime + route2.chargingTime-1==t)
-					flow+=route2.value;
+			for (int r2 = 0; r2 < solution.size(); r2++) {
+				if (r != r2){
+					Route route2 = solution.get(r2);
+					if(route2.initialChargingTime + route2.chargingTime-1==t)
+						flow+=route2.value;
+				}
 			}
 			if(MathProgrammingUtil.isFractional(flow)) {
 				branchOnInitialChargingTime = false;
@@ -110,10 +112,12 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			Route route1 = solution.get(r);
 			int t = route1.initialChargingTime;
 			double flow = route1.value;
-			for (int r2 = r+1; r2 < solution.size(); r2++) {
-				Route route2 = solution.get(r2);
-				if(route2.initialChargingTime==t)
-					flow+=route2.value;
+			for (int r2 = 0; r2 < solution.size(); r2++) {
+				if (r != r2){
+					Route route2 = solution.get(r2);
+					if(route2.initialChargingTime==t)
+						flow+=route2.value;
+				}
 			}
 			if(MathProgrammingUtil.isFractional(flow)) {
 				branchOnInitialChargingTime = true;
