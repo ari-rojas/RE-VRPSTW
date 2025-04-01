@@ -275,15 +275,15 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						Iterator var6 = this.branchCreators.iterator();
 	
 						while(var6.hasNext()) {
-						AbstractBranchCreator<EVRPTW, Route, PricingProblem> bc = (AbstractBranchCreator)var6.next();
-						newBranches.addAll(bc.branch(bapNode));
-						if (!newBranches.isEmpty()) {
-							break;
-						}
+							AbstractBranchCreator<EVRPTW, Route, PricingProblem> bc = (AbstractBranchCreator)var6.next();
+							newBranches.addAll(bc.branch(bapNode));
+							if (!newBranches.isEmpty()) {
+								break;
+							}
 						}
 	
 						if (newBranches.isEmpty()) {
-						throw new RuntimeException("BAP encountered fractional solution, but non of the BranchCreators produced any new branches?");
+							throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
 						}
 	
 						this.queue.addAll(newBranches);
