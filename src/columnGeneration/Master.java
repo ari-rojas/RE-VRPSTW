@@ -638,7 +638,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			System.out.println("CPLEX encountered an error: " + e.getMessage());
 		}
 
-		return new_cost;
+		return Math.round(new_cost);
 		
 	}
 

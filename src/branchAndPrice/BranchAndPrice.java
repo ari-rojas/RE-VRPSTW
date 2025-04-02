@@ -312,6 +312,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							} else {
 
+								bapNode.storeSolution(new_cost, bapNode.getBound(), this.master.getSolution(), this.master.getCuts());
 								// Look for EndCT or InitialCT branching
 								foundBranches = bc.canPerformBranching(bapNode.getSolution());
 								if (foundBranches){
@@ -325,9 +326,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						if (!foundBranches) {
 							throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
 						}
-	
-						this.queue.addAll(newBranches);
-						this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+						
+						if (!newBranches.isEmpty()){
+							this.queue.addAll(newBranches);
+							this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+						}
 					}
 	
 				++this.nodesProcessed;
