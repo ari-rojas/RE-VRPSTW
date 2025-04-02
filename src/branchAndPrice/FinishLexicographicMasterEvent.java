@@ -7,12 +7,14 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 public class FinishLexicographicMasterEvent extends EventObject{
 
     public final BAPNode node;
-    public final Double objective;
+    public final double depletion;
+    public final double cost;
 
-    public FinishLexicographicMasterEvent(Object source, BAPNode node, Double objective) {
+    public FinishLexicographicMasterEvent(Object source, BAPNode node, double objective, double cost) {
         super(source);
         this.node = node;
-        this.objective = objective;
+        this.depletion = objective;
+        this.cost = cost;
     }
 
     

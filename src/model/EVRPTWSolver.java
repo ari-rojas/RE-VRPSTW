@@ -375,8 +375,7 @@ public final class EVRPTWSolver {
 		public void finishLexicographicMaster(FinishLexicographicMasterEvent lexiEvent){
 			if (dataModel.print_log) {
 
-				logger.debug("Finished master -> RMP objective: {}", lexiEvent.objective);
-				logger.debug("Total running time (s): " + getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
+				logger.debug("Finished master -> RMP objective: {}, Total cost: {}", new Object[]{lexiEvent.depletion,lexiEvent.cost });
 
 			}
 		}

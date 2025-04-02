@@ -597,7 +597,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		}
 	}
 
-	public void minimizeBatteryDepletion(long timeLimit, List<Route> cols, List<AbstractInequality> inequalities_list, double minCost){
+	public double minimizeBatteryDepletion(long timeLimit, List<Route> cols, List<AbstractInequality> inequalities_list, double minCost){
 
 		Set<NumberVehiclesInequalities> vehiclesInequalities = masterData.branchingNumberOfVehicles.keySet(); 	//keep branching decisions
 		Set<ChargingTimeInequality> chargingInequalities = masterData.branchingChargingTimes.keySet();
@@ -617,22 +617,28 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		// Add all columns
 		this.addColumnsDepletion(cols);
 
-		try{
-			IloLinearNumExpr expr=masterData.cplex.linearNumExpr();
+		IloLinearNumExpr expr;
+		double new_cost = 0;
+
+		try {
+
+			expr = masterData.cplex.linearNumExpr();
 			for(Route route: cols){
 				IloNumVar var=masterData.getVar(masterData.pricingProblem, route);
 				expr.addTerm(route.cost, var);
 			}
-			IloRange cost_constraint = masterData.cplex.addLe(expr, minCost+dataModel.precision, "minCost");
+			IloRange cost_constraint = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
+
+			this.masterData.optimal = this.solveMasterProblem(timeLimit);
+			new_cost = masterData.cplex.getValue(expr);
+
+		} catch (TimeLimitExceededException e) {
+			System.out.println("Time limit exceeded: " + e.getMessage());
 		} catch (IloException e) {
-			e.printStackTrace();
+			System.out.println("CPLEX encountered an error: " + e.getMessage());
 		}
 
-		try {
-			this.masterData.optimal = this.solveMasterProblem(timeLimit);
-		} catch (TimeLimitExceededException e) {
-			e.printStackTrace();
-		}
+		return new_cost;
 		
 	}
 
