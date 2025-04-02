@@ -270,16 +270,37 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						this.incumbentSolution = bapNode.getSolution();
 						}
 					} else {
+
 						this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
-						Iterator var6 = this.branchCreators.iterator();
-	
-						while(var6.hasNext()) {
-							AbstractBranchCreator<EVRPTW, Route, PricingProblem> bc = (AbstractBranchCreator)var6.next();
-							newBranches.addAll(bc.branch(bapNode));
-							if (!newBranches.isEmpty()) {
-								break;
-							}
+						
+						// Initialize branches boolean and Branch Creator
+						BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
+
+						// Look for Number of Vehicles or Customers Arc Flow branching
+						boolean firstBranches = false;
+						firstBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+						if (firstBranches){ newBranches.addAll(bc.getFirstBranches(bapNode)); }
+
+						if (!firstBranches) {
+
+							this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
+
+							long time=System.currentTimeMillis();
+
+							Master new_Master = ((Master)this.master).copy();
+							new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), this.master.getObjective());
+
+							Double obj = master.getObjective();
+							this.timeSolvingMaster += (System.currentTimeMillis()-time);
+
+							this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj);
+							
+							// Look for EndCT or InitialCT branching
+							boolean otherBranches = false;
+							otherBranches = bc.canPerformBranching(bapNode.getSolution());
+							if (otherBranches){ newBranches.addAll(bc.getBranches(bapNode)); }
+
 						}
 	
 						if (newBranches.isEmpty()) {
@@ -323,7 +344,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
   
 		this.notifier.fireStopBAPEvent();
 		this.runtime = System.currentTimeMillis() - this.runtime;
-	 }
+	}
 
 
 	/**

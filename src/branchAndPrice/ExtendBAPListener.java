@@ -8,4 +8,8 @@ public interface ExtendBAPListener extends EventListener {
 
     void CGProblemsLB(CGProblemsLBEvent var1);
 
+    void startLexicographicMaster(LexicographicMasterEvent var1);
+
+    void finishLexicographicMaster(FinishLexicographicMasterEvent var1);
+
 }

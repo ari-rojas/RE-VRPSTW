@@ -1,6 +1,7 @@
 package branchAndPrice;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +46,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	 * @param solution Fractional column generation solution
 	 * @return true if a fractional number of vehicles is used or a fractional arc exists
 	 */
-	@Override
-	protected boolean canPerformBranching(List<Route> solution) {
+	public boolean canPerformFirstBranching(List<Route> solution) {
 
 		//Reset values
 		this.vehiclesForBranching = 0;
@@ -86,6 +86,12 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			}
 		}
 		if(MathProgrammingUtil.isFractional(bestArcValue)) {branchOnCustomerArcs = true; return true;}
+
+		return false;
+	}
+
+	@Override
+	public boolean canPerformBranching(List<Route> solution) {
 
 		//End charging time
 		for (int r = 0; r < solution.size(); r++) {
@@ -127,18 +133,11 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 				return true;
 			}
 		}
+
 		return false;
 	}
 
-	/**
-	 * Create the branches:
-	 * branch 1: edge {@code edgeForBranching} must be used by {@code PricingProblem},</li>
-	 * 	branch 2: edge {@code edgeForBranching} may NOT used by {@code PricingProblem},</li>
-	 * @param parentNode Fractional node on which we branch
-	 * @return List of child nodes
-	 */
-	@Override
-	protected List<BAPNode<EVRPTW,Route>> getBranches(BAPNode<EVRPTW,Route> parentNode) {
+	public List<BAPNode<EVRPTW,Route>> getFirstBranches(BAPNode<EVRPTW,Route> parentNode) {
 		BAPNode<EVRPTW,Route> node2; 		//one child node
 		BAPNode<EVRPTW,Route> node1; 		//other child node
 
@@ -149,30 +148,46 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			//Branch 2: number of vehicles up
 			BranchVehiclesUp branchingDecision2=new BranchVehiclesUp(this.pricingProblems.get(0), (int) Math.ceil(vehiclesForBranching), parentNode.getInequalities());
 			node2=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
-		}else if(branchOnCustomerArcs){
+		} else {
 			//Branch 1: remove the edge:
 			RemoveArc branchingDecision1=new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
 			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: fix the edge:
 			FixArc branchingDecision2=new FixArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
 			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
-		}else {
-			if(branchOnInitialChargingTime) {
-				//Branch 1: remove the edge:
-				BranchInitialChargingTimeDown branchingDecision1= new BranchInitialChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-				node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
-				//Branch 2: fix the edge:
-				BranchInitialChargingTimeUp branchingDecision2=new BranchInitialChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-				node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
-			} else {
-				//Branch 1: remove the edge:
-				BranchEndChargingTimeDown branchingDecision1= new BranchEndChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-				node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
-				//Branch 2: fix the edge:
-				BranchEndChargingTimeUp branchingDecision2=new BranchEndChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-				node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
-			}
 		}
+		
+		return Arrays.asList(node1,node2);
+	}
+
+	/**
+	 * Create the branches:
+	 * branch 1: edge {@code edgeForBranching} must be used by {@code PricingProblem},</li>
+	 * 	branch 2: edge {@code edgeForBranching} may NOT used by {@code PricingProblem},</li>
+	 * @param parentNode Fractional node on which we branch
+	 * @return List of child nodes
+	 */
+	@Override
+	public List<BAPNode<EVRPTW,Route>> getBranches(BAPNode<EVRPTW,Route> parentNode) {
+		BAPNode<EVRPTW,Route> node2; 		//one child node
+		BAPNode<EVRPTW,Route> node1; 		//other child node
+		
+		if(branchOnInitialChargingTime) {
+			//Branch 1: remove the edge:
+			BranchInitialChargingTimeDown branchingDecision1= new BranchInitialChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
+			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+			//Branch 2: fix the edge:
+			BranchInitialChargingTimeUp branchingDecision2=new BranchInitialChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
+			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+		} else {
+			//Branch 1: remove the edge:
+			BranchEndChargingTimeDown branchingDecision1= new BranchEndChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
+			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+			//Branch 2: fix the edge:
+			BranchEndChargingTimeUp branchingDecision2=new BranchEndChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
+			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+		}
+		
 		return Arrays.asList(node1,node2);
 	}
 
