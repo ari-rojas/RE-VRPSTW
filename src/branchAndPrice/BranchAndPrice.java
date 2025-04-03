@@ -223,6 +223,24 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
+	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
+		// Solve Lexicographic Master Problem
+		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
+
+		long time=System.currentTimeMillis(); double new_cost = 0;
+
+		Master new_Master = ((Master)this.master).copy();
+		//logger.debug("MP Objective: "+this.master.getObjective());
+		new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), this.master.getObjective());
+		bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
+
+		Double obj = new_Master.getObjective();
+		this.timeSolvingMaster += (System.currentTimeMillis()-time);
+		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj, new_cost);
+
+		return new_cost;
+	}
+
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
@@ -284,21 +302,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
 							newBranches.addAll(bc.getFirstBranches(bapNode));
 						} else {
-
-							// Solve Lexicographic Master Problem
-							this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
-
-							long time=System.currentTimeMillis(); double new_cost = 0;
-
-							Master new_Master = ((Master)this.master).copy();
-							//logger.debug("MP Objective: "+this.master.getObjective());
-							new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), this.master.getObjective());
+							
 							List<Route> old_solution = bapNode.getSolution();
-							bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
-
-							Double obj = new_Master.getObjective();
-							this.timeSolvingMaster += (System.currentTimeMillis()-time);
-							this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj, new_cost);
+							double new_cost = this.performLexicographicStep(bapNode, timeLimit);
 
 							if (this.isIntegerNode(bapNode)){
 								this.processIntegerNode(bapNode);
@@ -306,20 +312,14 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							} else {
 
-								// Look for Number of Vehicles or Customers Arc Flow branching
-								foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+								bapNode.storeSolution(new_cost, bapNode.getBound(), old_solution, bapNode.getInequalities());
+								// Look for EndCT or InitialCT branching
+								foundBranches = bc.canPerformBranching(bapNode.getSolution());
 								if (foundBranches){
 									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-									newBranches.addAll(bc.getFirstBranches(bapNode));
-								} else {
-								
-									// Look for EndCT or InitialCT branching
-									foundBranches = bc.canPerformBranching(bapNode.getSolution());
-									if (foundBranches){
-										this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-										newBranches.addAll(bc.getBranches(bapNode));
-									}
+									newBranches.addAll(bc.getBranches(bapNode));
 								}
+								
 							}
 
 						}
