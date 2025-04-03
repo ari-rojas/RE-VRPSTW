@@ -268,7 +268,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					this.notifier.fireNodeIsInfeasibleEvent(bapNode);
 					++this.nodesProcessed;
 				} else { // If it is either integer solution and hence pruned by optimality OR fractional and should branch
-					if (this.isIntegerNode(bapNode)) {
+					if (this.isIntegerNode(bapNode)) { // If is integer, update incumbent
 						this.processIntegerNode(bapNode);
 					} else {
 						this.updateNodeGeneratedColumns(bapNode);
