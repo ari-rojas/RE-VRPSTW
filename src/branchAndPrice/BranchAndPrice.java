@@ -260,15 +260,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					if (this.isIntegerNode(bapNode)) {
 						int integerObjective = MathProgrammingUtil.doubleToInt(bapNode.getObjective());
 						this.notifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), integerObjective);
-						if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE && (double)integerObjective < this.upperBoundOnObjective) {
 						this.objectiveIncumbentSolution = integerObjective;
 						this.upperBoundOnObjective = (double)integerObjective;
 						this.incumbentSolution = bapNode.getSolution();
-						} else if (this.optimizationSenseMaster == OptimizationSense.MAXIMIZE && (double)integerObjective > this.lowerBoundOnObjective) {
-						this.objectiveIncumbentSolution = integerObjective;
-						this.lowerBoundOnObjective = (double)integerObjective;
-						this.incumbentSolution = bapNode.getSolution();
-						}
 					} else {
 						this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
