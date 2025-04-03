@@ -59,6 +59,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			cplex.setOut(null); 			//disable CPLEX output
 			//			System.out.println(cplex.getVersion());
 			cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
+			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 
 			obj= cplex.addMinimize();		//objective
 			//Partitioning constraints
@@ -627,10 +628,19 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				IloNumVar var=masterData.getVar(masterData.pricingProblem, route);
 				expr.addTerm(route.cost, var);
 			}
+			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
 			IloRange cost_constraint = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
-
+			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
+			
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
+			
+			/* double lhs = masterData.cplex.getValue(cost_constraint.getExpr());
+			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model"+lhs+".lp");
+			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp");
+			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
+			logger.debug("Cost constraint after solving: "+lhs+"<="+cost_constraint.getUB()); */
+	
 
 		} catch (TimeLimitExceededException e) {
 			System.out.println("Time limit exceeded: " + e.getMessage());

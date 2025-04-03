@@ -299,7 +299,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							long time=System.currentTimeMillis(); double new_cost = 0;
 
 							Master new_Master = ((Master)this.master).copy();
+							//logger.debug("MP Objective: "+this.master.getObjective());
 							new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), this.master.getObjective());
+							List<Route> old_solution = bapNode.getSolution();
 							bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
 
 							Double obj = new_Master.getObjective();
@@ -312,7 +314,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							} else {
 
-								bapNode.storeSolution(new_cost, bapNode.getBound(), this.master.getSolution(), this.master.getCuts());
+								bapNode.storeSolution(new_cost, bapNode.getBound(), old_solution, this.master.getCuts());
 								// Look for EndCT or InitialCT branching
 								foundBranches = bc.canPerformBranching(bapNode.getSolution());
 								if (foundBranches){
