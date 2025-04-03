@@ -60,6 +60,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			cplex.setOut(null); 			//disable CPLEX output
 			//			System.out.println(cplex.getVersion());
 			cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
+			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 
 			obj= cplex.addMinimize();		//objective
 			//Partitioning constraints
