@@ -19,6 +19,7 @@ import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
+import columnGeneration.VRPMasterData;
 import columnGeneration.customCG;
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
@@ -231,7 +232,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		Master new_Master = ((Master)this.master).copy();
 		//logger.debug("MP Objective: "+this.master.getObjective());
-		new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), this.master.getObjective());
+		new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), ((Master)this.master).getMasterData().getBranchingNumberOfVehicles(), ((Master)this.master).getMasterData().getBranchingChargingTimes(), this.master.getObjective());
 		bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
 
 		Double obj = new_Master.getObjective();
