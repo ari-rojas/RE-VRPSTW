@@ -111,6 +111,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
 					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
+					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size() + " Number of time branches: " + masterData.branchingChargingTimes.size());
 					logger.debug("Columns (only non-zero columns are returned):");
 					for(Route route: solution)
 						logger.debug(route.toString());

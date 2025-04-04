@@ -312,12 +312,16 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							} else {
 
-								bapNode.storeSolution(new_cost, bapNode.getBound(), old_solution, bapNode.getInequalities());
-								// Look for EndCT or InitialCT branching
-								foundBranches = bc.canPerformBranching(bapNode.getSolution());
+								foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
 								if (foundBranches){
 									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-									newBranches.addAll(bc.getBranches(bapNode));
+									newBranches.addAll(bc.getFirstBranches(bapNode));
+								} else {
+									foundBranches = bc.canPerformBranching(bapNode.getSolution());
+									if (foundBranches){
+										this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+										newBranches.addAll(bc.getBranches(bapNode));
+									}
 								}
 								
 							}
