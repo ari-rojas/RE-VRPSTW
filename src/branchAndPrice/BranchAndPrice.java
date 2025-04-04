@@ -312,18 +312,19 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 								foundBranches = true;
 
 							} else {
-
-								foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+								
+								bapNode.storeSolution(new_cost, bapNode.getBound(), old_solution, bapNode.getInequalities());
+								/* foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
 								if (foundBranches){
 									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
 									newBranches.addAll(bc.getFirstBranches(bapNode));
-								} else {
-									foundBranches = bc.canPerformBranching(bapNode.getSolution());
-									if (foundBranches){
-										this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-										newBranches.addAll(bc.getBranches(bapNode));
-									}
+								} else { */
+								foundBranches = bc.canPerformBranching(bapNode.getSolution());
+								if (foundBranches){
+									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+									newBranches.addAll(bc.getBranches(bapNode));
 								}
+								//}
 								
 							}
 
