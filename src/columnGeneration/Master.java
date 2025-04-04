@@ -111,6 +111,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
 					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
+					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size() + " Number of charging time branches: " + masterData.branchingChargingTimes.size());
 					logger.debug("Columns (only non-zero columns are returned):");
 					for(Route route: solution)
 						logger.debug(route.toString());
@@ -525,7 +526,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		}
 	}
 
-	
+	public VRPMasterData getMasterData(){
+		return masterData;
+	}
+
 	public Master copy(){
 
 		return new Master(this.dataModel, this.pricingProblems.get(0), this.cutHandler);
@@ -600,22 +604,17 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		}
 	}
 
-	public double minimizeBatteryDepletion(long timeLimit, List<Route> cols, List<AbstractInequality> inequalities_list, double minCost){
+	public double minimizeBatteryDepletion(long timeLimit, List<Route> cols, List<AbstractInequality> src_list, Map<NumberVehiclesInequalities, IloRange> vehic_branches_map, Map<ChargingTimeInequality, IloRange> time_branches_map, double minCost){
 
-		Set<NumberVehiclesInequalities> vehiclesInequalities = masterData.branchingNumberOfVehicles.keySet(); 	//keep branching decisions
-		Set<ChargingTimeInequality> chargingInequalities = masterData.branchingChargingTimes.keySet();
-
-		// Close the current cplex and inform the cutHandler about the new master model
-		this.close();
-
-		// Create a new model without any columns
-		masterData=this.buildModel();
+		Set<NumberVehiclesInequalities> vehiclesInequalities = vehic_branches_map.keySet(); 	//keep branching decisions
+		Set<ChargingTimeInequality> chargingInequalities = time_branches_map.keySet();
+		
 		cutHandler.setMasterData(masterData);
 		
 		// Add all constraints added throughout the BPC root path
 		for(NumberVehiclesInequalities inequality: vehiclesInequalities) addBranchingOnVehichlesInequality(inequality);
 		for(ChargingTimeInequality inequality: chargingInequalities) addChargingTimeInequality(inequality);
-		for(AbstractInequality src: inequalities_list) addCut((SubsetRowInequality) src);
+		for(AbstractInequality src: src_list) addCut((SubsetRowInequality) src);
 
 		// Add all columns
 		this.addColumnsDepletion(cols);

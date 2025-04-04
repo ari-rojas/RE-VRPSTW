@@ -35,4 +35,21 @@ public final class VRPMasterData extends MasterData<EVRPTW, Route, PricingProble
 		this.branchingNumberOfVehicles = new HashMap<NumberVehiclesInequalities, IloRange>();
 		this.branchingChargingTimes = new HashMap<ChargingTimeInequality, IloRange>();
 	}
+
+	public Map<NumberVehiclesInequalities, IloRange> getBranchingNumberOfVehicles(){
+		return new HashMap<NumberVehiclesInequalities, IloRange>(this.branchingNumberOfVehicles);
+	}
+
+	public Map<ChargingTimeInequality, IloRange> getBranchingChargingTimes(){
+		return new HashMap<ChargingTimeInequality, IloRange>(this.branchingChargingTimes);
+	}
+
+	public void setBranchingNumberOfVehicles(Map<NumberVehiclesInequalities, IloRange> map){
+		this.branchingNumberOfVehicles = map;
+	}
+
+	public void setBranchingChargingTimes(Map<ChargingTimeInequality, IloRange> map){
+		this.branchingChargingTimes = map;
+	}
+
 }
