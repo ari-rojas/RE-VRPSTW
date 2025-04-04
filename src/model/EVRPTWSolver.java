@@ -241,7 +241,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Lexicographic", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Lxcgraphic2", args[2]);
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
