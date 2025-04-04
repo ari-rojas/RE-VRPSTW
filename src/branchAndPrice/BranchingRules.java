@@ -93,7 +93,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	@Override
 	public boolean canPerformBranching(List<Route> solution) {
 
-		Map<Integer, Double> timeValues = new LinkedHashMap<>();
+		/* Map<Integer, Double> timeValues = new LinkedHashMap<>();
 		Map<Integer, Double> depValues = new LinkedHashMap<>();
 
 		for (Route route: solution){
@@ -120,12 +120,31 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 				best_lastT = lastT;
 			}
 		}
-
 		if (best_lastT > -1){
 			branchOnInitialChargingTime = false;
 			timestepForBranching = best_lastT;
 			bestTimestepValue = timeValues.get(best_lastT);
 			return true;
+		} */
+
+		//End charging time
+		for (int r = 0; r < solution.size(); r++) {
+			Route route1 = solution.get(r);
+			int t = route1.initialChargingTime+route1.chargingTime-1;
+			double flow = route1.value;
+			for (int r2 = 0; r2 < solution.size(); r2++) {
+				if (r != r2){
+					Route route2 = solution.get(r2);
+					if(route2.initialChargingTime+route2.chargingTime-1==t)
+						flow+=route2.value;
+				}
+			}
+			if(MathProgrammingUtil.isFractional(flow)) {
+				branchOnInitialChargingTime = false;
+				timestepForBranching = t;
+				bestTimestepValue = flow;
+				return true;
+			}
 		}
 
 		//Initial charging time

@@ -320,9 +320,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 			// iterate over each column and add it to the solution if it has a non-zero value
 			for(int i=0; i<routes.length; i++){
-				routes[i].value=values[i];
+				Route clone_route = routes[i].clone();
+				clone_route.value=values[i];
 				if(values[i]>=config.PRECISION){
-					solution.add(routes[i]);
+					solution.add(clone_route);
 				}
 			}
 		} catch (IloException e) { //the MP has been modified and needs to be solved again
@@ -335,9 +336,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 				// iterate over each column and add it to the solution if it has a non-zero value
 				for(int i=0; i<routes.length; i++){
-					routes[i].value=values[i];
+					Route clone_route = routes[i].clone();
+					clone_route.value=values[i];
 					if(values[i]>=config.PRECISION){
-						solution.add(routes[i]);
+						solution.add(clone_route);
 					}
 				}
 			} catch (IloException e1) {
