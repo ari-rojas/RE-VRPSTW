@@ -33,7 +33,6 @@ import branchAndPrice.FixArc;
 import branchAndPrice.NumberVehiclesInequalities;
 import branchAndPrice.RemoveArc;
 
-
 /**
  * Implementation of the Master Problem (MP). 
  * It is handled by CPLEX.
@@ -112,6 +111,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
 					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
+					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size() + " Number of charging time branches: " + masterData.branchingChargingTimes.size());
 					logger.debug("Columns (only non-zero columns are returned):");
 					for(Route route: solution)
 						logger.debug(route.toString());
@@ -321,9 +321,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 			// iterate over each column and add it to the solution if it has a non-zero value
 			for(int i=0; i<routes.length; i++){
-				routes[i].value=values[i];
+				Route clone_route = routes[i].clone();
+				clone_route.value=values[i];
 				if(values[i]>=config.PRECISION){
-					solution.add(routes[i]);
+					solution.add(clone_route);
 				}
 			}
 		} catch (IloException e) { //the MP has been modified and needs to be solved again
@@ -336,9 +337,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 				// iterate over each column and add it to the solution if it has a non-zero value
 				for(int i=0; i<routes.length; i++){
-					routes[i].value=values[i];
+					Route clone_route = routes[i].clone();
+					clone_route.value=values[i];
 					if(values[i]>=config.PRECISION){
-						solution.add(routes[i]);
+						solution.add(clone_route);
 					}
 				}
 			} catch (IloException e1) {
@@ -523,4 +525,132 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			return boundOnObjective;
 		}
 	}
+
+	public VRPMasterData getMasterData(){
+		return masterData;
+	}
+
+	public Master copy(){
+
+		return new Master(this.dataModel, this.pricingProblems.get(0), this.cutHandler);
+	}
+
+	public void addColumnsDepletion(List<Route> cols){
+		
+
+		for (Route column: cols){
+			try {
+
+				// register column with objective
+				IloColumn iloColumn= masterData.cplex.column(obj, column.departureTime-(column.initialChargingTime+column.chargingTime));
+	
+				// register column with partitioning constraint
+				for(int i: column.route.keySet())
+					iloColumn=iloColumn.and(masterData.cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
+	
+				// register column with chargers capacity constraints
+				for (int t = column.initialChargingTime; t <= (column.initialChargingTime+ column.chargingTime-1); t++)
+					iloColumn=iloColumn.and(masterData.cplex.column(chargersCapacityConstraints[t-1], 1));
+	
+				// register (artificial) column with rounded capacity inequality and branching decisions (vehicles)
+				if(column.isArtificialColumn) {
+					iloColumn=iloColumn.and(masterData.cplex.column(roundedCapacityInequality, this.minimumNumberOfVehicles));
+					for (NumberVehiclesInequalities branch: masterData.branchingNumberOfVehicles.keySet()) {
+						IloRange branchConstraint = masterData.branchingNumberOfVehicles.get(branch);
+						if(!branch.lessThanOrEqual) iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint,branch.coefficient));
+					}
+				}
+	
+				if(!column.isArtificialColumn) {
+	
+					// register column with rounded capacity inequality
+					iloColumn=iloColumn.and(masterData.cplex.column(roundedCapacityInequality, 1));
+	
+					// register the column with Subset Row Inequalities Constraints
+					for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
+						// check the number of visits to the customers in the triplet
+						int coeff = getCoefficient(column, subsetRowInequality);
+						if(coeff>0){
+							IloRange subsetRowInequalityConstraint=masterData.subsetRowInequalities.get(subsetRowInequality);
+							iloColumn = iloColumn.and(masterData.cplex.column(subsetRowInequalityConstraint, coeff));
+						}
+					}
+	
+					// register the column with the branching decision (number of vehicles)
+					for (NumberVehiclesInequalities branch: masterData.branchingNumberOfVehicles.keySet()) {
+						IloRange branchConstraint = masterData.branchingNumberOfVehicles.get(branch);
+						iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint,1));
+					}
+	
+					// register the column with branching decision (charging time)
+					for (ChargingTimeInequality branch: masterData.branchingChargingTimes.keySet()) {
+						IloRange branchConstraint = masterData.branchingChargingTimes.get(branch);
+						if(branch.startCharging && column.initialChargingTime==branch.timestep) {
+							iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint, 1));
+						}else if(!branch.startCharging && (column.initialChargingTime+column.chargingTime-1)==branch.timestep) {
+							iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint, 1));
+						}
+					}
+				}
+	
+				// create the variable and store it
+				IloNumVar var= masterData.cplex.numVar(iloColumn, 0, Double.MAX_VALUE, "x_"+masterData.getNrColumns());
+				masterData.cplex.add(var);
+				masterData.addColumn(column, var);
+			} catch (IloException e) {
+				e.printStackTrace();
+			}
+
+		}
+	}
+
+	public double minimizeBatteryDepletion(long timeLimit, List<Route> cols, List<AbstractInequality> src_list, Map<NumberVehiclesInequalities, IloRange> vehic_branches_map, Map<ChargingTimeInequality, IloRange> time_branches_map, double minCost){
+
+		Set<NumberVehiclesInequalities> vehiclesInequalities = vehic_branches_map.keySet(); 	//keep branching decisions
+		Set<ChargingTimeInequality> chargingInequalities = time_branches_map.keySet();
+		
+		cutHandler.setMasterData(masterData);
+		
+		// Add all constraints added throughout the BPC root path
+		for(NumberVehiclesInequalities inequality: vehiclesInequalities) addBranchingOnVehichlesInequality(inequality);
+		for(ChargingTimeInequality inequality: chargingInequalities) addChargingTimeInequality(inequality);
+		for(AbstractInequality src: src_list) addCut((SubsetRowInequality) src);
+
+		// Add all columns
+		this.addColumnsDepletion(cols);
+
+		IloLinearNumExpr expr;
+		double new_cost = 0;
+
+		try {
+
+			expr = masterData.cplex.linearNumExpr();
+			for(Route route: cols){
+				IloNumVar var=masterData.getVar(masterData.pricingProblem, route);
+				expr.addTerm(route.cost, var);
+			}
+			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
+			IloRange cost_constraint = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
+			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
+			
+			this.masterData.optimal = this.solveMasterProblem(timeLimit);
+			new_cost = masterData.cplex.getValue(expr);
+			
+			/* double lhs = masterData.cplex.getValue(cost_constraint.getExpr());
+			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model"+lhs+".lp");
+			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp");
+			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
+			logger.debug("Cost constraint after solving: "+lhs+"<="+cost_constraint.getUB()); */
+	
+
+		} catch (TimeLimitExceededException e) {
+			System.out.println("Time limit exceeded: " + e.getMessage());
+		} catch (IloException e) {
+			System.out.println("CPLEX encountered an error: " + e.getMessage());
+		}
+
+		return Math.round(new_cost);
+		
+	}
+
 }

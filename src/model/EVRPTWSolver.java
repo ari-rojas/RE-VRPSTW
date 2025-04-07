@@ -46,6 +46,8 @@ import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
+import branchAndPrice.LexicographicMasterEvent;
+import branchAndPrice.FinishLexicographicMasterEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingMultigraphPricingProblemSolver;
@@ -239,7 +241,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "RE-VRSPTW", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Lexicographic", args[2]);
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
@@ -361,6 +363,24 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
+		public void startLexicographicMaster(LexicographicMasterEvent lexiEvent){
+			if (dataModel.print_log) {
+
+				logger.debug("================ MASTER - LEXICOGRAPHIC ================");
+
+			}
+		}
+
+		@Override
+		public void finishLexicographicMaster(FinishLexicographicMasterEvent lexiEvent){
+			if (dataModel.print_log) {
+
+				logger.debug("Finished master -> RMP objective: {}, Total cost: {}", new Object[]{lexiEvent.depletion,lexiEvent.cost });
+
+			}
+		}
+
+		@Override
 		public void branchCreated(BranchEvent branchEvent) {
 			if (dataModel.print_log) {
 				logger.debug("================ BRANCHING ================");
@@ -416,8 +436,9 @@ public final class EVRPTWSolver {
 					logger.debug("Solution is optimal: "+bap.isOptimal());
 					logger.debug("Columns (only non-zero columns are returned):");
 					List<Route> solution = bap.getSolution();
-					for (Route column : solution)
+					for (Route column : solution){
 						logger.debug(column.toString());
+					}
 				}
 			} else {
 
