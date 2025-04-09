@@ -92,7 +92,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 	@Override
 	public boolean canPerformBranching(List<Route> solution) {
-
+		
 		//End charging time
 		for (int r = 0; r < solution.size(); r++) {
 			Route route1 = solution.get(r);
