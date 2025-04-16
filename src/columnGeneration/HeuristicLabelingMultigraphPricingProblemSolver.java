@@ -191,7 +191,7 @@ public final class HeuristicLabelingMultigraphPricingProblemSolver extends Abstr
 		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		if (arc.head == 0)	reducedCost += currentLabel.remainingTime/10 - (source-dataModel.V-1);
+		if (arc.head == 0)	reducedCost += (int)(currentLabel.remainingTime/10) - (source-dataModel.V-1);
 		
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		int chargingTime = currentLabel.chargingTime;
