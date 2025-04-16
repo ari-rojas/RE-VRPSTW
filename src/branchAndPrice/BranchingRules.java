@@ -109,7 +109,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			}
 		}
 
-		// CURRENTLY GOING FOR THE HIGHEST
+		// CURRENTLY GOING FOR THE HIGHEST (h)
 		double smallest_depletion = Double.MIN_VALUE;
 		int best_lastT = -1;
 		//Select the final chargin time period with the largest depletion
@@ -194,7 +194,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			BranchInitialChargingTimeUp branchingDecision2=new BranchInitialChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
 			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		} else {
-			//CURRENTLY DIVING TO THE RIGHT (FIXING)
+			//CURRENTLY DIVING TO THE RIGHT (FIXING - R)
 
 			//Branch 1: remove the edge:
 			BranchEndChargingTimeDown branchingDecision1= new BranchEndChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
