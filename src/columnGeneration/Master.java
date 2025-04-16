@@ -644,7 +644,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				IloLinearNumExpr minmax = masterData.cplex.linearNumExpr();
 				minmax.addTerm(1, z); minmax.addTerm(-route.departureTime+route.initialChargingTime+route.chargingTime, var);
 
-				IloRange minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax"+ix);
+				masterData.cplex.addGe(minmax, 0, "minmax"+ix);
 				ix ++;
 			}
 			
