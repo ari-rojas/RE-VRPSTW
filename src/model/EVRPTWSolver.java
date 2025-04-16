@@ -199,8 +199,8 @@ public final class EVRPTWSolver {
 			for(Arc arc: dataModel.graph.getAllEdges(0, i)) {
 				if(added) break;
 				for(Arc arc2: dataModel.graph.getAllEdges(i, dataModel.C+1)) {
-					
 					if (arc.minCostAlternative && arc2.minCostAlternative){
+
 						int cost = arc.cost+arc2.cost;
 						int energy = arc.energy+arc2.energy;
 						if (dataModel.gamma > 1) {
@@ -219,13 +219,13 @@ public final class EVRPTWSolver {
 						int initialChargingTime = latestDeparture-dataModel.f_inverse[energy];
 
 						//Add the route
-						Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initialChargingTime, dataModel.f_inverse[energy]);
+						Route column = new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initialChargingTime, dataModel.f_inverse[energy]);
 						column.BBnode=0;
 						initSolution.add(column);
 						added = true;
 						break;
+					
 					}
-
 				}
 			}
 		}
