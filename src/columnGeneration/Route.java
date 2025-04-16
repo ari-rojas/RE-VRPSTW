@@ -67,9 +67,9 @@ public final class Route extends AbstractColumn<EVRPTW, PricingProblem> {
 	@Override
 	public String toString() {
 		if (this.value>0)
-			return "Value: "+ Math.floor(10000*this.value)/10000+" Cost: "+this.cost +" Energy: " + this.energy + " Route: "+ Arrays.toString(this.routeSequence)+" charging time: [" + this.initialChargingTime + "," + (this.initialChargingTime+ this.chargingTime-1)+"]"+ " Departure: "  + this.departureTime +  " Arcs:" + arcs.toString();
+			return "Value: "+ Math.floor(10000*this.value)/10000+" Cost: "+this.cost + " Waiting time: " + (this.departureTime-this.initialChargingTime-this.chargingTime) +" Energy: " + this.energy + " Route: "+ Arrays.toString(this.routeSequence)+" charging time: [" + this.initialChargingTime + "," + (this.initialChargingTime+ this.chargingTime-1)+"]"+ " Departure: "  + this.departureTime +  " Arcs:" + arcs.toString();
 		else 
-			return "Reduced Cost: "+ Math.floor(10000*this.reducedCost)/10000+" Cost: "+this.cost +" Energy: " + this.energy +" Route: "+ Arrays.toString(this.routeSequence)+ " charging time: [" + this.initialChargingTime + "," + (this.initialChargingTime+ this.chargingTime-1)+"]"+ " Departure: "  + this.departureTime + " Arcs:" + arcs.toString();
+			return "Reduced Cost: "+ Math.floor(10000*this.reducedCost)/10000+" Cost: "+this.cost  + " Waiting time: " + (this.departureTime-this.initialChargingTime-this.chargingTime) +" Energy: " + this.energy +" Route: "+ Arrays.toString(this.routeSequence)+ " charging time: [" + this.initialChargingTime + "," + (this.initialChargingTime+ this.chargingTime-1)+"]"+ " Departure: "  + this.departureTime + " Arcs:" + arcs.toString();
 	}
 
 	/** Clones the route. */

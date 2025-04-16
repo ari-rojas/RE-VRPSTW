@@ -111,11 +111,17 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				List<Route> solution=getSolution();
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
+					int total_cost = 0; int total_waiting = 0; List<String> routes_strings = new ArrayList<>();
+					for(Route route: solution){
+						total_cost += route.cost;
+						total_waiting += route.departureTime - (route.initialChargingTime+route.chargingTime);
+						routes_strings.add(route.toString());
+					}
+					logger.debug("Total Cost: "+total_cost + " Total Waiting Time: "+total_waiting);
 					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
 					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size() + " Number of charging time branches: " + masterData.branchingChargingTimes.size());
 					logger.debug("Columns (only non-zero columns are returned):");
-					for(Route route: solution)
-						logger.debug(route.toString());
+					for(String route: routes_strings) logger.debug(route);
 					
 					/* logger.debug("Printing dual variables");
 					logger.debug("Capacity constraint: " + String.valueOf(masterData.cplex.getDual(roundedCapacityInequality)));
@@ -207,7 +213,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		try {
 
 			// register column with objective
-			IloColumn iloColumn= masterData.cplex.column(obj,column.cost);
+			int waiting_time = column.departureTime - (column.initialChargingTime + column.chargingTime);
+			IloColumn iloColumn= masterData.cplex.column(obj,column.cost + waiting_time);
 
 			// register column with partitioning constraint
 			for(int i: column.route.keySet())

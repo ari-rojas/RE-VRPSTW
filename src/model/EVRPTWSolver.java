@@ -241,7 +241,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "RE-VRSPTW-O", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "MinWaiting", args[2]);
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
@@ -428,6 +428,16 @@ public final class EVRPTWSolver {
 			if (dataModel.print_log) {
 				logger.debug("================ SOLUTION BPC - " + instanceName +" ================");
 				logger.debug("BAP terminated with objective: "+getScaledObjective(bap.getObjective()));
+				int total_cost = 0; int total_waiting = 0; List<String> routes_strings = new ArrayList<>();
+				if(bap.hasSolution()){
+					List<Route> solution = bap.getSolution();
+					for (Route column : solution){
+						total_cost += column.cost;
+						total_waiting += column.departureTime - (column.initialChargingTime+column.chargingTime);
+						routes_strings.add(column.toString());
+					}
+				}
+				logger.debug("Total Cost: " + total_cost + " Total Waiting Time: " + total_waiting);
 				logger.debug("Total Number of iterations: "+bap.getTotalNrIterations());
 				logger.debug("Total Number of processed nodes: "+bap.getNumberOfProcessedNodes());
 				logger.debug("Total Time spent on master problems (s): "+getTimeInSeconds(bap.getMasterSolveTime())+" Total time spent on pricing problems (s): "+getTimeInSeconds(bap.getPricingSolveTime()));
@@ -435,10 +445,7 @@ public final class EVRPTWSolver {
 				if(bap.hasSolution()) {
 					logger.debug("Solution is optimal: "+bap.isOptimal());
 					logger.debug("Columns (only non-zero columns are returned):");
-					List<Route> solution = bap.getSolution();
-					for (Route column : solution){
-						logger.debug(column.toString());
-					}
+					for (String route : routes_strings){ logger.debug(route); }
 				}
 			} else {
 
