@@ -92,25 +92,39 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 	@Override
 	public boolean canPerformBranching(List<Route> solution) {
-		
-		//End charging time
-		for (int r = 0; r < solution.size(); r++) {
-			Route route1 = solution.get(r);
-			int t = route1.initialChargingTime+route1.chargingTime-1;
-			double flow = route1.value;
-			for (int r2 = 0; r2 < solution.size(); r2++) {
-				if (r != r2){
-					Route route2 = solution.get(r2);
-					if(route2.initialChargingTime+route2.chargingTime-1==t)
-						flow+=route2.value;
-				}
+
+		Map<Integer, Double> timeValues = new LinkedHashMap<>();
+		Map<Integer, Double> depValues = new LinkedHashMap<>();
+
+		for (Route route: solution){
+			int lastT = route.initialChargingTime + route.chargingTime-1;
+
+			Double timeVal = timeValues.get(lastT);
+			if(timeVal == null){
+				depValues.put(lastT, (route.departureTime-lastT)*route.value);
+				timeValues.put(lastT, route.value);
+			} else {
+				depValues.put(lastT, (depValues.get(lastT)*timeVal+(route.departureTime-lastT)*route.value)/(route.value+timeVal));
+				timeValues.put(lastT, route.value+timeVal);
 			}
-			if(MathProgrammingUtil.isFractional(flow)) {
-				branchOnInitialChargingTime = false;
-				timestepForBranching = t;
-				bestTimestepValue = flow;
-				return true;
+		}
+
+		double smallest_depletion = Double.MAX_VALUE;
+		int best_lastT = -1;
+		//Select the final chargin time period with the largest depletion
+		for(int lastT : timeValues.keySet()){
+			double timeVal = timeValues.get(lastT);
+			double depVal = depValues.get(lastT);
+			if(MathProgrammingUtil.isFractional(timeVal) && depVal < smallest_depletion){
+				smallest_depletion = depVal;
+				best_lastT = lastT;
 			}
+		}
+		if (best_lastT > -1){
+			branchOnInitialChargingTime = false;
+			timestepForBranching = best_lastT;
+			bestTimestepValue = timeValues.get(best_lastT);
+			return true;
 		}
 
 		//Initial charging time
@@ -181,10 +195,10 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		} else {
 			//Branch 1: remove the edge:
 			BranchEndChargingTimeDown branchingDecision1= new BranchEndChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node1=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: fix the edge:
 			BranchEndChargingTimeUp branchingDecision2=new BranchEndChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node2=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		}
 		
 		return Arrays.asList(node1,node2);
