@@ -110,14 +110,14 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		}
 
 		// CURRENTLY GOING FOR THE HIGHEST (h)
-		double smallest_depletion = Double.MIN_VALUE;
+		double depletion = Double.MIN_VALUE;
 		int best_lastT = -1;
 		//Select the final chargin time period with the largest depletion
 		for(int lastT : timeValues.keySet()){
 			double timeVal = timeValues.get(lastT);
 			double depVal = depValues.get(lastT);
-			if(MathProgrammingUtil.isFractional(timeVal) && depVal > smallest_depletion){
-				smallest_depletion = depVal;
+			if(MathProgrammingUtil.isFractional(timeVal) && depVal > depletion){
+				depletion = depVal;
 				best_lastT = lastT;
 			}
 		}
