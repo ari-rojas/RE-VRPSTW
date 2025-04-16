@@ -640,27 +640,33 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 			// MIN-MAX Model
 			IloColumn z = masterData.cplex.column(obj, 1);
+			IloRange minmax_constraint;
 			int ix = 0;
 			for(Route route: cols){
 				IloNumVar var = masterData.getVar(masterData.pricingProblem, route);
 
 				IloLinearNumExpr minmax = masterData.cplex.linearNumExpr();
-				minmax.addTerm(-route.departureTime+route.initialChargingTime+route.chargingTime, var);
+				int waiting = -route.departureTime+route.initialChargingTime+route.chargingTime;
+				if (waiting < 0){
+					minmax.addTerm(waiting, var);
 
-				IloRange minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax"+ix);
-				z.and(masterData.cplex.column(minmax_constraint, 1));
-
-				ix ++;
+					minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax_"+ix);
+					z = z.and(masterData.cplex.column(minmax_constraint, 1));
+					ix ++;
+				}
 			}
+			IloNumVar z_var = masterData.cplex.numVar(z, 0, Double.MAX_VALUE, "z");
+			masterData.cplex.add(z_var);
 			
+			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
 			
 			/* double lhs = masterData.cplex.getValue(cost_constraint.getExpr());
-			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model"+lhs+".lp");
 			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp");
 			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
 			logger.debug("Cost constraint after solving: "+lhs+"<="+cost_constraint.getUB()); */
+			
 	
 
 		} catch (TimeLimitExceededException e) {
