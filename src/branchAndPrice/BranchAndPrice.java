@@ -304,8 +304,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							newBranches.addAll(bc.getFirstBranches(bapNode));
 						} else {
 							
-							List<Route> old_solution = bapNode.getSolution();
-							double new_cost = this.performLexicographicStep(bapNode, timeLimit);
+							//List<Route> old_solution = bapNode.getSolution();
+							//double new_cost = this.performLexicographicStep(bapNode, timeLimit);
 
 							if (this.isIntegerNode(bapNode)){
 								this.processIntegerNode(bapNode);
