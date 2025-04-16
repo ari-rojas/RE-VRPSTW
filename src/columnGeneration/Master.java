@@ -1,11 +1,13 @@
 package columnGeneration;
 
 import ilog.concert.IloColumn;
+import ilog.concert.IloConstraint;
 import ilog.concert.IloException;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.concert.IloNumVarType;
 import ilog.concert.IloObjective;
+import ilog.concert.IloObjectiveSense;
 import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
@@ -636,15 +638,18 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			IloRange cost_constraint = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
 
-			IloNumVar z = masterData.cplex.numVar(0.0, Double.MAX_VALUE, IloNumVarType.Float, "z");
+			// MIN-MAX Model
+			IloColumn z = masterData.cplex.column(obj, 1);
 			int ix = 0;
 			for(Route route: cols){
 				IloNumVar var = masterData.getVar(masterData.pricingProblem, route);
 
 				IloLinearNumExpr minmax = masterData.cplex.linearNumExpr();
-				minmax.addTerm(1, z); minmax.addTerm(-route.departureTime+route.initialChargingTime+route.chargingTime, var);
+				minmax.addTerm(-route.departureTime+route.initialChargingTime+route.chargingTime, var);
 
-				masterData.cplex.addGe(minmax, 0, "minmax"+ix);
+				IloRange minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax"+ix);
+				z.and(masterData.cplex.column(minmax_constraint, 1));
+
 				ix ++;
 			}
 			
