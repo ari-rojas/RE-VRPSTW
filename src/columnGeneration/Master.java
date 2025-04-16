@@ -4,6 +4,7 @@ import ilog.concert.IloColumn;
 import ilog.concert.IloException;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
+import ilog.concert.IloNumVarType;
 import ilog.concert.IloObjective;
 import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
@@ -543,7 +544,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			try {
 
 				// register column with objective
-				IloColumn iloColumn= masterData.cplex.column(obj, column.departureTime-(column.initialChargingTime+column.chargingTime));
+				IloColumn iloColumn= masterData.cplex.column(obj, 0);
 	
 				// register column with partitioning constraint
 				for(int i: column.route.keySet())
@@ -630,9 +631,22 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				IloNumVar var=masterData.getVar(masterData.pricingProblem, route);
 				expr.addTerm(route.cost, var);
 			}
+
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
 			IloRange cost_constraint = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
+
+			IloNumVar z = masterData.cplex.numVar(0.0, Double.MAX_VALUE, IloNumVarType.Float, "z");
+			int ix = 0;
+			for(Route route: cols){
+				IloNumVar var = masterData.getVar(masterData.pricingProblem, route);
+
+				IloLinearNumExpr minmax = masterData.cplex.linearNumExpr();
+				minmax.addTerm(1, z); minmax.addTerm(-route.departureTime+route.initialChargingTime+route.chargingTime, var);
+
+				IloRange minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax"+ix);
+				ix ++;
+			}
 			
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
