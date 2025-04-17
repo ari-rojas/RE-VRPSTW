@@ -111,10 +111,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				List<Route> solution=getSolution();
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
-					int total_cost = 0; int total_waiting = 0; List<String> routes_strings = new ArrayList<>();
+					double total_cost = 0; double total_waiting = 0; List<String> routes_strings = new ArrayList<>();
 					for(Route route: solution){
-						total_cost += route.cost;
-						total_waiting += route.departureTime - (route.initialChargingTime+route.chargingTime);
+						total_cost += route.cost*route.value;
+						total_waiting += (route.departureTime - (route.initialChargingTime+route.chargingTime))*route.value;
 						routes_strings.add(route.toString());
 					}
 					logger.debug("Total Cost: "+total_cost + " Total Waiting Time: "+total_waiting);
@@ -213,8 +213,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		try {
 
 			// register column with objective
-			int waiting_time = column.departureTime - (column.initialChargingTime + column.chargingTime);
-			IloColumn iloColumn= masterData.cplex.column(obj,column.cost + waiting_time);
+			int waiting_time = 10*(column.departureTime - (column.initialChargingTime + column.chargingTime));
+			IloColumn iloColumn= masterData.cplex.column(obj, column.cost + waiting_time/dataModel.waiting_factor);
 
 			// register column with partitioning constraint
 			for(int i: column.route.keySet())

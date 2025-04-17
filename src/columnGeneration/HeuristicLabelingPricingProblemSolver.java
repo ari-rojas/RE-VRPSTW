@@ -312,7 +312,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		for (int a = 0; a < dataModel.numArcs; a++) {
 			Arc arc = dataModel.arcs[a];
 			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
-				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];
+				arc.modifiedCost = arc.cost - pricingProblem.dualCosts[arc.tail-1];
 			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
 			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
 			else arc.modifiedCost = 0;

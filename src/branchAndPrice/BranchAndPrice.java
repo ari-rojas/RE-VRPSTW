@@ -252,7 +252,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.runtime = System.currentTimeMillis();
 		BAPNode<EVRPTW, Route> rootNode = (BAPNode<EVRPTW, Route>)this.queue.peek();
 		if (rootNode.getInitialColumns().isEmpty()) {
-		   rootNode.addInitialColumns(this.generateInitialFeasibleSolution(rootNode));
+			logger.debug("Root node is empty, adding Initial Columns");
+			rootNode.addInitialColumns(this.generateInitialFeasibleSolution(rootNode));
 		}
   
 		while(!this.queue.isEmpty()) {

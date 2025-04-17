@@ -188,8 +188,8 @@ public final class EVRPTWSolver {
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
 		int[] routeSequence = new int[dataModel.C];
 		for(int i=0; i< dataModel.C; i++) {route.put(i+1, 1); routeSequence[i] = i+1;}
-		upperBound = Math.pow(10, 20);
-		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
+		upperBound = Math.pow(10, 18);
+		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 18), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
 
 		//Dummy routes (possibly feasible)
 		for(int i=1; i<=dataModel.C; i++){ //a route for each customer
