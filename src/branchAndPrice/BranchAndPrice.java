@@ -39,6 +39,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public static final double PRECISION=0.001; 	//precision considered for the fractional solutions (nodes)
 	private final ExtendBAPNotifier extendedNotifier;
 
+	protected double objectiveIncumbentSolution;
+
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
@@ -167,7 +169,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		//Set time limit
 		cplex.setParam(IloCplex.DoubleParam.TiLim, 10.0); //set time limit in seconds (in this case 10 seconds)
 		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal && cplex.getCplexTime()<10){
-			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
+			objectiveIncumbentSolution = cplex.getObjValue();
 			upperBoundOnObjective = objectiveIncumbentSolution;
 			//retrieve solution
 			List<Route> optimalSolution = new ArrayList<Route>();
@@ -217,10 +219,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 	protected void processIntegerNode(BAPNode<EVRPTW, Route> bapNode){
 
-		int integerObjective = MathProgrammingUtil.doubleToInt(bapNode.getObjective());
-		this.notifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), integerObjective);
-		this.objectiveIncumbentSolution = integerObjective;
-		this.upperBoundOnObjective = (double)integerObjective;
+		double doubleObjective = bapNode.getObjective();
+		this.extendedNotifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), doubleObjective);
+		this.objectiveIncumbentSolution = doubleObjective;
+		this.upperBoundOnObjective = doubleObjective;
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
@@ -329,9 +331,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		if (this.queue.isEmpty()) { // If all the BAP tree was explored, the incumbent solution is optimal
 			this.isOptimal = true;
 			if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE) {
-				this.lowerBoundOnObjective = (double)this.objectiveIncumbentSolution;
+				this.lowerBoundOnObjective = this.objectiveIncumbentSolution;
 			} else {
-				this.upperBoundOnObjective = (double)this.objectiveIncumbentSolution;
+				this.upperBoundOnObjective = this.objectiveIncumbentSolution;
 			}
 		} else { // Else, cannot declare optimality
 			this.isOptimal = false;

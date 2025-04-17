@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsIntegerEvent;
 
 public class ExtendBAPNotifier{
 
@@ -74,6 +76,18 @@ public class ExtendBAPNotifier{
         if (lexiMasterEvent == null) {
           lexiMasterEvent = new FinishLexicographicMasterEvent(this.parent, node, obj, cost);
         }
+      }
+    }
+
+    public void fireNodeIsIntegerEvent(BAPNode node, double bound, double objective) {
+      CustomNodeIsIntegerEvent nodeIsIntegerEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var6 = this.customListeners.iterator(); var6.hasNext(); listener.customNodeIsInteger(nodeIsIntegerEvent)) {
+         listener = (ExtendBAPListener)var6.next();
+         if (nodeIsIntegerEvent == null) {
+            nodeIsIntegerEvent = new CustomNodeIsIntegerEvent(this.parent, node, bound, objective);
+         }
       }
     }
 

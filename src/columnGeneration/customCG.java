@@ -18,13 +18,15 @@ import model.EVRPTW;
 public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
-	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+	public double incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+	protected double cutoffValue;
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective) {
-		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
+			List<Route> initSolution, double cutoffValue, double boundOnMasterObjective) {
+		super(dataModel, master, pricingProblem, solvers, initSolution, (int)cutoffValue, boundOnMasterObjective);
+		this.cutoffValue = cutoffValue;
 		// TODO Auto-generated constructor stub
 	}
 
@@ -32,17 +34,18 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective) {
-		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue,
-				boundOnMasterObjective);
+			double cutoffValue, double boundOnMasterObjective) {
+		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, (int)cutoffValue, boundOnMasterObjective);
+		this.cutoffValue = cutoffValue;
 		// TODO Auto-generated constructor stub
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6) {
-		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+			double arg5, double arg6) {
+		super(arg0, arg1, arg2, arg3, arg4, (int)arg5, arg6);
+		this.cutoffValue = arg5;
 		// TODO Auto-generated constructor stub
 	}
 
@@ -153,9 +156,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			if(route.value>0+config.PRECISION && route.value<1-config.PRECISION) {isInteger = false; break;}
 
 		//Update incumbent solution
-		if(isInteger && this.cutoffValue>master.getObjective()) {
+		if(isInteger && this.cutoffValue>master.getObjective()+config.PRECISION) {
 			this.incumbentSolution = new ArrayList<>();
-			this.cutoffValue = (int) (master.getObjective()+0.5);
+			this.cutoffValue = master.getObjective();
 			this.incumbentSolutionObjective = this.cutoffValue;
 			for(Route route: master.getSolution()) {
 				Route newRoute = route.clone();

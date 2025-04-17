@@ -45,6 +45,7 @@ import branchAndPrice.BranchAndPrice;
 import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
+import branchAndPrice.CustomNodeIsIntegerEvent;
 import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
@@ -275,6 +276,8 @@ public final class EVRPTWSolver {
 	/** Defines a personalized debbuger (for the log files). */
 	public class PersonalizedDebbuger extends SimpleDebugger implements ExtendBAPListener{
 
+		protected double bestIntegerSolution;
+
 		public PersonalizedDebbuger(AbstractBranchAndPrice bap, CutHandler cutHandler, boolean captureColumnGenerationEventsBAP) {
 			super(bap, cutHandler, true);
 		}
@@ -415,6 +418,12 @@ public final class EVRPTWSolver {
 		public void nodeIsInteger(NodeIsIntegerEvent nodeIsIntegerEvent) {
 			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
 			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
+		}
+
+		@Override
+		public void customNodeIsInteger(CustomNodeIsIntegerEvent nodeIsIntegerEvent) {
+			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.objective);
+			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.objective, this.bestIntegerSolution});
 		}
 
 		@Override
