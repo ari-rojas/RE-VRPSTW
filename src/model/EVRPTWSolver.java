@@ -46,6 +46,9 @@ import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.CustomNodeIsIntegerEvent;
+import branchAndPrice.CustomProcessNextNodeEvent;
+import branchAndPrice.CustomPruneNodeEvent;
+import branchAndPrice.CustomStartBAPEvent;
 import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
@@ -261,8 +264,8 @@ public final class EVRPTWSolver {
 	/** Returns the real (double) objective (divided by 10). */
 	public double getScaledObjective(double objective) {
 		double realCost = objective;
-		realCost = realCost*0.1+0.05;
-		return Math.floor(realCost*10)/10;
+		realCost = realCost*0.1;
+		return realCost;
 	}
 
 	/** Returns the time in seconds (and considering two decimals). */
@@ -283,7 +286,7 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
-		public void startBAP(StartEvent startEvent) {
+		public void customStartBAP(CustomStartBAPEvent startEvent) {
 			this.instanceName = startEvent.instanceName;
 			this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
 			if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
@@ -395,7 +398,7 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
-		public void processNextNode(ProcessingNextNodeEvent processingNextNodeEvent) {
+		public void customProcessNextNode(CustomProcessNextNodeEvent processingNextNodeEvent){
 			if (dataModel.print_log) {
 				logger.debug("================ PROCESSING NODE {} ================", processingNextNodeEvent.node.nodeID);
 				logger.debug("Nodes remaining in queue: {} - Node bound: {} - Incumbent solution: {}",new Object[]{processingNextNodeEvent.nodesInQueue, processingNextNodeEvent.node.getBound(), processingNextNodeEvent.objectiveIncumbentSolution});
@@ -403,7 +406,7 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
-		public void pruneNode(PruneNodeEvent pruneNodeEvent) {
+		public void customPruneNode(CustomPruneNodeEvent pruneNodeEvent) {
 			if (dataModel.print_log) {
 				logger.debug("Pruning node {}. Bound: {}, best integer solution: {}", new Object[]{pruneNodeEvent.node.nodeID, pruneNodeEvent.nodeBound, pruneNodeEvent.bestIntegerSolution});
 			}
@@ -412,12 +415,6 @@ public final class EVRPTWSolver {
 		@Override
 		public void nodeIsInfeasible(NodeIsInfeasibleEvent nodeIsInfeasibleEvent) {
 			if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
-		}
-
-		@Override
-		public void nodeIsInteger(NodeIsIntegerEvent nodeIsIntegerEvent) {
-			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
-			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
 		}
 
 		@Override
@@ -436,7 +433,7 @@ public final class EVRPTWSolver {
 
 			if (dataModel.print_log) {
 				logger.debug("================ SOLUTION BPC - " + instanceName +" ================");
-				logger.debug("BAP terminated with objective: "+getScaledObjective(bap.getObjective()));
+				logger.debug("BAP terminated with objective: "+getScaledObjective(((BranchAndPrice)bap).getDoubleObjective()));
 				int total_cost = 0; int total_waiting = 0; List<String> routes_strings = new ArrayList<>();
 				if(bap.hasSolution()){
 					List<Route> solution = bap.getSolution();

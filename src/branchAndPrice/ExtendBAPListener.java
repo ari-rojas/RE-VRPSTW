@@ -14,4 +14,10 @@ public interface ExtendBAPListener extends EventListener {
 
     void customNodeIsInteger(CustomNodeIsIntegerEvent var1);
 
+    void customProcessNextNode(CustomProcessNextNodeEvent var1);
+
+    void customStartBAP(CustomStartBAPEvent var1);
+
+    void customPruneNode(CustomPruneNodeEvent var1);
+
 }

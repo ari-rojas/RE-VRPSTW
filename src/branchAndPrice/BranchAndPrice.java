@@ -44,11 +44,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
-			int objectiveInitialSolution,
+			double objectiveInitialSolution,
 			List<Route> initialSolution){
 		
 		super(modelData, master, pricingProblem, solvers, branchCreators, 0, objectiveInitialSolution);
-		this.warmStart(objectiveInitialSolution, initialSolution);
+		this.customWarmStart(objectiveInitialSolution, initialSolution);
 		this.pricingProblem = pricingProblem;
 
 		this.extendedNotifier = new ExtendBAPNotifier(this);
@@ -250,7 +250,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	 */
 	@Override
 	public void runBranchAndPrice(long timeLimit) {
-		this.notifier.fireStartBAPEvent();
+		this.extendedNotifier.fireStartBAPEvent(this.dataModel.instanceName, this.objectiveIncumbentSolution);
 		this.runtime = System.currentTimeMillis();
 		BAPNode<EVRPTW, Route> rootNode = (BAPNode<EVRPTW, Route>)this.queue.peek();
 		if (rootNode.getInitialColumns().isEmpty()) {
@@ -260,9 +260,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
   
 		while(!this.queue.isEmpty()) {
 			BAPNode<EVRPTW, Route> bapNode = (BAPNode<EVRPTW, Route>)this.queue.poll();
-			this.notifier.fireNextNodeEvent(bapNode);
+			this.extendedNotifier.fireNextNodeEvent(bapNode, this.queue.size(), this.objectiveIncumbentSolution);
 			if (this.nodeCanBePruned(bapNode)) { // If can be pruned by bound BEFORE solving it
-				this.notifier.firePruneNodeEvent(bapNode, bapNode.getBound());
+				this.extendedNotifier.firePruneNodeEvent(bapNode, bapNode.getBound(), this.objectiveIncumbentSolution);
 				++this.nodesProcessed;
 			} else {
 				this.graphManipulator.next(bapNode);
@@ -284,7 +284,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				}
 	
 				if (this.nodeCanBePruned(bapNode)) { // If can be pruned by bound AFTER solving the node
-					this.notifier.firePruneNodeEvent(bapNode, bapNode.getBound());
+					this.extendedNotifier.firePruneNodeEvent(bapNode, bapNode.getBound(), this.objectiveIncumbentSolution);
 					++this.nodesProcessed;
 				} else if (this.isInfeasibleNode(bapNode)) { // If can be pruned by infeasibility DUE TO artificial columns in the solution
 					this.notifier.fireNodeIsInfeasibleEvent(bapNode);
@@ -358,6 +358,22 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.runtime = System.currentTimeMillis() - this.runtime;
 	}
 
+	public double getDoubleObjective(){
+		return this.objectiveIncumbentSolution;
+	}
+
+	public void customWarmStart(double objectiveInitialSolution, List<Route> initialSolution) {
+		this.rootNode = (BAPNode)this.queue.peek();
+		if (this.rootNode.nodeID != 0) {
+		   throw new RuntimeException("This method can only be invoked at the start of the Branch-and-Price procedure, before runBranchAndPrice is invoked");
+		} else {
+		   this.rootNode.addInitialColumns(initialSolution);
+		   this.objectiveIncumbentSolution = objectiveInitialSolution;
+		   this.incumbentSolution = new ArrayList<>(initialSolution);
+		   this.upperBoundOnObjective = objectiveInitialSolution;
+		}
+	}
+
 	/**
 	 * Test whether the given node can be pruned based on this bounds
 	 * @param node node
@@ -366,6 +382,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	@Override
 	protected boolean nodeCanBePruned(BAPNode<EVRPTW,Route> node){
 		//		System.out.println(Math.ceil(node.getBound()-config.PRECISION) + " >= " + this.objectiveIncumbentSolution);
+		logger.debug("Node "+node.nodeID+" bound: "+node.getBound());
+		logger.debug("Objective Incumbent Solution: "+this.objectiveIncumbentSolution);
 		return Math.ceil(node.getBound()) >= (this.objectiveIncumbentSolution-config.PRECISION);
 	}
 

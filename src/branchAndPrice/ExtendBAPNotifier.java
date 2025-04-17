@@ -8,6 +8,8 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPr
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsIntegerEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.ProcessingNextNodeEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.PruneNodeEvent;
 
 public class ExtendBAPNotifier{
 
@@ -87,6 +89,42 @@ public class ExtendBAPNotifier{
          listener = (ExtendBAPListener)var6.next();
          if (nodeIsIntegerEvent == null) {
             nodeIsIntegerEvent = new CustomNodeIsIntegerEvent(this.parent, node, bound, objective);
+         }
+      }
+    }
+
+    public void fireNextNodeEvent(BAPNode node, int queue_size, double incumbent){
+      CustomProcessNextNodeEvent processingNextNodeEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.customProcessNextNode(processingNextNodeEvent)) {
+         listener = (ExtendBAPListener)var3.next();
+         if (processingNextNodeEvent == null) {
+            processingNextNodeEvent = new CustomProcessNextNodeEvent(this.parent, node, queue_size, incumbent);
+         }
+      }
+    }
+
+    public void fireStartBAPEvent(String instance, double incumbent){
+      CustomStartBAPEvent startEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var2 = this.customListeners.iterator(); var2.hasNext(); listener.customStartBAP(startEvent)) {
+         listener = (ExtendBAPListener)var2.next();
+         if (startEvent == null) {
+            startEvent = new CustomStartBAPEvent(this.parent, instance, incumbent);
+         }
+      }
+    }
+
+    public void firePruneNodeEvent(BAPNode node, double nodeBound, double incumbent){
+      CustomPruneNodeEvent pruneNodeEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var5 = this.customListeners.iterator(); var5.hasNext(); listener.customPruneNode(pruneNodeEvent)) {
+         listener = (ExtendBAPListener)var5.next();
+         if (pruneNodeEvent == null) {
+            pruneNodeEvent = new CustomPruneNodeEvent(this.parent, node, nodeBound, incumbent);
          }
       }
     }
