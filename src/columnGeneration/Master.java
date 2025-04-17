@@ -213,8 +213,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		try {
 
 			// register column with objective
-			int waiting_time = 10*(column.departureTime - (column.initialChargingTime + column.chargingTime));
-			IloColumn iloColumn= masterData.cplex.column(obj, column.cost + waiting_time/dataModel.waiting_factor);
+			double waiting_time = (column.departureTime - (column.initialChargingTime + column.chargingTime))*10/dataModel.waiting_factor;
+			IloColumn iloColumn= masterData.cplex.column(obj, column.cost + waiting_time);
 
 			// register column with partitioning constraint
 			for(int i: column.route.keySet())
