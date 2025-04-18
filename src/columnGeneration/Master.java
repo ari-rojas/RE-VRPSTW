@@ -702,7 +702,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			IloNumVar z_var = masterData.cplex.numVar(z, 0, Double.MAX_VALUE, "z");
 			masterData.cplex.add(z_var);
 			
-			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
+			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
@@ -736,14 +736,14 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			
 		}
 
-		for(int last_t: columns_to_add.keySet()){
+		/* for(int last_t: columns_to_add.keySet()){
 			if (columns_to_add.get(last_t).size() > 5){
 				logger.debug("Time period "+ last_t +" with "+ columns_to_add.get(last_t).size()+" columns");
 				for(Route column: columns_to_add.get(last_t)){
 					logger.debug(column.toString());
 				}
 			}
-		}
+		} */
 
 		return columns_to_add;
 	}
