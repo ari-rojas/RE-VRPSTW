@@ -681,8 +681,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
 			costLexicoInequality = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
-
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
+
+			
 
 			// MIN-MAX Model
 			IloColumn z = masterData.cplex.column(obj, 1);
