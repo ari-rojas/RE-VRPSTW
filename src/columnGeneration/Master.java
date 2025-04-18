@@ -701,7 +701,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				ix += 1;
 			}
 			
-			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
+			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
