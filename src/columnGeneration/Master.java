@@ -13,6 +13,7 @@ import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
 
+import java.util.Collections;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -682,31 +683,26 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
 			costLexicoInequality = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
-
 			
-
-			// MIN-MAX Model
+			//Group columns by EndChargingTime
+			Map<Integer, List<Route>> sorted_columns = sort_columns_by_end_charging_time(cols);
+			
 			IloColumn z = masterData.cplex.column(obj, 1);
-			IloRange minmax_constraint;
-			int ix = 0;
-			for(Route route: cols){
-				IloNumVar var = masterData.getVar(masterData.pricingProblem, route);
-
-				IloLinearNumExpr minmax = masterData.cplex.linearNumExpr();
-				int waiting = -route.departureTime+route.initialChargingTime+route.chargingTime;
-				if (waiting < 0){
+			for (int last_t: sorted_columns.keySet()){
+				IloRange minmax_constraint; IloLinearNumExpr minmax = masterData.cplex.linearNumExpr();
+				for (Route column: sorted_columns.get(last_t)){
+					IloNumVar var = masterData.getVar(masterData.pricingProblem, column);
+					int waiting = -column.departureTime+last_t;
 					minmax.addTerm(waiting, var);
-
-					minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax_"+ix);
-					z = z.and(masterData.cplex.column(minmax_constraint, 1));
-					minMaxInequalities.add(minmax_constraint);
-					ix ++;
 				}
+				minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax_"+last_t);
+				z = z.and(masterData.cplex.column(minmax_constraint, 1));
+				minMaxInequalities.add(minmax_constraint);
 			}
 			IloNumVar z_var = masterData.cplex.numVar(z, 0, Double.MAX_VALUE, "z");
 			masterData.cplex.add(z_var);
 			
-			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
+			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
@@ -726,6 +722,30 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 		return Math.round(new_cost);
 		
+	}
+
+	private Map<Integer, List<Route>> sort_columns_by_end_charging_time(List<Route> cols){
+
+		Map<Integer, List<Route>> columns_to_add = new LinkedHashMap<>();
+		for (Route column: cols){
+			
+			int last_t = column.initialChargingTime + column.chargingTime - 1;
+			List<Route> cols_subset = columns_to_add.get(last_t);
+			if (cols_subset == null) columns_to_add.put(last_t, new ArrayList<>(Collections.singletonList(column)));
+			else cols_subset.add(column);
+			
+		}
+
+		for(int last_t: columns_to_add.keySet()){
+			if (columns_to_add.get(last_t).size() > 5){
+				logger.debug("Time period "+ last_t +" with "+ columns_to_add.get(last_t).size()+" columns");
+				for(Route column: columns_to_add.get(last_t)){
+					logger.debug(column.toString());
+				}
+			}
+		}
+
+		return columns_to_add;
 	}
 
 }
