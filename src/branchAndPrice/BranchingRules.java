@@ -109,14 +109,14 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			}
 		}
 
-		// CURRENTLY GOING FOR THE HIGHEST (h)
-		double depletion = Double.MIN_VALUE;
+		// CURRENTLY GOING FOR THE LOWEST (l)
+		double depletion = Double.MAX_VALUE;
 		int best_lastT = -1;
 		//Select the final chargin time period with the largest depletion
 		for(int lastT : timeValues.keySet()){
 			double timeVal = timeValues.get(lastT);
 			double depVal = depValues.get(lastT);
-			if(MathProgrammingUtil.isFractional(timeVal) && depVal > depletion){
+			if(MathProgrammingUtil.isFractional(timeVal) && depVal < depletion){
 				depletion = depVal;
 				best_lastT = lastT;
 			}
@@ -187,7 +187,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		BAPNode<EVRPTW,Route> node1; 		//other child node
 		
 		if(branchOnInitialChargingTime) {
-			// DIVING LEFT
+			// DIVING to the LEFT
 			//Branch 1: remove the edge:
 			BranchInitialChargingTimeDown branchingDecision1= new BranchInitialChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
 			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
@@ -195,14 +195,14 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			BranchInitialChargingTimeUp branchingDecision2=new BranchInitialChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
 			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		} else {
-			//CURRENTLY DIVING TO THE LEFT (REMOVING - L)
+			//CURRENTLY DIVING TO THE RIGHT (FIXING - L)
 
 			//Branch 1: remove the edge:
 			BranchEndChargingTimeDown branchingDecision1= new BranchEndChargingTimeDown(this.pricingProblems.get(0), (int) Math.floor(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node1=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: fix the edge:
 			BranchEndChargingTimeUp branchingDecision2=new BranchEndChargingTimeUp(this.pricingProblems.get(0), (int) Math.ceil(bestTimestepValue),parentNode.getInequalities(), this.timestepForBranching);
-			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node2=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		}
 		
 		return Arrays.asList(node1,node2);
