@@ -3,6 +3,7 @@ package columnGeneration;
 import ilog.concert.IloColumn;
 import ilog.concert.IloConstraint;
 import ilog.concert.IloException;
+import ilog.concert.IloLPMatrix;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.concert.IloNumVarType;
@@ -11,6 +12,10 @@ import ilog.concert.IloObjectiveSense;
 import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,6 +54,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	private int minimumNumberOfVehicles; 			//for the weak rounded capacity inequality
 	private List<Route> solutionKeeper; 			//stores the solution found
 
+	// 
+	private IloRange costLexicoInequality;
+	private List<IloRange> minMaxInequalities;
+
 	public Master(EVRPTW modelData, PricingProblem pricingProblem, CutHandler<EVRPTW, VRPMasterData> cutHandler) {
 		super(modelData, pricingProblem, cutHandler, OptimizationSense.MINIMIZE);
 	}
@@ -83,6 +92,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			this.minimumNumberOfVehicles =  (int) Math.ceil((double) totalLoad/dataModel.Q);
 			roundedCapacityInequality = cplex.addGe(cplex.linearNumExpr(), minimumNumberOfVehicles, "capacity inequality");
 
+			//Lexicographic constraints
+			costLexicoInequality = null;
+			minMaxInequalities = new ArrayList<>();
+
 		} catch (IloException e) {
 			e.printStackTrace();
 		}
@@ -106,8 +119,40 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			if(!masterData.cplex.solve() || masterData.cplex.getStatus()!=IloCplex.Status.Optimal){
 				if(masterData.cplex.getCplexStatus()==IloCplex.CplexStatus.AbortTimeLim) 		//Aborted due to time limit
 					throw new TimeLimitExceededException();
-				else
-					throw new RuntimeException("Master problem solve failed! Status: "+ masterData.cplex.getStatus());
+				else {
+
+					masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
+
+					List<IloRange> constraints = new ArrayList<>();
+					constraints.addAll(Arrays.asList(visitCustomerConstraints));
+					constraints.addAll(Arrays.asList(chargersCapacityConstraints));
+					constraints.addAll(masterData.subsetRowInequalities.values());
+					constraints.addAll(masterData.branchingNumberOfVehicles.values());
+					constraints.addAll(masterData.branchingChargingTimes.values());
+					constraints.add(roundedCapacityInequality);
+					if (costLexicoInequality != null){
+						constraints.add(costLexicoInequality);
+						constraints.addAll(minMaxInequalities);
+					}
+					IloConstraint[] constraintArray = constraints.toArray(new IloConstraint[0]);
+					double[] prefs = new double[constraints.size()];
+					Arrays.fill(prefs, 1.0);  // Set all preferences to 1.0
+
+					// Now refine the conflict
+					masterData.cplex.refineConflict(constraintArray, prefs);
+					IloCplex.ConflictStatus[] status = masterData.cplex.getConflict(constraintArray);
+					try (PrintWriter writer = new PrintWriter(new FileWriter("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/Infeasibility_report.txt"))) {
+						writer.println("Infeasibility Conflict Report:");
+						writer.println("--------------------------------");
+
+						for (int i = 0; i < constraintArray.length; i++) { writer.println("Constraint: " + constraintArray[i].getName() + " | Status: " + status[i]); }
+
+						writer.println("--------------------------------");
+						writer.println("End of report.");
+					} catch (IOException e) { System.err.println("Failed to write conflict report: " + e.getMessage()); }
+
+					throw new RuntimeException(dataModel.algorithm + " - " + dataModel.experiment + " - " + dataModel.instanceName + ". Master problem solve failed! Status: "+ masterData.cplex.getStatus());
+				}
 			}else{
 				masterData.objectiveValue= masterData.cplex.getObjValue();
 				//Print solution
@@ -635,7 +680,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			}
 
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
-			IloRange cost_constraint = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
+			costLexicoInequality = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
+
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
 
 			// MIN-MAX Model
@@ -652,6 +698,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 
 					minmax_constraint = masterData.cplex.addGe(minmax, 0, "minmax_"+ix);
 					z = z.and(masterData.cplex.column(minmax_constraint, 1));
+					minMaxInequalities.add(minmax_constraint);
 					ix ++;
 				}
 			}
@@ -659,6 +706,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			masterData.cplex.add(z_var);
 			
 			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
+			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
 			
@@ -666,12 +714,12 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp");
 			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
 			logger.debug("Cost constraint after solving: "+lhs+"<="+cost_constraint.getUB()); */
-			
 	
 
 		} catch (TimeLimitExceededException e) {
 			System.out.println("Time limit exceeded: " + e.getMessage());
 		} catch (IloException e) {
+
 			System.out.println("CPLEX encountered an error: " + e.getMessage());
 		}
 
