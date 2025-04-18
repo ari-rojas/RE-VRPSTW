@@ -640,11 +640,14 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 							}
 						}
 					}
-		
+
 					// create the variable and store it
 					IloNumVar var= masterData.cplex.numVar(iloColumn, 0, Double.MAX_VALUE, "x_"+masterData.getNrColumns());
 					masterData.cplex.add(var);
 					masterData.addColumn(column, var);
+
+					//logger.debug("Added one column");
+
 				} catch (IloException e) {
 					e.printStackTrace();
 				}
@@ -676,9 +679,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		try {
 
 			expr = masterData.cplex.linearNumExpr();
-			for(Route route: cols){
-				IloNumVar var=masterData.getVar(masterData.pricingProblem, route);
-				expr.addTerm(route.cost, var);
+			for (int[] route: columns_to_add.keySet()){
+				for(Route column: columns_to_add.get(route)){
+					IloNumVar var=masterData.getVar(masterData.pricingProblem, column);
+					expr.addTerm(column.cost, var);
+				}
 			}
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
 			costLexicoInequality = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
@@ -696,11 +701,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				ix += 1;
 			}
 			
+			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
 			
-			masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			/* double lhs = masterData.cplex.getValue(cost_constraint.getExpr());
 			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp");
 			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
@@ -729,6 +734,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				unique_routes.add(arr);
 			}
 		}
+		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
 
 		return unique_routes;
 	}
@@ -747,6 +753,13 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				}
 			}
 		}
+
+		/* for(int[] route: columns_to_add.keySet()){
+			logger.debug("Route with "+columns_to_add.get(route).size()+" columns");
+			for(Route column: columns_to_add.get(route)){
+				logger.debug(column.toString());
+			}
+		} */
 
 		return columns_to_add;
 	}
