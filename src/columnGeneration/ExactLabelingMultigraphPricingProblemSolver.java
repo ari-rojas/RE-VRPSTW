@@ -133,6 +133,8 @@ public final class ExactLabelingMultigraphPricingProblemSolver extends AbstractP
 			}
 			else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
 		}
+
+		if (source == 0) reducedCost += ((int)(currentLabel.remainingTime/10))*10/dataModel.waiting_factor; // Adding the departure time contribution to the waiting time
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
 		//Only negative reduced cost labels
@@ -192,11 +194,13 @@ public final class ExactLabelingMultigraphPricingProblemSolver extends AbstractP
 	public Label extendLabelChargingTime(Label currentLabel, Arc arc) {
 
 		int source = arc.tail;
-		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
+		int time_period_tail = source-dataModel.V;
+
+		if(arc.head==0 && (time_period_tail<currentLabel.chargingTime || time_period_tail>=currentLabel.remainingTime/10)) return null;
 		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		if (arc.head == 0)	reducedCost += ((int)(currentLabel.remainingTime/10) - (source-dataModel.V-1))*10/dataModel.waiting_factor;
+		if (arc.head == 0)	reducedCost -= (time_period_tail + 1)*10/dataModel.waiting_factor;
 		
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		int chargingTime = currentLabel.chargingTime;

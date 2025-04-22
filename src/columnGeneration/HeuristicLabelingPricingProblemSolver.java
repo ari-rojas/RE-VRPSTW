@@ -123,6 +123,8 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			}
 			else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
 		}
+		
+		if (source == 0) reducedCost += ((int)(currentLabel.remainingTime/10))*10/dataModel.waiting_factor; // Adding the departure time contribution to the waiting time
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
 		//only negative reduced cost labels at the depot
@@ -176,12 +178,13 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	public Label extendLabelChargingTime(Label currentLabel, Arc arc) {
 
 		int source = arc.tail;
+		int time_period_tail = source-dataModel.V;
 
-		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
+		if(arc.head==0 && (time_period_tail<currentLabel.chargingTime || time_period_tail>=currentLabel.remainingTime/10)) return null;
 		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		if (arc.head == 0)	reducedCost += ((int)(currentLabel.remainingTime/10) - (source-dataModel.V-1))*10/dataModel.waiting_factor;
+		if (arc.head == 0)	reducedCost -= (time_period_tail + 1)*10/dataModel.waiting_factor;
 		
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		int chargingTime = currentLabel.chargingTime;
@@ -335,6 +338,8 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	 * @param label to which check dominance
 	 */
 	public boolean checkDominance(Label newLabel) {
+
+		
 		Vertex currentVertex = vertices[newLabel.vertex];
 
 		ArrayList<Label> labelsToDelete = new ArrayList<Label>();

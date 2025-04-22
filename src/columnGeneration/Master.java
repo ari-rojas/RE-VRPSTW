@@ -123,7 +123,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					logger.debug("Columns (only non-zero columns are returned):");
 					for(String route: routes_strings) logger.debug(route);
 					
-					logger.debug("Printing dual variables");
+					/* logger.debug("Printing dual variables");
 					logger.debug("Capacity constraint: " + String.valueOf(masterData.cplex.getDual(roundedCapacityInequality)));
 					logger.debug("Customer constraints: " + masterData.cplex.getDuals(visitCustomerConstraints).toString());
 					for(int i=0; i< dataModel.C; i++) {
@@ -147,7 +147,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					for (IloRange branch: masterData.branchingChargingTimes.values()){
 						double dual = masterData.cplex.getDual(branch);
 						logger.debug(branch.toString() + ": " + dual);
-					}
+					} */
 					
 				}
 			}

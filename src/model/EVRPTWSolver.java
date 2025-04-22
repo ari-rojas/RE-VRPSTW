@@ -243,9 +243,11 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		//int gamma = Integer.parseInt(args[1]);
+		int gamma = 6;
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "MinWaiting", args[2]);
+		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "MinWaiting", args[2]);
+		EVRPTW evrptw = new EVRPTW("R201-50", gamma, 0, true, "MinWaiting", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}

@@ -140,6 +140,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 			else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
 		}
+
+		if (source == 0) reducedCost += ((int)(currentLabel.remainingTime/10))*10/dataModel.waiting_factor; // Adding the departure time contribution to the waiting time
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
 		//only negative reduced cost labels
@@ -200,12 +202,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public Label extendLabelChargingTime(Label currentLabel, Arc arc) {
 
 		int source = arc.tail;
+		int time_period_tail = source-dataModel.V;
 
-		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
+		if(arc.head==0 && (time_period_tail<currentLabel.chargingTime || time_period_tail>=currentLabel.remainingTime/10)) return null;
 		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		if (arc.head == 0)	reducedCost += ((int)(currentLabel.remainingTime/10) - (source-dataModel.V-1))*10/dataModel.waiting_factor;
+		if (arc.head == 0)	reducedCost -= (time_period_tail + 1)*10/dataModel.waiting_factor;
 		
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		int chargingTime = currentLabel.chargingTime;
@@ -369,28 +372,28 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	public boolean checkDominance(Label newLabel) {
 
-		/* // DELETE BLOCK LATER
-		int[] lookup_route = new int[]{0,12,9,3,20,10,1}; // DELETE LATER
+		// DELETE BLOCK LATER
+		int[] lookup_route = new int[]{0,2,42,15,14,38,44,16,6}; // DELETE LATER
 		int[] nl_sequence = get_route_sequence(newLabel); // DELETE LATER
 		boolean is_nl_subset = false; // DELETE LATER
 		if (nl_sequence.length <= lookup_route.length){
 			is_nl_subset = sequence_is_subset(nl_sequence, lookup_route);
-		} */
+		}
 
 		Vertex currentVertex = vertices[newLabel.vertex];
 		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
 		for(Label existingLabel: currentVertex.unprocessedLabels) {
 
-			/* // DELETE BLOCK LATER
+			// DELETE BLOCK LATER
 			boolean existing_is_discarded = false; 
 			int[] el_sequence = get_route_sequence(existingLabel); 
 			boolean is_el_subset = false;
 			if (el_sequence.length <= lookup_route.length){ 
 				is_el_subset = sequence_is_subset(el_sequence, lookup_route);
-			} */
+			}
 
 			if(isDominated(existingLabel, newLabel)) {
-				//existing_is_discarded = true; // DELETE LATER
+				existing_is_discarded = true; // DELETE LATER
 				labelsToDelete.add(existingLabel);
 			}
 			
@@ -398,10 +401,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
 
-		//boolean new_is_discarded = false; // DELETE LATER
+		boolean new_is_discarded = false; // DELETE LATER
 		for(Label existingLabel: currentVertex.processedLabels) {
-			//int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
-			if(isDominated(newLabel, existingLabel)) return true;
+			int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
+			if(isDominated(newLabel, existingLabel)) {
+				new_is_discarded = true;
+				return true;
+			}
 			
 		}
 
