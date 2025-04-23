@@ -124,15 +124,16 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
 		}
 		
-		if (source == 0) reducedCost += ((int)(currentLabel.remainingTime/10))*10/dataModel.waiting_factor; // Adding the departure time contribution to the waiting time
+		
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
 		//only negative reduced cost labels at the depot
-		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
+		//if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
 
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
+		if (source == 0) reducedCost += ((int)(remainingTime/10))*10/dataModel.waiting_factor;
 
 		int[] remainingEnergy = new int[dataModel.gamma + 1];
 		remainingEnergy[0] = currentLabel.remainingEnergy[0]-arc.energy; if (remainingEnergy[0] < 0) return null;
@@ -184,7 +185,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		if (arc.head == 0)	reducedCost -= (time_period_tail + 1)*10/dataModel.waiting_factor;
+		if (arc.head == 0)	reducedCost +=  (- (time_period_tail + 1))*10/dataModel.waiting_factor;
 		
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		int chargingTime = currentLabel.chargingTime;

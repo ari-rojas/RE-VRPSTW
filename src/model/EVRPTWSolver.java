@@ -334,7 +334,7 @@ public final class EVRPTWSolver {
 		@Override
 		public void CGProblemsLB(CGProblemsLBEvent cgProblemsLBEvent){
 			if (dataModel.print_log) {
-				logger.debug("Check problems with LB!");
+				logger.debug("Check problems with LB! Node "+cgProblemsLBEvent.node.nodeID+" with parent "+cgProblemsLBEvent.node.getParentID());
 			}
 		}
 
