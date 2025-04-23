@@ -373,7 +373,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public boolean checkDominance(Label newLabel) {
 
 		// DELETE BLOCK LATER
-		int[] lookup_route = new int[]{0,2,42,15,14,38,44,16,6}; // DELETE LATER
+		int[] lookup_route = new int[]{0,39,23,22,41,43,37,13}; // DELETE LATER
 		int[] nl_sequence = get_route_sequence(newLabel); // DELETE LATER
 		boolean is_nl_subset = false; // DELETE LATER
 		if (nl_sequence.length <= lookup_route.length){

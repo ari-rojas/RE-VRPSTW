@@ -68,7 +68,7 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	//Cost factor for objective function
-	public double waiting_factor = 15;
+	public double waiting_factor = 40;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
