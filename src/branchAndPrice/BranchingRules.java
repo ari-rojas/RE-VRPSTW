@@ -34,6 +34,8 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private double bestTimestepValue = 0; 				//number of vehicles charging of the timestep to branch on
 	private EVRPTW dataModel; 							//model data
 
+	private double PRECISION = 0.001;
+
 	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
 		super(dataModel, pricingProblem);
 		this.dataModel = dataModel;
@@ -92,6 +94,16 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 	@Override
 	public boolean canPerformBranching(List<Route> solution) {
+
+		//Reset values
+		this.vehiclesForBranching = 0;
+		this.branchingOnVehicles = false;
+		this.branchOnCustomerArcs = false;
+		this.branchOnInitialChargingTime = false;
+		this.arcForBranching = -1;
+		this.bestArcValue = 0;
+		this.timestepForBranching = -1;
+		this.bestTimestepValue = 0;
 
 		//End charging time
 		for (int r = 0; r < solution.size(); r++) {
@@ -188,6 +200,10 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		}
 		
 		return Arrays.asList(node1,node2);
+	}
+
+	private boolean isFractional(double value) {
+		return Math.abs(value - (double)Math.round(value)) > this.PRECISION;
 	}
 
 }
