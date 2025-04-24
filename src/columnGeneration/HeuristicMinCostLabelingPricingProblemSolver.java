@@ -149,7 +149,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		if (source == 0) reducedCost += ((int)(remainingTime/10))*10/dataModel.waiting_factor;
+		if (source == 0){
+			reducedCost += ((double)((int)(remainingTime/10))*10/dataModel.waiting_factor);
+		}
 
 		int[] remainingEnergy = new int[dataModel.gamma + 1];
 		remainingEnergy[0] = currentLabel.remainingEnergy[0]-arc.energy; if (remainingEnergy[0] < 0) return null;
@@ -373,7 +375,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public boolean checkDominance(Label newLabel) {
 
 		// DELETE BLOCK LATER
-		int[] lookup_route = new int[]{0,39,23,22,41,43,37,13}; // DELETE LATER
+		int[] lookup_route = new int[]{0,5,45,47,36,46,17}; // DELETE LATER
 		int[] nl_sequence = get_route_sequence(newLabel); // DELETE LATER
 		boolean is_nl_subset = false; // DELETE LATER
 		if (nl_sequence.length <= lookup_route.length){

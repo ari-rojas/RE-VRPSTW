@@ -133,7 +133,9 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		if (source == 0) reducedCost += ((int)(remainingTime/10))*10/dataModel.waiting_factor;
+		if (source == 0){
+			reducedCost += ((double)((int)(remainingTime/10))*10/dataModel.waiting_factor);
+		}
 
 		int[] remainingEnergy = new int[dataModel.gamma + 1];
 		remainingEnergy[0] = currentLabel.remainingEnergy[0]-arc.energy; if (remainingEnergy[0] < 0) return null;
