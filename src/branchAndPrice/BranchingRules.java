@@ -34,6 +34,8 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private double bestTimestepValue = 0; 				//number of vehicles charging of the timestep to branch on
 	private EVRPTW dataModel; 							//model data
 
+	private double PRECISION = 0.001;
+
 	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
 		super(dataModel, pricingProblem);
 		this.dataModel = dataModel;
@@ -60,7 +62,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 		//Aggregate route values
 		for(Route route : solution){vehiclesForBranching+=route.value;}
-		if(MathProgrammingUtil.isFractional(vehiclesForBranching)) {branchingOnVehicles = true; return true;}
+		if(isFractional(vehiclesForBranching)) {branchingOnVehicles = true; return true;}
 
 		//Determine whether there's a fractional edge for branching
 		Map<Integer, Double> arcValues=new LinkedHashMap<>();
@@ -85,13 +87,23 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 				if(bestArcValue == 0.5 && dataModel.arcs[arc].tail!= 0 && dataModel.arcs[arc].head!=dataModel.C+1) {branchOnCustomerArcs = true; return true;}
 			}
 		}
-		if(MathProgrammingUtil.isFractional(bestArcValue)) {branchOnCustomerArcs = true; return true;}
+		if(isFractional(bestArcValue)) {branchOnCustomerArcs = true; return true;}
 
 		return false;
 	}
 
 	@Override
 	public boolean canPerformBranching(List<Route> solution) {
+
+		//Reset values
+		this.vehiclesForBranching = 0;
+		this.branchingOnVehicles = false;
+		this.branchOnCustomerArcs = false;
+		this.branchOnInitialChargingTime = false;
+		this.arcForBranching = -1;
+		this.bestArcValue = 0;
+		this.timestepForBranching = -1;
+		this.bestTimestepValue = 0;
 
 		//End charging time
 		for (int r = 0; r < solution.size(); r++) {
@@ -105,7 +117,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 						flow+=route2.value;
 				}
 			}
-			if(MathProgrammingUtil.isFractional(flow)) {
+			if(isFractional(flow)) {
 				branchOnInitialChargingTime = false;
 				timestepForBranching = t;
 				bestTimestepValue = flow;
@@ -125,7 +137,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 						flow+=route2.value;
 				}
 			}
-			if(MathProgrammingUtil.isFractional(flow)) {
+			if(isFractional(flow)) {
 				branchOnInitialChargingTime = true;
 				timestepForBranching = t;
 				bestTimestepValue = flow;
@@ -189,5 +201,9 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		
 		return Arrays.asList(node1,node2);
 	}
+
+	private boolean isFractional(double value) {
+		return Math.abs(value - (double)Math.round(value)) > this.PRECISION;
+	 }
 
 }
