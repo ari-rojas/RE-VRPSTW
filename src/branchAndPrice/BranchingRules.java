@@ -62,7 +62,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		//Aggregate route values
 		for(Route route : solution){vehiclesForBranching+=route.value;}
 		if(isFractional(vehiclesForBranching)) {
-			branchingOnVehicles = true; logger.debug("Branch on vehicles: "+vehiclesForBranching); return true;
+			branchingOnVehicles = true; return true;
 		}
 
 		//Determine whether there's a fractional edge for branching
