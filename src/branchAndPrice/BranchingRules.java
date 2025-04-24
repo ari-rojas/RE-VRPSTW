@@ -93,6 +93,16 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	@Override
 	public boolean canPerformBranching(List<Route> solution) {
 
+		//Reset values
+		this.vehiclesForBranching = 0;
+		this.branchingOnVehicles = false;
+		this.branchOnCustomerArcs = false;
+		this.branchOnInitialChargingTime = false;
+		this.arcForBranching = -1;
+		this.bestArcValue = 0;
+		this.timestepForBranching = -1;
+		this.bestTimestepValue = 0;
+
 		Map<Integer, Double> timeValues = new LinkedHashMap<>();
 		Map<Integer, Double> depValues = new LinkedHashMap<>();
 
