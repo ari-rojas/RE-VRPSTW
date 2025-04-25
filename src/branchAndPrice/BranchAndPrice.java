@@ -218,10 +218,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	protected void processIntegerNode(BAPNode<EVRPTW, Route> bapNode){
 
 		int integerObjective = MathProgrammingUtil.doubleToInt(bapNode.getObjective());
-		this.notifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), integerObjective);
-		this.objectiveIncumbentSolution = integerObjective;
-		this.upperBoundOnObjective = (double)integerObjective;
-		this.incumbentSolution = bapNode.getSolution();
+		if (integerObjective < this.objectiveIncumbentSolution){
+			this.notifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), integerObjective);
+			this.objectiveIncumbentSolution = integerObjective;
+			this.upperBoundOnObjective = (double)integerObjective;
+			this.incumbentSolution = bapNode.getSolution();
+		}
 	}
 
 	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
