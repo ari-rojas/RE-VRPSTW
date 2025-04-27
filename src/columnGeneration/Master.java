@@ -675,12 +675,14 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			costLexicoInequality = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
 			
-			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
+			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 			masterData.cplex.setParam(IloCplex.Param.Read.Scale, -1);  // disable scaling
-			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
-			//masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution.lp");
+			
+			int aux = cols.size() + vehic_branches_map.size() + time_branches_map.size();
+			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model"+aux+".lp");
+			//masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+aux+".lp");
 			
 			/* double lhs = masterData.cplex.getValue(cost_constraint.getExpr());
 			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
