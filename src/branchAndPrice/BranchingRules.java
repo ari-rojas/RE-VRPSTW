@@ -128,7 +128,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		for(int lastT : timeValues.keySet()){
 			double timeVal = timeValues.get(lastT);
 			double depVal = depValues.get(lastT);
-			if(isFractional(timeVal) && depVal < depletion){
+			if(isFractional(timeVal) && ((depVal < depletion) || (depVal == depletion && lastT > best_lastT))){
 				depletion = depVal;
 				best_lastT = lastT;
 			}
