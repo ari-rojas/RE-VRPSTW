@@ -39,6 +39,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public static final double PRECISION=0.001; 	//precision considered for the fractional solutions (nodes)
 	private final ExtendBAPNotifier extendedNotifier;
 
+	private List<Integer> chargingNodes = new ArrayList<Integer>();
+	private long timeChargingBranching = 0;
+
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
@@ -264,9 +267,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			} else {
 				this.graphManipulator.next(bapNode);
 				if (bapNode.nodeID != 0) { bapNode.addInitialColumns(this.generateInitialFeasibleSolution(bapNode)); }
-	
+				
+				long time = 0;
 				try { // Try solving the node
+					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
 					this.solveBAPNode(bapNode, timeLimit);
+					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
 					this.queue.add(bapNode);
 					this.notifier.fireTimeOutEvent(bapNode);
@@ -295,15 +301,26 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						
 						// Initialize Branch Creator
 						BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
-
+						
+						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); logger.debug("TIME BRANCHING - Starting to look for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 						// Look for Number of Vehicles or Customers Arc Flow branching
 						boolean foundBranches = false;
 						foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); logger.debug("TIME BRANCHING - Finished looking for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 						if (foundBranches){
+							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); logger.debug("TIME BRANCHING - Starting to add first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
 							newBranches.addAll(bc.getFirstBranches(bapNode));
+							if (this.chargingNodes.contains(bapNode.nodeID)) { 
+								timeChargingBranching += (System.currentTimeMillis()-time);
+								this.chargingNodes.add(newBranches.get(0).nodeID);
+								this.chargingNodes.add(newBranches.get(1).nodeID);
+								logger.debug("TIME BRANCHING - Finished adding first branches at node "+bapNode.nodeID);
+							} // TIME BRANCHING
 						} else {
 							
+							logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
+							time = System.currentTimeMillis();
 							//List<Route> old_solution = bapNode.getSolution();
 							double new_cost = this.performLexicographicStep(bapNode, timeLimit);
 
@@ -320,6 +337,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 								}
 								
 							}
+
+							timeChargingBranching += (System.currentTimeMillis()-time);
+							this.chargingNodes.add(newBranches.get(0).nodeID);
+							this.chargingNodes.add(newBranches.get(1).nodeID);
+							logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
 
 						}
 	
@@ -366,6 +388,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
   
 		this.notifier.fireStopBAPEvent();
 		this.runtime = System.currentTimeMillis() - this.runtime;
+
+		double realTime = this.timeChargingBranching*0.001;
+		realTime = Math.floor(realTime*100)/100;
+		logger.debug("TIME BRANCHING - Total time is: "+realTime);
+
 	}
 
 	/**
