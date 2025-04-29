@@ -336,11 +336,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 									newBranches.addAll(bc.getBranches(bapNode));
 								}
 								
+								this.chargingNodes.add(newBranches.get(0).nodeID);
+								this.chargingNodes.add(newBranches.get(1).nodeID);
 							}
 
 							timeChargingBranching += (System.currentTimeMillis()-time);
-							this.chargingNodes.add(newBranches.get(0).nodeID);
-							this.chargingNodes.add(newBranches.get(1).nodeID);
 							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
 
 						}
