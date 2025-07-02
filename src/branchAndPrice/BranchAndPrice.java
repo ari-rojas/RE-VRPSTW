@@ -1,11 +1,15 @@
 package branchAndPrice;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Iterator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
@@ -225,6 +229,23 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.objectiveIncumbentSolution = integerObjective;
 		this.upperBoundOnObjective = (double)integerObjective;
 		this.incumbentSolution = bapNode.getSolution();
+	}
+
+	protected List<int[]> retrieve_unique_customer_routes(List<Route> solution){
+
+		List<int[]> unique_routes = new ArrayList<>();
+		Set<List<Integer>> seen = new HashSet<>();
+
+		for (Route column: solution) {
+			int[] arr = column.routeSequence;
+			List<Integer> asList = Arrays.stream(arr).boxed().collect(Collectors.toList());
+			if (seen.add(asList)) {
+				unique_routes.add(arr);
+			}
+		}
+		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
+
+		return unique_routes;
 	}
 
 	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
