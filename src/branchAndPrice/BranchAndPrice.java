@@ -278,24 +278,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		return new_solution;
 	}
 
-	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
-		// Solve Lexicographic Master Problem
-		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
-
-		long time=System.currentTimeMillis(); double new_cost = 0;
-
-		Master new_Master = ((Master)this.master).copy();
-		//logger.debug("MP Objective: "+this.master.getObjective());
-		new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), ((Master)this.master).getMasterData().getBranchingNumberOfVehicles(), ((Master)this.master).getMasterData().getBranchingChargingTimes(), this.master.getObjective());
-		bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
-
-		Double obj = new_Master.getObjective();
-		this.timeSolvingMaster += (System.currentTimeMillis()-time);
-		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj, new_cost);
-
-		return new_cost;
-	}
-
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
@@ -366,8 +348,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 								timeChargingBranching += (System.currentTimeMillis()-time);
 								this.chargingNodes.add(newBranches.get(0).nodeID);
 								this.chargingNodes.add(newBranches.get(1).nodeID);
+								
 								//logger.debug("TIME BRANCHING - Finished adding first branches at node "+bapNode.nodeID);
 							} // TIME BRANCHING
+							this.queue.addAll(newBranches);
+							this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+
 						} else {
 							
 							//logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
@@ -382,15 +368,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							timeChargingBranching += (System.currentTimeMillis()-time);
 							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
 
-						}
-	
-						if (!foundBranches) {
-							throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
-						}
-						
-						if (!newBranches.isEmpty()){
-							this.queue.addAll(newBranches);
-							this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
 						}
 					}
 	
