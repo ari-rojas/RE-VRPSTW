@@ -246,6 +246,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
 		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
 
+		unique_routes.sort((r1, r2) -> Integer.compare(r2.departureTime, r1.departureTime));
+
 		return unique_routes;
 	}
 
