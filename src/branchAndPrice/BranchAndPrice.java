@@ -232,29 +232,50 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
-	protected List<Map.Entry<List<Integer>, int[]>> retrieve_unique_customer_routes(List<Route> solution){
+	private List<Route> retrieve_unique_customer_routes(List<Route> solution){
 
-		Map<List<Integer>, int[]> unique_routes = new HashMap<>();
+		List<Route> unique_routes = new ArrayList<>();
+		Set<List<Integer>> seen = new HashSet<>();
 
-        for (Route column : solution) {
-            // Convert array to List<Integer> for proper hashing and equality
-            List<Integer> route = Arrays.stream(column.routeSequence).boxed().toList();
-
-            // If sequence not already in map, add it
-            if (!unique_routes.containsKey(route)) {
-                unique_routes.put(route, new int[]{column.departureTime, column.chargingTime});
-            }
-        }
-
-        // Extract entries to list
-        List<Map.Entry<List<Integer>, int[]>> result = new ArrayList<>(unique_routes.entrySet());
-
-        // Sort by departure time in descending order
-        result.sort((e1, e2) -> Integer.compare(e2.getValue()[0], e1.getValue()[0]));
-
+		for (Route column: solution) {
+			int[] arr = column.routeSequence;
+			List<Integer> asList = Arrays.stream(arr).boxed().collect(Collectors.toList());
+			if (seen.add(asList)) {
+				unique_routes.add(column);
+			}
+		}
 		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
 
-		return result;
+		return unique_routes;
+	}
+
+	private List<Route> build_feasible_charging_schedule(List<Route> solution){
+
+		int[] chargerAvailableTime = new int[this.dataModel.B + 1]; // Index 1 to B (1-based indexing)
+        Arrays.fill(chargerAvailableTime, this.dataModel.last_charging_period);
+
+		List<Route> new_solution = new ArrayList<>();
+
+		for (Route column: solution){
+
+			// Find the charger with the latest available time
+            int bestCharger = 1;
+            int maxAvailableTime = chargerAvailableTime[1];
+
+            for (int v = 2; v <= this.dataModel.B; v++) {
+                if (chargerAvailableTime[v] > maxAvailableTime) {
+                    bestCharger = v;
+                    maxAvailableTime = chargerAvailableTime[v];
+                }
+            }
+
+			chargerAvailableTime[bestCharger] = Math.min(chargerAvailableTime[bestCharger], column.departureTime) - column.chargingTime;
+
+			new_solution.add(new Route("intSol", false, column.route, column.routeSequence, this.pricingProblem, column.cost, column.departureTime, column.energy, column.load, column.reducedCost, column.arcs, chargerAvailableTime[bestCharger], column.chargingTime));
+
+		}
+
+		return new_solution;
 	}
 
 	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
@@ -352,8 +373,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							//logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
 							time = System.currentTimeMillis();
 							
-							List<Map.Entry<List<Integer>, int[]>> unique_routes = this.retrieve_unique_customer_routes(bapNode.getSolution());
-							
+							List<Route> unique_routes = this.retrieve_unique_customer_routes(bapNode.getSolution());
+							List<Route> new_solution = this.build_feasible_charging_schedule(unique_routes);
+
+							bapNode.storeSolution(time, timeLimit, new_solution, null);
 
 							timeChargingBranching += (System.currentTimeMillis()-time);
 							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
