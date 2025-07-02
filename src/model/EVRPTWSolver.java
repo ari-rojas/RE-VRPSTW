@@ -43,6 +43,7 @@ import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolv
 import org.jorlib.frameworks.columnGeneration.util.Configuration;
 import branchAndPrice.BranchAndPrice;
 import branchAndPrice.BranchingRules;
+import branchAndPrice.BuildIntegerSolutionEvent;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
@@ -376,6 +377,15 @@ public final class EVRPTWSolver {
 			if (dataModel.print_log) {
 
 				logger.debug("Finished master -> RMP objective: {}, Total cost: {}", new Object[]{lexiEvent.depletion,lexiEvent.cost });
+
+			}
+		}
+
+		@Override
+		public void buildIntegerSolution(BuildIntegerSolutionEvent intEvent){
+			if (dataModel.print_log) {
+
+				logger.debug("================ BUILDING INTEGER SOLUTION ================");
 
 			}
 		}

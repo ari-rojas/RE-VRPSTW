@@ -12,4 +12,5 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishLexicographicMaster(FinishLexicographicMasterEvent var1);
 
+    void buildIntegerSolution(BuildIntegerSolutionEvent var1);
 }

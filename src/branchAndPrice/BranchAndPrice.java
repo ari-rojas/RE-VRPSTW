@@ -275,6 +275,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		}
 
+		if (dataModel.print_log){
+			extendedNotifier.fireBuildIntegerSolutionEvent(rootNode);
+			logger.debug("Columns (only non-zero columns are returned):");
+			for(Route route: new_solution)
+				logger.debug(route.toString());
+		}
+
 		return new_solution;
 	}
 

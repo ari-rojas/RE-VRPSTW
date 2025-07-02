@@ -77,5 +77,17 @@ public class ExtendBAPNotifier{
       }
     }
 
+    public void fireBuildIntegerSolutionEvent(BAPNode node) {
+      BuildIntegerSolutionEvent buildIntEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.buildIntegerSolution(buildIntEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (buildIntEvent == null) {
+          buildIntEvent = new BuildIntegerSolutionEvent(this.parent, node);
+        }
+      }
+    }
+
 
 }
