@@ -272,8 +272,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
             }
 
 			chargerAvailableTime[bestCharger] = Math.min(chargerAvailableTime[bestCharger], column.departureTime) - column.chargingTime;
-
-			new_solution.add(new Route("intSol", false, column.route, column.routeSequence, this.pricingProblem, column.cost, column.departureTime, column.energy, column.load, column.reducedCost, column.arcs, chargerAvailableTime[bestCharger], column.chargingTime));
+			
+			Route new_column = new Route("intSol", false, column.route, column.routeSequence, this.pricingProblem, column.cost, column.departureTime, column.energy, column.load, column.reducedCost, column.arcs, chargerAvailableTime[bestCharger], column.chargingTime);
+			new_column.value = 1;
+			new_solution.add(new_column);
 
 		}
 
