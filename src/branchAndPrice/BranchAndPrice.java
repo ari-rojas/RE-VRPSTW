@@ -376,7 +376,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							List<Route> unique_routes = this.retrieve_unique_customer_routes(bapNode.getSolution());
 							List<Route> new_solution = this.build_feasible_charging_schedule(unique_routes);
 
-							bapNode.storeSolution(time, timeLimit, new_solution, null);
+							bapNode.storeSolution(this.master.getObjective(), bapNode.getBound(), new_solution, this.master.getCuts());
+							this.processIntegerNode(bapNode);
 
 							timeChargingBranching += (System.currentTimeMillis()-time);
 							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
