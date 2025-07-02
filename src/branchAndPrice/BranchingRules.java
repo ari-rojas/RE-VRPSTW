@@ -110,8 +110,8 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			Route route1 = solution.get(r);
 			int t = route1.initialChargingTime+route1.chargingTime-1;
 			double flow = route1.value;
-			for (int r2 = 0; r2 < solution.size(); r2++) {
-				if (r != r2){
+			for (int r2 = 0; r2 < solution.size(); r2++) { // MODIFICATION
+				if (r != r2){ // MODIFICATION
 					Route route2 = solution.get(r2);
 					if(route2.initialChargingTime+route2.chargingTime-1==t)
 						flow+=route2.value;
@@ -130,8 +130,8 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			Route route1 = solution.get(r);
 			int t = route1.initialChargingTime;
 			double flow = route1.value;
-			for (int r2 = 0; r2 < solution.size(); r2++) {
-				if (r != r2){
+			for (int r2 = 0; r2 < solution.size(); r2++) { // MODIFICATION
+				if (r != r2){ // MODIFICATION
 					Route route2 = solution.get(r2);
 					if(route2.initialChargingTime==t)
 						flow+=route2.value;

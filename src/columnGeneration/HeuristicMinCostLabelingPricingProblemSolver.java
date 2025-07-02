@@ -173,6 +173,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source>0) {
+			
 			int lastTail = -1;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==lastTail || c.tail==0 || unreachable[c.tail-1]) continue;
@@ -231,7 +232,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			for (int i = 0; i < vertices.length; i++) {
 				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
 				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
-				vertices[i].SRCIndices = new ArrayList<>();
+				vertices[i].SRCIndices = new ArrayList<>(); 
 			}
 		}
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
