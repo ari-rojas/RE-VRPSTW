@@ -1,11 +1,16 @@
 package branchAndPrice;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Iterator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
@@ -227,6 +232,31 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
+	protected List<Map.Entry<List<Integer>, int[]>> retrieve_unique_customer_routes(List<Route> solution){
+
+		Map<List<Integer>, int[]> unique_routes = new HashMap<>();
+
+        for (Route column : solution) {
+            // Convert array to List<Integer> for proper hashing and equality
+            List<Integer> route = Arrays.stream(column.routeSequence).boxed().toList();
+
+            // If sequence not already in map, add it
+            if (!unique_routes.containsKey(route)) {
+                unique_routes.put(route, new int[]{column.departureTime, column.chargingTime});
+            }
+        }
+
+        // Extract entries to list
+        List<Map.Entry<List<Integer>, int[]>> result = new ArrayList<>(unique_routes.entrySet());
+
+        // Sort by departure time in descending order
+        result.sort((e1, e2) -> Integer.compare(e2.getValue()[0], e1.getValue()[0]));
+
+		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
+
+		return result;
+	}
+
 	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
 		// Solve Lexicographic Master Problem
 		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
@@ -322,15 +352,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							//logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
 							time = System.currentTimeMillis();
 							
-							foundBranches = bc.canPerformBranching(bapNode.getSolution());
-							if (foundBranches){
-								this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-								newBranches.addAll(bc.getBranches(bapNode));
-							}
+							List<Map.Entry<List<Integer>, int[]>> unique_routes = this.retrieve_unique_customer_routes(bapNode.getSolution());
+							
 
 							timeChargingBranching += (System.currentTimeMillis()-time);
-							this.chargingNodes.add(newBranches.get(0).nodeID);
-							this.chargingNodes.add(newBranches.get(1).nodeID);
 							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
 
 						}
