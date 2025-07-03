@@ -281,7 +281,6 @@ public final class EVRPTW implements ModelInterface {
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, minimumCost, minimumTime, minimumEnergy, minCostAlternative);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
-
 			
 		}
 	}
