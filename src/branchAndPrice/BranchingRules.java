@@ -204,6 +204,6 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 	private boolean isFractional(double value) {
 		return Math.abs(value - (double)Math.round(value)) > this.PRECISION;
-	 }
+	}
 
 }
