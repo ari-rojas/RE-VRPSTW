@@ -202,7 +202,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Solve the problem and check the solution
 		this.runLabeling(); 									//runs the labeling algorithm
-		List<Route> newRoutes=new ArrayList<>(this.numCols*200);  	//list of routes
+		List<Route> newRoutes=new ArrayList<>(this.numCols);  	//list of routes
 
 		if(vertices[0].processedLabels.isEmpty()) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
 		else {
@@ -250,8 +250,13 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					}
 
 					// Generate all possible columns that perform the route
-					for (int t = 1; t<=departureTime-chargingTime; t++){
-						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, t, chargingTime);
+					double charging_duals = 0;
+					
+					for (int end = departureTime-1; end>=chargingTime; end--){
+
+						int initial = end-chargingTime+1;
+
+						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);
 						newRoutes.add(column);
 					}
 

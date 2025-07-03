@@ -41,4 +41,11 @@ public final class VRPMasterData extends MasterData<EVRPTW, Route, PricingProble
 		this.branchingNumberOfVehicles = map;
 	}
 
+	@Override
+	public void addColumn(Route column, IloNumVar variable) {
+		if (!( ((OrderedBiMap)this.varMap.get(column.associatedPricingProblem)).containsKey(column) )) {
+			((OrderedBiMap)this.varMap.get(column.associatedPricingProblem)).put(column, variable);
+		}
+   	}
+
 }

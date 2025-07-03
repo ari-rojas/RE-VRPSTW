@@ -326,6 +326,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					++nodesProcessed;
 					break;
 				} catch (RuntimeException e) { // MODIFICATION - IF THE MASTER PROBLEM IS INFEASIBLE DUE TO BRANCHING (THE PRICING IS NOT EVEN INVOKED) THE NODE IS PRUNED
+					logger.debug(e.getMessage());
 					this.extendedNotifier.fireCGMasterIsInfeasibleEvent(bapNode);
 					++nodesProcessed; continue;
 				}

@@ -80,7 +80,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
+		if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
 
 
@@ -237,8 +237,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
-		List<Route> newRoutes=new ArrayList<>(this.numCols*200);  			//list of routes
-		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols*200);  //list of nonelementary routes
+		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
+		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
 
 		/**Until finding an elementary route or reaching a max neighborhood size*/
 		while(!existsElementaryRoute && !maxNeighborhoodSize) {
