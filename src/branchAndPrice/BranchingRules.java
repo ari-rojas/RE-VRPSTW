@@ -27,7 +27,6 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private double vehiclesForBranching=0; 				//number of vehicles used in a solution
 	private boolean branchingOnVehicles; 				//true if the branching is on the number of vehicles
 	private boolean branchOnCustomerArcs; 				//true if the branching is performed on an arc between customers (or the depot)
-	private boolean branchOnInitialChargingTime;		//true if the branching is performed on an arc representing the initial charging time
 	private int arcForBranching=-1; 					//arc to branch on
 	private double bestArcValue = 0; 					//current flow value of the arc to branch on
 	private int timestepForBranching=-1; 				//timestep to branch on
@@ -48,7 +47,6 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		this.vehiclesForBranching = 0;
 		this.branchingOnVehicles = false;
 		this.branchOnCustomerArcs = false;
-		this.branchOnInitialChargingTime = false;
 		this.arcForBranching = -1;
 		this.bestArcValue = 0;
 		this.timestepForBranching = -1;

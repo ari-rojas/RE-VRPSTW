@@ -47,8 +47,6 @@ import branchAndPrice.BuildIntegerSolutionEvent;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
-import branchAndPrice.LexicographicMasterEvent;
-import branchAndPrice.FinishLexicographicMasterEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingMultigraphPricingProblemSolver;
@@ -360,24 +358,6 @@ public final class EVRPTWSolver {
 					}).collect(Collectors.joining(", "));
 					this.logger.debug(summary);
 				}
-			}
-		}
-
-		@Override
-		public void startLexicographicMaster(LexicographicMasterEvent lexiEvent){
-			if (dataModel.print_log) {
-
-				logger.debug("================ MASTER - LEXICOGRAPHIC ================");
-
-			}
-		}
-
-		@Override
-		public void finishLexicographicMaster(FinishLexicographicMasterEvent lexiEvent){
-			if (dataModel.print_log) {
-
-				logger.debug("Finished master -> RMP objective: {}, Total cost: {}", new Object[]{lexiEvent.depletion,lexiEvent.cost });
-
 			}
 		}
 
