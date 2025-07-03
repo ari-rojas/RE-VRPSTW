@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.PriorityQueue;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
-import branchAndPrice.ChargingTimeInequality;
 import branchAndPrice.FixArc;
 import branchAndPrice.RemoveArc;
 import model.EVRPTW;
@@ -314,15 +313,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
 			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
 			else arc.modifiedCost = 0;
-		}
-
-		//Check charging time branching decisions
-		int i=0;
-		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
-			if(branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			i++;
 		}
 	}
 

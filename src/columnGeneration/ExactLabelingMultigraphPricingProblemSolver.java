@@ -201,7 +201,7 @@ public final class ExactLabelingMultigraphPricingProblemSolver extends AbstractP
 		if(source!=dataModel.V) {
 			chargingTime-=1;
 			//correctness of dominance rule when there are branches on charging times
-			if(chargingTime<0 && pricingProblem.branchesOnChargingTimes.isEmpty()) return null;
+			if(chargingTime<0) return null;
 		}
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;

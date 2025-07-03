@@ -349,12 +349,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to look for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 						// Look for Number of Vehicles or Customers Arc Flow branching
 						boolean foundBranches = false;
-						foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+						foundBranches = bc.canPerformBranching(bapNode.getSolution());
 						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished looking for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 						if (foundBranches){
 							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to add first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-							newBranches.addAll(bc.getFirstBranches(bapNode));
+							newBranches.addAll(bc.getBranches(bapNode));
 							if (this.chargingNodes.contains(bapNode.nodeID)) { 
 								timeChargingBranching += (System.currentTimeMillis()-time);
 								this.chargingNodes.add(newBranches.get(0).nodeID);
