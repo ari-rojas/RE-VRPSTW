@@ -215,6 +215,15 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts());
 	}
 
+	protected void processIntegerNode(BAPNode<EVRPTW, Route> bapNode){
+
+		int integerObjective = MathProgrammingUtil.doubleToInt(bapNode.getObjective());
+		this.notifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), integerObjective);
+		this.objectiveIncumbentSolution = integerObjective;
+		this.upperBoundOnObjective = (double)integerObjective;
+		this.incumbentSolution = bapNode.getSolution();
+	}
+
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
