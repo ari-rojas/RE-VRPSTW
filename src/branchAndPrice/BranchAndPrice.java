@@ -38,6 +38,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public static final double PRECISION=0.001; 	//precision considered for the fractional solutions (nodes)
 	private final ExtendBAPNotifier extendedNotifier;
 
+	private List<Integer> chargingNodes = new ArrayList<Integer>();
+	private long timeChargingBranching = 0;
+
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
