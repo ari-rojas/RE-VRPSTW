@@ -234,9 +234,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			} else {
 				this.graphManipulator.next(bapNode);
 				if (bapNode.nodeID != 0) { bapNode.addInitialColumns(this.generateInitialFeasibleSolution(bapNode)); }
-	
+				
+				long time = 0;
 				try { // Try solving the node
+					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
 					this.solveBAPNode(bapNode, timeLimit);
+					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
 					this.queue.add(bapNode);
 					this.notifier.fireTimeOutEvent(bapNode);
@@ -257,31 +260,56 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					this.notifier.fireNodeIsInfeasibleEvent(bapNode);
 					++this.nodesProcessed;
 				} else { // If it is either integer solution and hence pruned by optimality OR fractional and should branch
-					if (this.isIntegerNode(bapNode)) {
-						int integerObjective = MathProgrammingUtil.doubleToInt(bapNode.getObjective());
-						this.notifier.fireNodeIsIntegerEvent(bapNode, bapNode.getBound(), integerObjective);
-						this.objectiveIncumbentSolution = integerObjective;
-						this.upperBoundOnObjective = (double)integerObjective;
-						this.incumbentSolution = bapNode.getSolution();
+					if (this.isIntegerNode(bapNode)) { // If is integer, update incumbent
+						this.processIntegerNode(bapNode);
 					} else {
-						this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+						this.updateNodeGeneratedColumns(bapNode);
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
-						Iterator var6 = this.branchCreators.iterator();
-	
-						while(var6.hasNext()) {
-						AbstractBranchCreator<EVRPTW, Route, PricingProblem> bc = (AbstractBranchCreator)var6.next();
-						newBranches.addAll(bc.branch(bapNode));
-						if (!newBranches.isEmpty()) {
-							break;
+						
+						// Initialize Branch Creator
+						BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
+						
+						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to look for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
+						// Look for Number of Vehicles or Customers Arc Flow branching
+						boolean foundBranches = false;
+						foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished looking for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
+						if (foundBranches){
+							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to add first branches at node "+bapNode.nodeID);} // TIME BRANCHING
+							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+							newBranches.addAll(bc.getFirstBranches(bapNode));
+							if (this.chargingNodes.contains(bapNode.nodeID)) { 
+								timeChargingBranching += (System.currentTimeMillis()-time);
+								this.chargingNodes.add(newBranches.get(0).nodeID);
+								this.chargingNodes.add(newBranches.get(1).nodeID);
+								//logger.debug("TIME BRANCHING - Finished adding first branches at node "+bapNode.nodeID);
+							} // TIME BRANCHING
+						} else {
+							
+							//logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
+							time = System.currentTimeMillis();
+							
+							foundBranches = bc.canPerformBranching(bapNode.getSolution());
+							if (foundBranches){
+								this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+								newBranches.addAll(bc.getBranches(bapNode));
+							}
+
+							timeChargingBranching += (System.currentTimeMillis()-time);
+							this.chargingNodes.add(newBranches.get(0).nodeID);
+							this.chargingNodes.add(newBranches.get(1).nodeID);
+							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
+
 						}
-						}
 	
-						if (newBranches.isEmpty()) {
-						throw new RuntimeException("BAP encountered fractional solution, but non of the BranchCreators produced any new branches?");
+						if (!foundBranches) {
+							throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
 						}
-	
-						this.queue.addAll(newBranches);
-						this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+						
+						if (!newBranches.isEmpty()){
+							this.queue.addAll(newBranches);
+							this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+						}
 					}
 	
 				++this.nodesProcessed;
@@ -290,34 +318,39 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
   
 		if (this.queue.isEmpty()) { // If all the BAP tree was explored, the incumbent solution is optimal
-		   this.isOptimal = true;
-		   if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE) {
-			  this.lowerBoundOnObjective = (double)this.objectiveIncumbentSolution;
-		   } else {
-			  this.upperBoundOnObjective = (double)this.objectiveIncumbentSolution;
-		   }
+			this.isOptimal = true;
+			if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE) {
+				this.lowerBoundOnObjective = (double)this.objectiveIncumbentSolution;
+			} else {
+				this.upperBoundOnObjective = (double)this.objectiveIncumbentSolution;
+			}
 		} else { // Else, cannot declare optimality
-		   this.isOptimal = false;
-		   Iterator var9;
-		   BAPNode bapNode;
-		   if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE) {
-			  this.lowerBoundOnObjective = ((BAPNode)this.queue.peek()).getBound();
-  
-			  for(var9 = this.queue.iterator(); var9.hasNext(); this.lowerBoundOnObjective = Math.min(this.lowerBoundOnObjective, bapNode.getBound())) {
-				 bapNode = (BAPNode)var9.next();
-			  }
-		   } else {
-			  this.upperBoundOnObjective = ((BAPNode)this.queue.peek()).getBound();
-  
-			  for(var9 = this.queue.iterator(); var9.hasNext(); this.upperBoundOnObjective = Math.max(this.upperBoundOnObjective, bapNode.getBound())) {
-				 bapNode = (BAPNode)var9.next();
-			  }
-		   }
+			this.isOptimal = false;
+			Iterator var9;
+			BAPNode bapNode;
+			if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE) {
+				this.lowerBoundOnObjective = ((BAPNode)this.queue.peek()).getBound();
+	
+				for(var9 = this.queue.iterator(); var9.hasNext(); this.lowerBoundOnObjective = Math.min(this.lowerBoundOnObjective, bapNode.getBound())) {
+					bapNode = (BAPNode)var9.next();
+				}
+			} else {
+				this.upperBoundOnObjective = ((BAPNode)this.queue.peek()).getBound();
+	
+				for(var9 = this.queue.iterator(); var9.hasNext(); this.upperBoundOnObjective = Math.max(this.upperBoundOnObjective, bapNode.getBound())) {
+					bapNode = (BAPNode)var9.next();
+				}
+			}
 		}
   
 		this.notifier.fireStopBAPEvent();
 		this.runtime = System.currentTimeMillis() - this.runtime;
-	 }
+
+		double realTime = this.timeChargingBranching*0.001;
+		realTime = Math.floor(realTime*100)/100;
+		logger.debug("TIME BRANCHING - Total time is: "+realTime);
+
+	}
 
 
 	/**
