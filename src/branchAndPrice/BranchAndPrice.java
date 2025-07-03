@@ -121,6 +121,27 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
 	}
 
+	protected void updateNodeGeneratedColumns(BAPNode<EVRPTW, Route> bapNode){
+
+		//Inherit the routes generated
+		List<Route> routesToAdd = new ArrayList<Route>();
+		for(Route column: master.getColumns(this.pricingProblem)) {
+			if(column.BBnode==-1) {
+				column.BBnode=bapNode.nodeID;
+				routesToAdd.add(column);
+			}
+		}
+		bapNode.addInitialColumns(routesToAdd);
+		//Inherit the cuts generated (not necessary)
+
+		//Solve MIP at root node (optional)
+		if(bapNode.nodeID == 0) {
+			try {solveIPAtRootNode(bapNode);} 
+			catch (IloException e) {e.printStackTrace();}
+		}
+
+	}
+
 	/**
 	 * To have a stronger upper bound, we solve the MIP at the root (with the generated columns)
 	 */
@@ -363,7 +384,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		logger.debug("TIME BRANCHING - Total time is: "+realTime);
 
 	}
-
 
 	/**
 	 * Test whether the given node can be pruned based on this bounds
