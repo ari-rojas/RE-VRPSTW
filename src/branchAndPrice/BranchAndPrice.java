@@ -254,7 +254,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private List<Route> build_feasible_charging_schedule(List<Route> solution){
 
 		int[] chargerAvailableTime = new int[this.dataModel.B + 1]; // Index 1 to B (1-based indexing)
-        Arrays.fill(chargerAvailableTime, this.dataModel.last_charging_period);
+        Arrays.fill(chargerAvailableTime, 0);
 
 		List<Route> new_solution = new ArrayList<>();
 
@@ -262,18 +262,18 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 			// Find the charger with the latest available time
             int bestCharger = 1;
-            int maxAvailableTime = chargerAvailableTime[1];
+            int minAvailableTime = chargerAvailableTime[1];
 
             for (int v = 2; v <= this.dataModel.B; v++) {
-                if (chargerAvailableTime[v] > maxAvailableTime) {
+                if (chargerAvailableTime[v] < minAvailableTime) {
                     bestCharger = v;
-                    maxAvailableTime = chargerAvailableTime[v];
+                    minAvailableTime = chargerAvailableTime[v];
                 }
             }
 
-			chargerAvailableTime[bestCharger] = Math.min(chargerAvailableTime[bestCharger], column.departureTime) - column.chargingTime;
+			chargerAvailableTime[bestCharger] += column.chargingTime;
 			
-			Route new_column = new Route("intSol", false, column.route, column.routeSequence, this.pricingProblem, column.cost, column.departureTime, column.energy, column.load, column.reducedCost, column.arcs, chargerAvailableTime[bestCharger], column.chargingTime);
+			Route new_column = new Route("intSol", false, column.route, column.routeSequence, this.pricingProblem, column.cost, column.departureTime, column.energy, column.load, column.reducedCost, column.arcs, chargerAvailableTime[bestCharger]-column.chargingTime+1, column.chargingTime);
 			new_column.value = 1;
 			new_solution.add(new_column);
 
