@@ -33,6 +33,8 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private double bestTimestepValue = 0; 				//number of vehicles charging of the timestep to branch on
 	private EVRPTW dataModel; 							//model data
 
+	private double PRECISION = 0.001;
+
 	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
 		super(dataModel, pricingProblem);
 		this.dataModel = dataModel;
