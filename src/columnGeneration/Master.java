@@ -707,9 +707,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(expr);
 			
-			/* double lhs = masterData.cplex.getValue(cost_constraint.getExpr());
-			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp");
-			logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
+			/* double lhs = new_cost;
+			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp"); */
+			/* logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
 			logger.debug("Cost constraint after solving: "+lhs+"<="+cost_constraint.getUB()); */
 	
 
