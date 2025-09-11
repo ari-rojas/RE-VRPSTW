@@ -302,7 +302,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							}
 
 							reducedCost += r_add - r_substract;
-							if (reducedCost < 0){
+							if (reducedCost < -dataModel.precision){
 								int initial = t-chargingTime+1;
 
 								Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);

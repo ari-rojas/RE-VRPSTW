@@ -212,7 +212,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			for (Label label: vertices[0].processedLabels) {
 				
 				// Generate new columns if the route has negative reduced cost
-				if (label.reducedCost<=-dataModel.precision) {
+				if (label.reducedCost <=- dataModel.precision) {
 					int departureTime = (int) (label.remainingTime/10);
 					int load = dataModel.Q - label.remainingLoad;
 					int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
@@ -262,7 +262,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 						}
 
 						reducedCost += r_add - r_substract;
-						if (reducedCost < 0){
+						if (reducedCost < -dataModel.precision){
 							int initial = t-chargingTime+1;
 
 							Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);
