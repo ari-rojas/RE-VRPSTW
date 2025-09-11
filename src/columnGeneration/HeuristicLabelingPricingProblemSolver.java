@@ -251,7 +251,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 					// Generate all non-dominated columns that perform the route
 
-					int t = dataModel.last_charging_period;
+					int t = departureTime-1;
 					double r_add = 0; int cont = t+0;
 
 					while (t >= chargingTime){
