@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.PriorityQueue;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
-import branchAndPrice.ChargingTimeInequality;
 import branchAndPrice.FixArc;
 import branchAndPrice.RemoveArc;
 import model.EVRPTW;
@@ -40,6 +39,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 	/** Runs the labeling algorithm. */
 	public void runLabeling() {
+
 		//initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(dataModel.C+1, -1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
@@ -50,29 +50,31 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Labeling algorithm 
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size()<= numCols && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && vertices[0].processedLabels.size()<= numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				
+				if (currentLabel.vertex == 0) continue; // Does not allow extensions beyond the outbound depot
 				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 					if(a.head>0 && a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
 					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
-					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
-					else extendedLabel = extendLabelChargingTime(currentLabel, a);
+					
+					Label extendedLabel= extendLabel(currentLabel, a);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
 						updateNodesToProcess(extendedLabel);
 					}
 				}
 			}
 		}
+		if (dataModel.print_log) {logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
+
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.heuristicPricingTime+=totalTime;
 		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
-
 
 	/** Selects a set of labels to process (the ones with most remaining load). */
 	public ArrayList<Label> labelsToProcessNext(){
@@ -106,6 +108,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 	/** Label extension procedure. */
 	public Label extendLabel(Label currentLabel, Arc arc) {
+		
 		int source = arc.tail;
 		if (source>=1 && source<=dataModel.C) {
 			if (currentLabel.unreachable[source-1]) return null;
@@ -171,28 +174,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	}
 
 	/**
-	 * Label extension procedure
-	 */
-	public Label extendLabelChargingTime(Label currentLabel, Arc arc) {
-
-		int source = arc.tail;
-
-		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
-		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
-
-		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		reducedCost = Math.floor(reducedCost*10000)/10000;
-		int chargingTime = currentLabel.chargingTime;
-		if(source!=dataModel.V) {
-			chargingTime-=1;
-			if(chargingTime<0) return null;
-		}
-
-		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
-		return extendedLabel;
-	}
-
-	/**
 	 * When the CG procedure terminates, the close function is invoked. 
 	 */
 	@Override
@@ -223,29 +204,40 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		this.runLabeling(); 									//runs the labeling algorithm
 		List<Route> newRoutes=new ArrayList<>(this.numCols);  	//list of routes
 
-		if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
+		if(vertices[0].processedLabels.isEmpty()) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
 		else {
 			this.pricingProblemInfeasible=false;
-			for (Label label: vertices[dataModel.V].unprocessedLabels) {
-				int departureTime = (int) (label.remainingTime/10);
-				int load = dataModel.Q - label.remainingLoad;
-				if (label.reducedCost<=-dataModel.precision) {	//generate new column if it has negative reduced cost
-					HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C); int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
+
+			// All labels at the outbound depot
+			for (Label label: vertices[0].processedLabels) {
+				
+				// Generate new columns if the route has negative reduced cost
+				if (label.reducedCost<=-dataModel.precision) {
+					int departureTime = (int) (label.remainingTime/10);
+					int load = dataModel.Q - label.remainingLoad;
+					int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+					int chargingTime = label.chargingTime;
+					double reducedCost = label.reducedCost;
+					
+					// Retrieve route information
+					HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C); // How many times the route visits customer i \in C
 					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
-					int currentVertex = label.vertex;
+
+					int currentVertex = label.vertex; Label currentLabel = label.clone();
+					int cost = 0;
+
 					while(currentVertex!=dataModel.C+1) {
-						Arc currentArc = dataModel.arcs[label.nextArc];
+						Arc currentArc = dataModel.arcs[currentLabel.nextArc];
 						cost+=currentArc.cost;
 						int nextVertex = currentArc.head;
 						if (currentVertex>=1 && currentVertex<=dataModel.C) {
 							if(route.containsKey(currentVertex)) route.replace(currentVertex, route.get(currentVertex)+1); 
 							else route.put(currentVertex, 1);
-						}else if(currentVertex!=dataModel.V && currentVertex!=0) chargingTime++;
+						}
 
-						label = vertices[nextVertex].processedLabels.get(label.nextLabelIndex);
-						if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) arcs.add(currentArc.id);
+						currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
 						currentVertex = nextVertex;
+						arcs.add(currentArc.id);
 					}
 
 					//Gets the route sequence (of customers)
@@ -256,8 +248,42 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 						routeSequence[counter] = dataModel.arcs[arc].head;
 						counter++;
 					}
-					Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
-					newRoutes.add(column);
+
+					// Generate all non-dominated columns that perform the route
+
+					int t = dataModel.last_charging_period;
+					double r_add = 0; int cont = t+0;
+
+					while (t >= chargingTime){
+
+						double r_substract = 0;
+						for (int i = t-chargingTime+1; i <= cont; i++){
+							r_substract += pricingProblem.dualCosts[dataModel.C + i - 1];
+						}
+
+						reducedCost += r_add - r_substract;
+						if (reducedCost < 0){
+							int initial = t-chargingTime+1;
+
+							Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);
+							newRoutes.add(column);
+						}
+
+						int next_t = t-chargingTime;
+						cont = t-chargingTime; r_add = 0;
+						for (int tt = t; tt >= t-chargingTime+1; tt--){
+							if (pricingProblem.dualCosts[dataModel.C + tt - 1] < -dataModel.precision){
+								//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
+								next_t = tt - 1;
+								r_add = pricingProblem.dualCosts[dataModel.C + tt - 1];
+								break;
+							}
+						}
+
+						t = next_t;
+
+					}
+
 				}
 			}
 		}
@@ -315,15 +341,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
 			else arc.modifiedCost = 0;
 		}
-
-		//Check charging time branching decisions
-		int i=0;
-		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
-			if(branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			i++;
-		}
 	}
 
 	/**
@@ -356,37 +373,29 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	 */
 	public boolean isDominated(Label L1, Label L2) {
 
-		if(L1.vertex>dataModel.C) { //charging time vertices
-			if (L2.chargingTime>L1.chargingTime) return false;
-			if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false;
-			return true;
+		if (L1.vertex>0 && L2.remainingLoad<L1.remainingLoad) return false; //load
+		if (L2.remainingTime<L1.remainingTime) return false; 				//time
 
-		}else { 					//customer vertices
-
-			if (L1.vertex>0 && L2.remainingLoad<L1.remainingLoad) return false; //load
-			if (L2.remainingTime<L1.remainingTime) return false; 				//time
-
-			for (int gam = 0; gam <= dataModel.gamma; gam ++){
-				if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false;				 //energy
-			}
-			
-			//reducedCost
-			double reducedCostL2 = 0;
-			if (L1.vertex>0) {
-				for(int i: L2.srcIndices) {
-					if(!L1.eta[i]) {
-						SubsetRowInequality src = pricingProblem.subsetRowCuts.get(i);
-						if(!L2.unreachable[src.cutSet[0]-1] || !L2.unreachable[src.cutSet[1]-1] || !L2.unreachable[src.cutSet[2]-1]) {
-							int dualIndex = dataModel.C+dataModel.last_charging_period+i;
-							reducedCostL2+=pricingProblem.dualCosts[dualIndex];
-						}
-					}
-					if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
-				}
-			}
-			if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
-			return true;
+		for (int gam = 0; gam <= dataModel.gamma; gam ++){
+			if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false;				 //energy
 		}
+		
+		//reducedCost
+		double reducedCostL2 = 0;
+		if (L1.vertex>0) {
+			for(int i: L2.srcIndices) {
+				if(!L1.eta[i]) {
+					SubsetRowInequality src = pricingProblem.subsetRowCuts.get(i);
+					if(!L2.unreachable[src.cutSet[0]-1] || !L2.unreachable[src.cutSet[1]-1] || !L2.unreachable[src.cutSet[2]-1]) {
+						int dualIndex = dataModel.C+dataModel.last_charging_period+i;
+						reducedCostL2+=pricingProblem.dualCosts[dualIndex];
+					}
+				}
+				if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
+			}
+		}
+		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
+		return true;
 	}
 
 	/**
