@@ -179,6 +179,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 						double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
 						logger.debug(subsetRowInequality.toString() + ": " + dual);
 					}
+					logger.debug("Charging Times branchings:");
+					for(ChargingTimeInequality branching: masterData.branchingChargingTimes.keySet()) {
+						double dual = masterData.cplex.getDual(masterData.branchingChargingTimes.get(branching));
+						logger.debug(branching.toString() + ": " + dual);
+					}
 					
 				}
 			}
