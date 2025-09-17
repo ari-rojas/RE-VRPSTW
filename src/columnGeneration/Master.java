@@ -164,13 +164,13 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					for(Route route: solution)
 						logger.debug(route.toString());
 					
-					/* logger.debug("Printing dual variables");
+					logger.debug("Printing dual variables");
 					logger.debug("Capacity constraint: " + String.valueOf(masterData.cplex.getDual(roundedCapacityInequality)));
 					logger.debug("Customer constraints: " + masterData.cplex.getDuals(visitCustomerConstraints).toString());
 					for(int i=0; i< dataModel.C; i++) {
 						logger.debug("Customer " + String.valueOf(i+1) + ": " +masterData.cplex.getDual(visitCustomerConstraints[i]));
 					}
-					logger.debug("Charging periods constraints:" + masterData.cplex.getDuals(chargersCapacityConstraints).toString());
+					logger.debug("Charging periods constraints:");
 					for (int t = 0; t < dataModel.last_charging_period; t++) {
 						logger.debug("Period " + String.valueOf(t+1) + ": " + masterData.cplex.getDual(chargersCapacityConstraints[t]));
 					}
@@ -178,7 +178,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
 						double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
 						logger.debug(subsetRowInequality.toString() + ": " + dual);
-					} */
+					}
 					
 				}
 			}
