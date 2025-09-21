@@ -4,10 +4,13 @@ package columnGeneration;
 import model.EVRPTW;
 import model.EVRPTW.Arc;
 import model.EVRPTW.Vertex;
+
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -290,8 +293,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							counter++;
 						}
 						
-						// Generate all non-dominated columns that perform the route
-						int t = departureTime-1;
+						// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
+						/* int t = departureTime-1;
 						double r_add = 0; int cont = t+0;
 
 						while (t >= chargingTime){
@@ -313,6 +316,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							cont = t-chargingTime; r_add = 0;
 							for (int tt = t; tt >= t-chargingTime+1; tt--){
 								if (pricingProblem.dualCosts[dataModel.C + tt - 1] < -dataModel.precision){
+									//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
 									next_t = tt - 1;
 									r_add = pricingProblem.dualCosts[dataModel.C + tt - 1];
 									break;
@@ -321,6 +325,37 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 							t = next_t;
 
+						} */
+
+						// MODE 2: ADAPTED FOR CHARGING TIME BRANCHING
+						Deque<Integer> T = new ArrayDeque<>();
+						boolean[] inT = new boolean[departureTime];
+						for (int t = departureTime - 1; t >= chargingTime; t--) {
+							T.addLast(t); // appends to the end
+							inT[t] = true;
+						}
+
+						while (!T.isEmpty()){
+							int t = T.pollFirst(); inT[t] = false;
+							double r_ = dataModel.graph.getEdge(dataModel.V+t,0).modifiedCost; // Modified cost has already substracted the duals (Beta + Gamma)
+
+							int tPrime = t-1; List<Integer> D = new ArrayList<>();
+							while (tPrime >= t - chargingTime + 1) {
+								r_ -= pricingProblem.dualCosts[dataModel.C + tPrime - 1]; // Subtracting directly the dual (Beta)
+								if (inT[tPrime] && (r_ <= dataModel.graph.getEdge(dataModel.V+tPrime,0).modifiedCost)) D.add(tPrime);
+								tPrime -= 1;
+							}
+
+							for (int tt : D){ inT[tt] = false; }
+							T.removeIf(x -> !inT[x]);
+
+							r_ += dataModel.graph.getEdge(dataModel.V, dataModel.V+t-chargingTime+1).modifiedCost; // Modified cost has already substracted the dual (Omega)
+							if (reducedCost + r_ < -dataModel.precision){
+								int initial = t-chargingTime+1;
+
+								Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost+r_, arcs, initial, chargingTime);
+								newRoutes.add(column);
+							}
 						}
 
 					}
