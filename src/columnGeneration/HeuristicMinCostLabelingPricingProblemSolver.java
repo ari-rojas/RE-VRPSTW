@@ -362,7 +362,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							int initial = t-chargingTime+1;
 
 							Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost+r_, arcs, initial, chargingTime);
-							newRoutes.add(column);
+							
+							if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
+							else {nonElementaryRoutes.add(column);}
 						}
 					}
 					
