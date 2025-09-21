@@ -288,12 +288,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						routeSequence[counter] = dataModel.arcs[arc].head;
 						counter++;
 					}
-
-					
-					if (Arrays.equals(routeSequence, new int[]{18, 8, 7, 19, 11, 10, 20, 9, 1})) {
-						logger.debug("DEBUGGING - route [18, 8, 7, 19, 11, 10, 20, 9, 1], Departure 538");
-						logger.debug("Reduced cost before the charging pricing: "+reducedCost);
-					}
 					
 					// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
 					/* int t = departureTime-1;
@@ -352,11 +346,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						T.removeIf(x -> !inT[x]);
 
 						r_ += dataModel.graph.getEdge(dataModel.V, dataModel.V+t-chargingTime+1).modifiedCost; // Modified cost has already substracted the dual (Omega)
-						
-						if (Arrays.equals(routeSequence, new int[]{18, 8, 7, 19, 11, 10, 20, 9, 1})) {
-							double total_rc = reducedCost+r_;
-							logger.debug("Column finishing charging at " + t + ": "+total_rc);
-						}
 						
 						if (reducedCost + r_ < -dataModel.precision){
 							int initial = t-chargingTime+1;
