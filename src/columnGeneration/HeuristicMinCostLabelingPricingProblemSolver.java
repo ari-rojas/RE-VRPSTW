@@ -59,7 +59,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
 
 		//Labeling algorithm
-		long startTime = System.currentTimeMillis();
+		
 		while (!nodesToProcess.isEmpty() && vertices[0].processedLabels.size()<= numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
@@ -79,11 +79,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				}
 			}
 		}
-		if (dataModel.print_log) {logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
+		
 	}
 
 
@@ -246,6 +242,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		/**Until finding an elementary route or reaching a max neighborhood size*/
 		while(!existsElementaryRoute && !maxNeighborhoodSize) {
 
+			long startTime = System.currentTimeMillis();
 			this.runLabeling(); 										//runs the labeling algorithm
 
 			if(vertices[0].processedLabels.isEmpty()) { existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE; }
@@ -290,6 +287,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						if(counter>=routeSequence.length) break;
 						routeSequence[counter] = dataModel.arcs[arc].head;
 						counter++;
+					}
+
+					
+					if (Arrays.equals(routeSequence, new int[]{18, 8, 7, 19, 11, 10, 20, 9, 1})) {
+						logger.debug("DEBUGGING - route [18, 8, 7, 19, 11, 10, 20, 9, 1], Departure 538");
+						logger.debug("Reduced cost before the charging pricing: "+reducedCost);
 					}
 					
 					// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
@@ -349,16 +352,22 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						T.removeIf(x -> !inT[x]);
 
 						r_ += dataModel.graph.getEdge(dataModel.V, dataModel.V+t-chargingTime+1).modifiedCost; // Modified cost has already substracted the dual (Omega)
+						
+						if (Arrays.equals(routeSequence, new int[]{18, 8, 7, 19, 11, 10, 20, 9, 1})) {
+							double total_rc = reducedCost+r_;
+							logger.debug("Column finishing charging at " + t + ": "+total_rc);
+						}
+						
 						if (reducedCost + r_ < -dataModel.precision){
 							int initial = t-chargingTime+1;
 
-							Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost+r_, arcs, initial, chargingTime);
+							Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost+r_, arcs, initial, chargingTime);
 							newRoutes.add(column);
 						}
 					}
 					
 				}
-
+				
 				//Enlarge ng-sets (neighborhoods)
 				if (!existsElementaryRoute) {
 					maxNeighborhoodSize = true;
@@ -366,7 +375,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
 			}
+			if (dataModel.print_log) {logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
+
+			long totalTime = System.currentTimeMillis()-startTime;
+			dataModel.exactPricingTime+=totalTime;
+			if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 		}
+
 		close();
 		return disjointBlocks(newRoutes);
 	}
@@ -399,6 +414,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					disjointRoutes.add(route);
 					break;
 				}
+			}
+		}
+
+		if (disjointRoutes.size() < 100){
+			logger.debug("Printing " + disjointRoutes.size() + " disjointRoutes");
+			for (Route col: disjointRoutes){
+				logger.debug(col.toString());
 			}
 		}
 		return disjointRoutes;

@@ -53,7 +53,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		dataModel.infeasibleArcs = this.infeasibleArcs;
 
 		//Labeling algorithm 
-		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && vertices[0].processedLabels.size()<= numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
@@ -72,12 +71,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					}
 				}
 			}
-		}
-		if (dataModel.print_log) {logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
+		} 
 	}
 
 	/** Selects a set of labels to process (the ones with most remaining load). */
@@ -205,6 +199,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	protected List<Route> generateNewColumns() {
 
 		//Solve the problem and check the solution
+		long startTime = System.currentTimeMillis();
 		this.runLabeling(); 									//runs the labeling algorithm
 		List<Route> newRoutes=new ArrayList<>(this.numCols);  	//list of routes
 
@@ -318,8 +313,18 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					}
 				}
 
+
+
 			}
+
 		}
+
+		if (dataModel.print_log) {logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
+
+		long totalTime = System.currentTimeMillis()-startTime;
+		dataModel.heuristicPricingTime+=totalTime;
+		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime));
+		
 		close(); //restart
 		return disjointBlocks(newRoutes);
 	}

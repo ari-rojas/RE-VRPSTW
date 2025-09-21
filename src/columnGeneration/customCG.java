@@ -196,12 +196,13 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				break;
 			}
 			exact = true;
-		}
+		} 
 
 		if(exact) 
 			if(!newColumns.isEmpty()) this.boundOnMasterObjective =(optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			else this.boundOnMasterObjective = master.getObjective(); //update the bound before adding cuts
 
+		
 		notifier.fireFinishPricingEvent(newColumns);
 
 		pricingSolveTime+=(System.currentTimeMillis()-time);
