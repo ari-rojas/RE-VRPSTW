@@ -408,12 +408,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}
 
-		if (disjointRoutes.size() < 100){
-			logger.debug("Printing " + disjointRoutes.size() + " disjointRoutes");
-			for (Route col: disjointRoutes){
-				logger.debug(col.toString());
-			}
-		}
 		return disjointRoutes;
 	}
 
