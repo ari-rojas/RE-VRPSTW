@@ -31,7 +31,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 	public Vertex[] vertices = dataModel.vertices; 			//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
-	public final int numCols = 400; 						//maximum number of routes (columns) allowed
+	public final int numCols = 400*10; 						//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 
@@ -60,7 +60,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Labeling algorithm
 		
-		while (!nodesToProcess.isEmpty() && vertices[0].processedLabels.size()<= numCols && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
@@ -288,6 +288,11 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						routeSequence[counter] = dataModel.arcs[arc].head;
 						counter++;
 					}
+
+					/* if (Arrays.equals(routeSequence, new int[]{42, 39, 36, 40, 38, 41})) {
+						logger.debug("DEBUGGING - route [42, 39, 36, 40, 38, 41] Departure 221");
+						logger.debug("Initial reduced cost at outbound depot = "+reducedCost);
+					} */
 					
 					// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
 					/* int t = departureTime-1;
@@ -347,15 +352,27 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 						r_ += dataModel.graph.getEdge(dataModel.V, dataModel.V+t-chargingTime+1).modifiedCost; // Modified cost has already substracted the dual (Omega)
 						
+						/* if (Arrays.equals(routeSequence, new int[]{42, 39, 36, 40, 38, 41})) {
+							double total_rc = reducedCost +r_;
+							logger.debug("Column finishing at time "+ t + ", rc =  "+total_rc);
+						} */
+
 						if (reducedCost + r_ < -dataModel.precision){
 							int initial = t-chargingTime+1;
 
 							Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost+r_, arcs, initial, chargingTime);
 							
-							if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
+							if (isElementary) {
+								existsElementaryRoute = true; newRoutes.add(column);
+								/* if (Arrays.equals(routeSequence, new int[]{42, 39, 36, 40, 38, 41})) {
+									logger.debug("Column finishing at time "+ t + " was added");
+								} */
+							}
 							else {nonElementaryRoutes.add(column);}
 						}
 					}
+
+					if (newRoutes.size() > this.numCols){ break; }
 					
 				}
 				
@@ -365,6 +382,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					if(!maxNeighborhoodSize) {nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>(); restart();} //restart //run again
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
+				
 			}
 			if (dataModel.print_log) {logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
 
@@ -466,7 +484,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		return false;
 	}
 
-
 	/**
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
@@ -517,7 +534,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		return true;
 		
 	}
-
 
 	public int[] get_route_sequence(Label label) {
 
@@ -606,7 +622,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		realTime = Math.floor(realTime*100)/100; //two decimals
 		return realTime;
 	}
-
 	/**
 	 * @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object.
 	 */
