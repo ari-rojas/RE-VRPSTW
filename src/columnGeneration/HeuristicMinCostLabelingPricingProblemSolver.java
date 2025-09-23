@@ -68,14 +68,17 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 				
-				if (currentLabel.vertex == 0) continue; // Does not allow extensions beyond the outbound depot
-				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-					if(a.head>0 && a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
-					if(infeasibleArcs[a.id] > 0) continue;
+				if (currentLabel.vertex == 0) {
 					
-					Label extendedLabel = extendLabel(currentLabel, a);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						updateNodesToProcess(extendedLabel);
+				} else {
+					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
+						if(a.head>0 && a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
+						if(infeasibleArcs[a.id] > 0) continue;
+						
+						Label extendedLabel = extendLabel(currentLabel, a);
+						if (extendedLabel!=null) { //verifies if the extension is feasible
+							updateNodesToProcess(extendedLabel);
+						}
 					}
 				}
 			}
