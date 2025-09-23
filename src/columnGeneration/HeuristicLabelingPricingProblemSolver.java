@@ -203,8 +203,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		this.runLabeling(); 									//runs the labeling algorithm
 		List<Route> newRoutes=new ArrayList<>();  	//list of routes
 
-		
-
 			// All labels at the outbound depot
 			for (Label label: vertices[0].processedLabels) {
 				

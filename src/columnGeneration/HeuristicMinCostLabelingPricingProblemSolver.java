@@ -284,11 +284,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					routeSequence[counter] = dataModel.arcs[arc].head;
 					counter++;
 				}
-
-				if (Arrays.equals(routeSequence, new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1})) {
-					logger.debug("DEBUGGING - route [28, 50, 33, 3, 24, 29, 34, 35, 20, 1] Departure 125");
-					logger.debug("Initial reduced cost at outbound depot = "+reducedCost);
-				}
 				
 				// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
 				/* int t = departureTime-1;
@@ -347,11 +342,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					T.removeIf(x -> !inT[x]);
 
 					r_ += dataModel.graph.getEdge(dataModel.V, dataModel.V+t-chargingTime+1).modifiedCost; // Modified cost has already substracted the dual (Omega)
-					
-					if (Arrays.equals(routeSequence, new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1})) {
-						double total_rc = reducedCost +r_;
-						logger.debug("Column finishing at time "+ t + ", rc =  "+total_rc);
-					}
 
 					if (reducedCost + r_ < -dataModel.precision){
 						int initial = t-chargingTime+1;
@@ -360,9 +350,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						
 						if (isElementary) {
 							existsElementaryRoute = true; newRoutes.add(column);
-							if (Arrays.equals(routeSequence, new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1})) {
-								logger.debug("Column finishing at time "+ t + " was added");
-							}
 						}
 						else {nonElementaryRoutes.add(column);}
 					}
