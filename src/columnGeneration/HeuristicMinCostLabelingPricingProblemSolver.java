@@ -249,6 +249,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			long startTime = System.currentTimeMillis();
 			existsElementaryRoute = this.runLabeling(); 										//runs the labeling algorithm
 
+			logger.debug("Found " + this.newRoutes.size() + " columns");
 			if(this.newRoutes.size() + this.nonElementaryRoutes.size() == 0) { existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE; }
 			else { this.pricingProblemInfeasible=false; }
 			
@@ -267,7 +268,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		close();
-		return disjointBlocks();
+		return this.newRoutes;
 	}
 
 
