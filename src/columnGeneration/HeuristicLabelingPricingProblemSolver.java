@@ -210,11 +210,9 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		//Solve the problem and check the solution
 		long startTime = System.currentTimeMillis();
 		this.runLabeling(); 									//runs the labeling algorithm
-		List<Route> newRoutes=new ArrayList<>(this.numCols);  	//list of routes
+		List<Route> newRoutes=new ArrayList<>();  	//list of routes
 
-		if(vertices[0].processedLabels.isEmpty()) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
-		else {
-			this.pricingProblemInfeasible=false;
+		
 
 			// All labels at the outbound depot
 			for (Label label: vertices[0].processedLabels) {
@@ -326,7 +324,8 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 			}
 
-		}
+		if (newRoutes.size() == 0) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
+		else { this.pricingProblemInfeasible=false; }
 
 		if (dataModel.print_log) {logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");}
 
