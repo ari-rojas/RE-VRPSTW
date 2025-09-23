@@ -75,15 +75,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					
 					Label extendedLabel = extendLabel(currentLabel, a);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
-						
-						// DELETE BLOCK LATER
-						int[] lookup_route = new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1}; // DELETE LATER
-						int[] cl_sequence = get_route_sequence(currentLabel); // DELETE LATER
-						boolean is_cl_subset = false; // DELETE LATER
-						if (cl_sequence.length <= lookup_route.length){
-							is_cl_subset = sequence_is_subset(cl_sequence, lookup_route);
-						}
-
 						updateNodesToProcess(extendedLabel);
 					}
 				}
