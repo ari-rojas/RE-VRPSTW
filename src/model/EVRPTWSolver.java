@@ -239,9 +239,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		//int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "New Pricing", args[2]);
+		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "New Pricing", args[2]);
+		EVRPTW evrptw = new EVRPTW("R103-50", 0, 0, true, "New Pricing", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}

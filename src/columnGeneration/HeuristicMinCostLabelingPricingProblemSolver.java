@@ -63,6 +63,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
+
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
@@ -74,6 +75,15 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					
 					Label extendedLabel = extendLabel(currentLabel, a);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
+						
+						// DELETE BLOCK LATER
+						int[] lookup_route = new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1}; // DELETE LATER
+						int[] cl_sequence = get_route_sequence(currentLabel); // DELETE LATER
+						boolean is_cl_subset = false; // DELETE LATER
+						if (cl_sequence.length <= lookup_route.length){
+							is_cl_subset = sequence_is_subset(cl_sequence, lookup_route);
+						}
+
 						updateNodesToProcess(extendedLabel);
 					}
 				}
@@ -81,7 +91,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		
 	}
-
 
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
@@ -289,10 +298,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						counter++;
 					}
 
-					/* if (Arrays.equals(routeSequence, new int[]{42, 39, 36, 40, 38, 41})) {
-						logger.debug("DEBUGGING - route [42, 39, 36, 40, 38, 41] Departure 221");
+					if (Arrays.equals(routeSequence, new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1})) {
+						logger.debug("DEBUGGING - route [28, 50, 33, 3, 24, 29, 34, 35, 20, 1] Departure 125");
 						logger.debug("Initial reduced cost at outbound depot = "+reducedCost);
-					} */
+					}
 					
 					// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
 					/* int t = departureTime-1;
@@ -343,7 +352,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						int tPrime = t-1; List<Integer> D = new ArrayList<>();
 						while (tPrime >= t - chargingTime + 1) {
 							r_ -= pricingProblem.dualCosts[dataModel.C + tPrime - 1]; // Subtracting directly the dual (Beta)
-							if (inT[tPrime] && (r_ <= dataModel.graph.getEdge(dataModel.V+tPrime,0).modifiedCost)) D.add(tPrime);
+							if (inT[tPrime] && (r_ <= dataModel.graph.getEdge(dataModel.V+tPrime,0).modifiedCost + dataModel.precision)) D.add(tPrime);
 							tPrime -= 1;
 						}
 
@@ -352,10 +361,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 						r_ += dataModel.graph.getEdge(dataModel.V, dataModel.V+t-chargingTime+1).modifiedCost; // Modified cost has already substracted the dual (Omega)
 						
-						/* if (Arrays.equals(routeSequence, new int[]{42, 39, 36, 40, 38, 41})) {
+						if (Arrays.equals(routeSequence, new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1})) {
 							double total_rc = reducedCost +r_;
 							logger.debug("Column finishing at time "+ t + ", rc =  "+total_rc);
-						} */
+						}
 
 						if (reducedCost + r_ < -dataModel.precision){
 							int initial = t-chargingTime+1;
@@ -364,9 +373,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							
 							if (isElementary) {
 								existsElementaryRoute = true; newRoutes.add(column);
-								/* if (Arrays.equals(routeSequence, new int[]{42, 39, 36, 40, 38, 41})) {
+								if (Arrays.equals(routeSequence, new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1})) {
 									logger.debug("Column finishing at time "+ t + " was added");
-								} */
+								}
 							}
 							else {nonElementaryRoutes.add(column);}
 						}

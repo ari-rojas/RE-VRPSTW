@@ -184,7 +184,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			master.initializePricingProblem(pricingProblem);
 		}
 
-		//Solve pricing problems in the order of the pricing algorithms
+		//Solve pricing problems in the order of the pricing algorithms¨¨
 		notifier.fireStartPricingEvent();
 		pricingProblemManager.setTimeLimit(timeLimit);
 		boolean exact = false;
@@ -196,7 +196,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				break;
 			}
 			exact = true;
-		} 
+		}
 
 		if(exact) 
 			if(!newColumns.isEmpty()) this.boundOnMasterObjective =(optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));

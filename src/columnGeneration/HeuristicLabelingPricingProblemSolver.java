@@ -67,6 +67,15 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					
 					Label extendedLabel= extendLabel(currentLabel, a);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
+						
+						// DELETE BLOCK LATER
+						int[] lookup_route = new int[]{28, 50, 33, 3, 24, 29, 34, 35, 20, 1}; // DELETE LATER
+						int[] cl_sequence = get_route_sequence(currentLabel); // DELETE LATER
+						boolean is_cl_subset = false; // DELETE LATER
+						if (cl_sequence.length <= lookup_route.length){
+							is_cl_subset = sequence_is_subset(cl_sequence, lookup_route);
+						}
+						
 						updateNodesToProcess(extendedLabel);
 					}
 				}
@@ -297,7 +306,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					int tPrime = t-1; List<Integer> D = new ArrayList<>();
 					while (tPrime >= t - chargingTime + 1) {
 						r_ -= pricingProblem.dualCosts[dataModel.C + tPrime - 1]; // Subtracting directly the dual (Beta)
-						if (inT[tPrime] && (r_ <= dataModel.graph.getEdge(dataModel.V+tPrime,0).modifiedCost)) D.add(tPrime);
+						if (inT[tPrime] && (r_ <= dataModel.graph.getEdge(dataModel.V+tPrime,0).modifiedCost + dataModel.precision)) D.add(tPrime);
 						tPrime -= 1;
 					}
 
@@ -484,6 +493,54 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		return realTime;
 	}
 
+	public int[] get_route_sequence(Label label) {
+
+		Label new_label = label.clone();
+
+		ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+		int currentVertex = new_label.vertex;
+		while(currentVertex!=dataModel.C+1) {
+			Arc currentArc = dataModel.arcs[new_label.nextArc];
+			int nextVertex = currentArc.head;
+
+			new_label = vertices[nextVertex].processedLabels.get(new_label.nextLabelIndex);
+			if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) arcs.add(currentArc.id);
+			currentVertex = nextVertex;
+		}
+
+		//Gets the route sequence (of customers)
+		if (arcs.size() > 0){
+
+			int[] routeSequence = new int[arcs.size()];
+			routeSequence[0] = label.vertex;
+
+			int counter = 1;
+			for(Integer arc: arcs) {
+				if(counter>=routeSequence.length) break;
+				routeSequence[counter] = dataModel.arcs[arc].head;
+				counter++;
+			}
+
+			return routeSequence;
+		} else {
+
+			return new int[0];
+		}
+	}
+
+	public boolean sequence_is_subset(int[] sequence, int[] lookup_sequence){
+
+		int m = sequence.length;
+        int n = lookup_sequence.length;
+
+        // Compare the last m elements of n2 with n1
+        for (int i = 0; i < m; i++) {
+            if (lookup_sequence[n - m + i] != sequence[i]) {
+                return false;
+            }
+        }
+        return true;
+	}
 
 	/**
 	 * @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object.
