@@ -57,7 +57,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Labeling algorithm
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size()<= numCols && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
