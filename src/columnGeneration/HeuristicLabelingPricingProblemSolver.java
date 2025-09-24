@@ -54,7 +54,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		dataModel.infeasibleArcs = this.infeasibleArcs;
 
 		//Labeling algorithm 
-		while (!nodesToProcess.isEmpty() && (this.newRoutes.size() <= this.numCols) && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 
@@ -204,6 +204,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	protected List<Route> generateNewColumns() {
 
 		//Solve the problem and check the solution
+		this.newRoutes = new ArrayList<>();
 		long startTime = System.currentTimeMillis();
 		this.runLabeling(); 									//runs the labeling algorithm
 
@@ -218,7 +219,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime));
 		
 		close(); //restart
-		return this.newRoutes;
+		return disjointBlocks();
 	}
 
 	public void extend_charging_pricing(Label label){

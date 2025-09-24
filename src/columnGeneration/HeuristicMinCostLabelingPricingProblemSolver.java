@@ -61,7 +61,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Labeling algorithm
 		boolean existsElementaryRoute = false;
-		while (!nodesToProcess.isEmpty() && (this.newRoutes.size() <= this.numCols) && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 
@@ -268,7 +268,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		close();
-		return this.newRoutes;
+		return disjointBlocks();
 	}
 
 
