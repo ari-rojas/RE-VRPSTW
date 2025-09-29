@@ -27,6 +27,7 @@ public final class HeuristicLabelingMultigraphPricingProblemSolver extends Abstr
 	public final int numCols = 400; 							//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 							//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 					//for the disjoint columns diversification strategy
+	public boolean chargingBranchingPricing = false;
 
 
 	/**

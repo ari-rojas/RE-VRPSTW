@@ -27,6 +27,7 @@ public final class ExactLabelingMultigraphPricingProblemSolver extends AbstractP
 	public final int numCols = 400; 					//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 					//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 			//diversification of columns
+	public boolean chargingBranchingPricing = false;
 
 
 	/**
