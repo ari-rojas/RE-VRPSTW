@@ -73,7 +73,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Barrier); //Primal Simplex
 			/* cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 1e-6); */
-			cplex.setParam(IloCplex.Param.Barrier.ConvergeTol, 1e-5);
+			cplex.setParam(IloCplex.Param.Barrier.ConvergeTol, 1e-3);
 			cplex.setParam(IloCplex.Param.RandomSeed, 30);
 
 			obj= cplex.addMinimize();		//objective
@@ -711,7 +711,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			
 			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 			masterData.cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Barrier);
-			masterData.cplex.setParam(IloCplex.Param.Barrier.ConvergeTol, 1e-5);
+			masterData.cplex.setParam(IloCplex.Param.Barrier.ConvergeTol, 1e-3);
 			//masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 			masterData.cplex.setParam(IloCplex.Param.Read.Scale, -1);  // disable scaling
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
