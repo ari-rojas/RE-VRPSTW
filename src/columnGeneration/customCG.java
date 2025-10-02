@@ -17,18 +17,20 @@ import model.EVRPTW;
  */
 public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
+	Master masterConcrete;
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
 
-	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
+	public customCG(EVRPTW dataModel, Master master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		// TODO Auto-generated constructor stub
+		this.masterConcrete = master;
 	}
 
-	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
+	public customCG(EVRPTW dataModel, Master master,
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
@@ -36,14 +38,16 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue,
 				boundOnMasterObjective);
 		// TODO Auto-generated constructor stub
+		this.masterConcrete = master;
 	}
 
-	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
+	public customCG(EVRPTW arg0, Master arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
 			int arg5, double arg6) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		// TODO Auto-generated constructor stub
+		this.masterConcrete = arg1;
 	}
 
 	@Override
@@ -211,6 +215,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			for(Route column : newColumns){
 				master.addColumn(column);
 			}
+			((Master)master).update_solution_basis_columns();
 		}
 		return newColumns;
 	}

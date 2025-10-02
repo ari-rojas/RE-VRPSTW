@@ -39,6 +39,7 @@ import model.EVRPTW;
  */
 public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,PricingProblem> {
 
+	Master masterConcrete;
 	PricingProblem pricingProblem; 					//pricing problem
 	public static final double PRECISION=0.001; 	//precision considered for the fractional solutions (nodes)
 	private final ExtendBAPNotifier extendedNotifier;
@@ -54,6 +55,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		
 		super(modelData, master, pricingProblem, solvers, branchCreators, 0, objectiveInitialSolution);
 		this.warmStart(objectiveInitialSolution, initialSolution);
+		this.masterConcrete = master;
 		this.pricingProblem = pricingProblem;
 
 		this.extendedNotifier = new ExtendBAPNotifier(this);
@@ -203,7 +205,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound()); //Solve the node
+			cg = new customCG(dataModel, masterConcrete, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound()); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {

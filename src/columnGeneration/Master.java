@@ -2,6 +2,7 @@ package columnGeneration;
 
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
+import ilog.concert.IloLPMatrix;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.concert.IloObjective;
@@ -45,6 +46,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	private IloRange roundedCapacityInequality; 	//(weak) rounded capacity inequality
 	private int minimumNumberOfVehicles; 			//for the weak rounded capacity inequality
 	private List<Route> solutionKeeper; 			//stores the solution found
+	private IloLPMatrix lp;
+	private IloCplex.BasisStatus[] cstat;
+	private IloCplex.BasisStatus[] newCstat;
+	private IloCplex.BasisStatus[] rstat; 
 
 	public Master(EVRPTW modelData, PricingProblem pricingProblem, CutHandler<EVRPTW, VRPMasterData> cutHandler) {
 		super(modelData, pricingProblem, cutHandler, OptimizationSense.MINIMIZE);
@@ -134,12 +139,34 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					} */
 					
 				}
+
+				this.lp = (IloLPMatrix)masterData.cplex.LPMatrixIterator().next();
+				this.cstat = masterData.cplex.getBasisStatuses(lp.getNumVars());
+				this.rstat = masterData.cplex.getBasisStatuses(lp.getRanges());
+
 			}
 		} catch (IloException e) {
 			e.printStackTrace();
 		}
 		return true;
 	}
+
+	public void update_solution_basis_columns(){
+
+		try {
+			IloNumVar[] allVars = lp.getNumVars();
+			IloCplex.BasisStatus[] newVarStat = new IloCplex.BasisStatus[allVars.length];
+
+			System.arraycopy(this.cstat, 0, newVarStat, 0, this.cstat.length);
+
+			for (int j = this.cstat.length; j < newVarStat.length; ++j) newVarStat[j] = IloCplex.BasisStatus.AtLower;
+			masterData.cplex.setBasisStatuses(allVars, newVarStat, lp.getRanges(), this.rstat);
+
+		} catch (IloException e) {
+			e.printStackTrace();
+		}
+	}
+
 
 	/**
 	 * We store the dual information in the pricing problem object.
@@ -263,11 +290,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			IloNumVar var= masterData.cplex.numVar(iloColumn, 0, Double.MAX_VALUE, "x_"+masterData.getNrColumns());
 			masterData.cplex.add(var);
 			masterData.addColumn(column, var);
+		
 		} catch (IloException e) {
 			e.printStackTrace();
 		}
 	}
-
 
 	/** If a violated inequality has been found add it to the MP. */
 	private void addCut(SubsetRowInequality subsetRowInequality){
