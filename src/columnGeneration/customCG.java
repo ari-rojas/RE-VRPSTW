@@ -204,9 +204,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 
-			//if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
-			newColumns = pricingProblemManager.solvePricingProblems(solver);
-			//}
+			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
+				newColumns = pricingProblemManager.solvePricingProblems(solver);
+			}
 
 			//Stop when we found new columns
 			if(!newColumns.isEmpty()){
