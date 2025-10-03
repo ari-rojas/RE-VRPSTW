@@ -656,56 +656,30 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		}
 	}
 
-	public double minimizeBatteryDepletion(List<Route> solution, long timeLimit, List<Route> cols, List<AbstractInequality> src_list, Map<NumberVehiclesInequalities, IloRange> vehic_branches_map, Map<ChargingTimeInequality, IloRange> time_branches_map, double minCost){
+	public double minimizeBatteryDepletion(double minCost, long timeLimit){
 
-		Set<NumberVehiclesInequalities> vehiclesInequalities = vehic_branches_map.keySet(); 	//keep branching decisions
-		Set<ChargingTimeInequality> chargingInequalities = time_branches_map.keySet();
-		
-		cutHandler.setMasterData(masterData);
-		
-		// Add all constraints added throughout the BPC root path
-		for(NumberVehiclesInequalities inequality: vehiclesInequalities) addBranchingOnVehichlesInequality(inequality);
-		for(ChargingTimeInequality inequality: chargingInequalities) addChargingTimeInequality(inequality);
-		for(AbstractInequality src: src_list) addCut((SubsetRowInequality) src);
-
-		// Add necessary columns
-		List<int[]> unique_customer_routes = retrieve_unique_customer_routes(solution);
-		Map<int[], List<Route>> columns_to_add = filter_columns_by_customer_routes(unique_customer_routes, cols);
-		this.addColumnsDepletion(columns_to_add);
-
-		IloLinearNumExpr expr;
 		double new_cost = 0;
 
 		try {
 
-			expr = masterData.cplex.linearNumExpr();
-			for (int[] route: columns_to_add.keySet()){
-				for(Route column: columns_to_add.get(route)){
-					IloNumVar var=masterData.getVar(masterData.pricingProblem, column);
-					expr.addTerm(column.cost, var);
-				}
+			IloLinearNumExpr costExpr = masterData.cplex.linearNumExpr();
+			IloLinearNumExpr waitingExpr = masterData.cplex.linearNumExpr();
+			for (Route column: masterData.getVarMap().keyList()){
+				IloNumVar var=masterData.getVar(masterData.pricingProblem, column);
+				costExpr.addTerm(column.cost, var);
+				waitingExpr.addTerm(column.departureTime-(column.initialChargingTime+column.chargingTime), var);
 			}
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
-			costLexicoInequality = masterData.cplex.addLe(expr, Math.round(minCost), "minCost");
+			costLexicoInequality = masterData.cplex.addLe(costExpr, (int)Math.round(minCost), "minCost");
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
-
-			//Impose use of unique customer routes
-			int ix = 0;
-			for (int[] route: unique_customer_routes){
-				IloLinearNumExpr lhs = masterData.cplex.linearNumExpr();
-				for(Route column: columns_to_add.get(route)){
-					IloNumVar var=masterData.getVar(masterData.pricingProblem, column);
-					lhs.addTerm(1, var);
-				}
-				uniqueCustomerRouteInequalities.add(masterData.cplex.addGe(lhs, 1, "uniqueRoute"+ix));
-				ix += 1;
-			}
 			
+			masterData.cplex.remove(masterData.cplex.getObjective());
+			masterData.cplex.addMinimize(waitingExpr);
+
 			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
-			masterData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 			masterData.cplex.setParam(IloCplex.Param.Read.Scale, -1);  // disable scaling
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
-			new_cost = masterData.cplex.getValue(expr);
+			new_cost = masterData.cplex.getValue(costExpr);
 			
 			/* double lhs = new_cost;
 			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp"); */
@@ -723,46 +697,13 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		
 	}
 
-	private List<int[]> retrieve_unique_customer_routes(List<Route> solution){
 
-		List<int[]> unique_routes = new ArrayList<>();
-		Set<List<Integer>> seen = new HashSet<>();
+	public void remove_lexicographic_elements(){
 
-		for (Route column: solution) {
-			int[] arr = column.routeSequence;
-			List<Integer> asList = Arrays.stream(arr).boxed().collect(Collectors.toList());
-			if (seen.add(asList)) {
-				unique_routes.add(arr);
-			}
+		try { masterData.cplex.remove(costLexicoInequality); }
+		catch (IloException e) {
+			System.out.println("CPLEX encountered an error: " + e.getMessage());
 		}
-		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
-
-		return unique_routes;
-	}
-
-	private Map<int[], List<Route>> filter_columns_by_customer_routes(List<int[]> routes, List<Route> cols){
-
-		Map<int[], List<Route>> columns_to_add = new LinkedHashMap<>();
-		for (Route column: cols){
-			for (int[] route: routes){
-				if (Arrays.equals(column.routeSequence, route)) {
-					
-					List<Route> cols_subset = columns_to_add.get(route);
-					if (cols_subset == null) columns_to_add.put(route, new ArrayList<>(Collections.singletonList(column)));
-					else cols_subset.add(column);
-				
-				}
-			}
-		}
-
-		/* for(int[] route: columns_to_add.keySet()){
-			logger.debug("Route with "+columns_to_add.get(route).size()+" columns");
-			for(Route column: columns_to_add.get(route)){
-				logger.debug(column.toString());
-			}
-		} */
-
-		return columns_to_add;
 	}
 
 }
