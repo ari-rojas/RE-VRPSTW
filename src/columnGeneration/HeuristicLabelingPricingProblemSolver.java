@@ -50,7 +50,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Labeling algorithm 
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() <= numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
