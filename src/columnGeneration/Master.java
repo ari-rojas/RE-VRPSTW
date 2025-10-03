@@ -671,14 +671,14 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				waitingExpr.addTerm(column.departureTime-(column.initialChargingTime+column.chargingTime), var);
 			}
 			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
-			costLexicoInequality = masterData.cplex.addLe(costExpr, (int)Math.round(minCost), "minCost");
+			costLexicoInequality = masterData.cplex.addLe(costExpr, this.getObjective(), "minCost");
 			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
 			
 			masterData.cplex.remove(masterData.cplex.getObjective());
 			masterData.cplex.addMinimize(waitingExpr);
 
 			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
-			masterData.cplex.setParam(IloCplex.Param.Read.Scale, -1);  // disable scaling
+			//masterData.cplex.setParam(IloCplex.Param.Read.Scale, -1);  // disable scaling
 			this.masterData.optimal = this.solveMasterProblem(timeLimit);
 			new_cost = masterData.cplex.getValue(costExpr);
 			
