@@ -46,6 +46,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	private IloRange roundedCapacityInequality; 	//(weak) rounded capacity inequality
 	private int minimumNumberOfVehicles; 			//for the weak rounded capacity inequality
 	private List<Route> solutionKeeper; 			//stores the solution found
+	private IloNumVar[] nodeVars = new IloNumVar[0];
 	private IloRange[] nodeConstraints = new IloRange[0];  // stores all the node constraints
 	private int numSRCs;
 	private IloCplex.BasisStatus[] cstat; // Columns Basis Status for CPlex
@@ -158,9 +159,28 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			IloNumVar[] allVars = masterData.getVarMap().values().toArray(new IloNumVar[0]);
 			IloCplex.BasisStatus[] newVarStat = new IloCplex.BasisStatus[allVars.length];
 
+			logger.debug("PRINTING BASIS STATUS BEFORE UPDATING");
+			for (int i = 0; i < this.cstat.length; i++) {
+				logger.debug("Var " + allVars[i].getName() + " : " + this.cstat[i]);
+			}
+
 			System.arraycopy(this.cstat, 0, newVarStat, 0, this.cstat.length);
-			for (int j = this.cstat.length; j < newVarStat.length; ++j) newVarStat[j] = IloCplex.BasisStatus.AtLower;
+			for (int j = this.cstat.length; j < newVarStat.length; j++){
+				newVarStat[j] = IloCplex.BasisStatus.AtLower;
+			}
+			
+			logger.debug("PRINTING BASIS STATUS AFTER UPDATING");
+			for (int i = 0; i < allVars.length; i++) {
+				logger.debug("Var " + allVars[i].getName() + " : " + newVarStat[i]);
+			}
+
 			masterData.cplex.setBasisStatuses(allVars, newVarStat, this.nodeConstraints, this.rstat);
+
+			IloCplex.BasisStatus[] fakeStats = masterData.cplex.getBasisStatuses(masterData.getVarMap().values().toArray(new IloNumVar[0]));
+			logger.debug("PRINTING BASIS STATUS AFTER SETTING");
+			for (int i = 0; i < fakeStats.length; i++) {
+				logger.debug("Var " + allVars[i].getName() + " : " + fakeStats[i]);
+			}
 
 		} catch (IloException e) {
 			e.printStackTrace();
