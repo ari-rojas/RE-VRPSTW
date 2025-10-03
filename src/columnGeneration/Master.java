@@ -155,6 +155,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			}else{
 				masterData.objectiveValue= masterData.cplex.getObjValue();
 				//Print solution
+				logger.debug("Number of simplex iterations: "+masterData.cplex.getNiterations());
 				List<Route> solution=getSolution();
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
