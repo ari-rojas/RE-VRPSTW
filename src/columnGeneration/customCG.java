@@ -9,6 +9,9 @@ import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
+
+import ilog.concert.IloException;
+import ilog.cplex.IloCplex;
 import model.EVRPTW;
 
 /**
@@ -83,7 +86,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		this.incumbentSolutionObjective = this.cutoffValue;
 
 		boolean foundNewColumns=false; 				//identify whether the pricing problem generated new columns
-		boolean hasNewCuts; 						//identify whether the master problem violates any valid inequalities
+		boolean hasNewCuts=false; 						//identify whether the master problem violates any valid inequalities
 		notifier.fireStartCGEvent();
 
 		int aux_cont = 0;
@@ -92,10 +95,15 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			aux_cont ++;
 
 			nrOfColGenIterations++;
-			hasNewCuts=false;
-
+			
 			//Solve the master
 			this.invokeMaster(timeLimit);
+			if (hasNewCuts) { // If cuts were generated in the last iteration, the RMP was then solved using Simplex Dual.
+				try {((Master)master).getMasterData().cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal);}
+				catch (IloException e) { e.printStackTrace(); }
+			}
+			hasNewCuts=false;
+
 			if (objectiveMasterProblem<boundOnMasterObjective-dataModel.precision) {
 				throw new UnsupportedOperationException("Problem with LB");
 			}
@@ -107,12 +115,13 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 					long time=System.currentTimeMillis();
 					hasNewCuts=master.hasNewCuts();
 					masterSolveTime+=(System.currentTimeMillis()-time); //Generating inequalities is considered part of the master problem
-					if (hasNewCuts)
+					
+					if (hasNewCuts) {
+						((Master)master).update_solution_basis_rows();
 						continue;
-					else
-						break;
-				} else
-					break;
+					} else break;
+				
+				} else break;
 			}
 
 			//Solve the pricing problem and possibly update the bound on the master problem objective
@@ -128,6 +137,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			} else if (config.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
+				if (hasNewCuts) ((Master)master).update_solution_basis_rows();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
 				
 				dataModel.cleanSRCs();	// MODIFICATION

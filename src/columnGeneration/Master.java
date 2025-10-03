@@ -46,10 +46,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	private IloRange roundedCapacityInequality; 	//(weak) rounded capacity inequality
 	private int minimumNumberOfVehicles; 			//for the weak rounded capacity inequality
 	private List<Route> solutionKeeper; 			//stores the solution found
-	private IloLPMatrix lp;
-	private IloCplex.BasisStatus[] cstat;
-	private IloCplex.BasisStatus[] newCstat;
-	private IloCplex.BasisStatus[] rstat; 
+	private IloRange[] nodeConstraints = new IloRange[0];  // stores all the node constraints
+	private int numSRCs;
+	private IloCplex.BasisStatus[] cstat; // Columns Basis Status for CPlex
+	private IloCplex.BasisStatus[] rstat; // Rows Basis Status for CPlex
 
 	public Master(EVRPTW modelData, PricingProblem pricingProblem, CutHandler<EVRPTW, VRPMasterData> cutHandler) {
 		super(modelData, pricingProblem, cutHandler, OptimizationSense.MINIMIZE);
@@ -113,6 +113,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			}else{
 				masterData.objectiveValue= masterData.cplex.getObjValue();
 				//Print solution
+				logger.debug("Number of iterations: "+masterData.cplex.getNiterations());
 				List<Route> solution=getSolution();
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
@@ -140,12 +141,12 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					
 				}
 
-				this.lp = (IloLPMatrix)masterData.cplex.LPMatrixIterator().next();
-				this.cstat = masterData.cplex.getBasisStatuses(lp.getNumVars());
-				this.rstat = masterData.cplex.getBasisStatuses(lp.getRanges());
+				this.cstat = masterData.cplex.getBasisStatuses(masterData.getVarMap().values().toArray(new IloNumVar[0]));
+				this.rstat = masterData.cplex.getBasisStatuses(this.nodeConstraints);
 
 			}
 		} catch (IloException e) {
+			//logger.debug(e.getMessage());
 			e.printStackTrace();
 		}
 		return true;
@@ -154,19 +155,77 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	public void update_solution_basis_columns(){
 
 		try {
-			IloNumVar[] allVars = lp.getNumVars();
+			IloNumVar[] allVars = masterData.getVarMap().values().toArray(new IloNumVar[0]);
 			IloCplex.BasisStatus[] newVarStat = new IloCplex.BasisStatus[allVars.length];
 
 			System.arraycopy(this.cstat, 0, newVarStat, 0, this.cstat.length);
-
 			for (int j = this.cstat.length; j < newVarStat.length; ++j) newVarStat[j] = IloCplex.BasisStatus.AtLower;
-			masterData.cplex.setBasisStatuses(allVars, newVarStat, lp.getRanges(), this.rstat);
+			masterData.cplex.setBasisStatuses(allVars, newVarStat, this.nodeConstraints, this.rstat);
 
 		} catch (IloException e) {
 			e.printStackTrace();
 		}
 	}
 
+	public void update_solution_basis_rows(){
+
+		try {
+			this.nodeConstraints = this.get_all_constraints();
+			IloCplex.BasisStatus[] newRowStat = new IloCplex.BasisStatus[this.nodeConstraints.length];
+
+			System.arraycopy(this.rstat, 0, newRowStat, 0, this.rstat.length);
+			for (int j = this.rstat.length; j < newRowStat.length; ++j) newRowStat[j] = IloCplex.BasisStatus.AtLower;
+			masterData.cplex.setBasisStatuses(masterData.getVarMap().values().toArray(new IloNumVar[0]), this.cstat, this.nodeConstraints, newRowStat);
+
+			masterData.cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Dual); // Use the Simplex-Dual algorithm to recover feasibility
+
+		} catch (IloException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private IloRange[] get_all_constraints(){
+
+		if (this.nodeConstraints.length == 0){
+			int totalRows = visitCustomerConstraints.length + chargersCapacityConstraints.length + 1;
+			IloRange[] allRanges = new IloRange[totalRows]; int pos = 0;
+			
+			System.arraycopy(visitCustomerConstraints, 0, allRanges, pos, visitCustomerConstraints.length); pos += visitCustomerConstraints.length;
+			System.arraycopy(chargersCapacityConstraints, 0, allRanges, pos, chargersCapacityConstraints.length); pos += chargersCapacityConstraints.length;
+			allRanges[pos] = roundedCapacityInequality;
+
+			return allRanges;
+
+		} else if (this.nodeConstraints.length == visitCustomerConstraints.length + chargersCapacityConstraints.length + 1){
+
+			int pos = visitCustomerConstraints.length + chargersCapacityConstraints.length + 1;
+			int totalRows = pos + masterData.branchingNumberOfVehicles.size() + masterData.branchingChargingTimes.size() + masterData.subsetRowInequalities.size();
+			IloRange[] allRanges = new IloRange[totalRows];
+			
+			System.arraycopy(this.nodeConstraints, 0, allRanges, 0, pos);
+			System.arraycopy(masterData.branchingNumberOfVehicles.values().toArray(new IloRange[0]), 0, allRanges, pos, masterData.branchingNumberOfVehicles.size()); pos += masterData.branchingNumberOfVehicles.size();
+			System.arraycopy(masterData.branchingChargingTimes.values().toArray(new IloRange[0]), 0, allRanges, pos, masterData.branchingChargingTimes.size()); pos += masterData.branchingChargingTimes.size();
+			
+			// Within the same node, the initial constraints, as well as the branching constraints, are fixed, the only ones that may change are the SRCs.
+			System.arraycopy(masterData.subsetRowInequalities.values().toArray(new IloRange[0]), 0, allRanges, pos, masterData.subsetRowInequalities.size());
+			this.numSRCs = masterData.subsetRowInequalities.size();
+
+			return allRanges;
+
+		}
+
+		int pos = this.nodeConstraints.length - this.numSRCs;
+		int totalRows = pos + masterData.subsetRowInequalities.size();
+		IloRange[] allRanges = new IloRange[totalRows];
+
+		System.arraycopy(this.nodeConstraints, 0, allRanges, 0, pos);
+
+		// Within the same node, the initial constraints, as well as the branching constraints, are fixed, the only ones that may change are the SRCs.
+		System.arraycopy(masterData.subsetRowInequalities.values().toArray(new IloRange[0]), 0, allRanges, pos, masterData.subsetRowInequalities.size());
+		this.numSRCs = masterData.subsetRowInequalities.size();
+		
+		return allRanges;
+	}
 
 	/**
 	 * We store the dual information in the pricing problem object.
@@ -427,7 +486,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		for(NumberVehiclesInequalities inequality: vehiclesInequalities) addBranchingOnVehichlesInequality(inequality);
 		for(ChargingTimeInequality inequality: chargingInequalities) addChargingTimeInequality(inequality);
 
-
 		if (bd instanceof BranchVehiclesDown) {
 			BranchVehiclesDown branching = (BranchVehiclesDown) bd;
 			addBranchingOnVehichlesInequality(branching.inequality);
@@ -466,6 +524,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			addChargingTimeInequality(branching.inequality);
 			for(AbstractInequality src: branching.poolOfCuts) addCut((SubsetRowInequality) src);
 		}
+
+		this.nodeConstraints = this.get_all_constraints();
+		logger.debug("DEBUGGING - Total of constraints so far:" + nodeConstraints.length);
 	}
 
 	/**
