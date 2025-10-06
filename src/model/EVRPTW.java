@@ -6,7 +6,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.PriorityQueue;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -62,6 +64,10 @@ public final class EVRPTW implements ModelInterface {
 	public int cutsRootNode = 0; 							//cuts separated at the root node
 	public int[] infeasibleArcs; 						//infeasible arcs in the pricing problem
 
+	// Dual stabilization
+	public double alpha = 0.2;
+	public Map<Arc, Double> smoothed_duals;
+
 	//Log file creation
 	public boolean print_log;
 	public String algorithm;
@@ -101,6 +107,8 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Energy capacity: " + this.E);
 			System.out.println(" - Full recharging time: " + this.f_inverse[this.E]);
 		}
+
+		this.smoothed_duals = new HashMap<>(numArcs);
 	}
 
 	/** Name of the current instance */

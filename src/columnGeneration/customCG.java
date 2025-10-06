@@ -98,6 +98,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			//We can stop when the optimality gap is closed. We still need to check for violated inequalities though.
 			if (Math.abs(objectiveMasterProblem - boundOnMasterObjective)<config.PRECISION){
+				dataModel.smoothed_duals.clear();
 				//Check whether there are inequalities. Otherwise potentially an infeasible integer solution (e.g. TSP solution with subtours) might be returned.
 				if (config.CUTSENABLED){
 					long time=System.currentTimeMillis();
@@ -122,6 +123,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException();
 			} else if (config.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+				dataModel.smoothed_duals.clear();
+			
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem

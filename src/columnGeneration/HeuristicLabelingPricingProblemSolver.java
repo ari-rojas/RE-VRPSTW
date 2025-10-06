@@ -29,7 +29,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	public int[] infeasibleArcs; 									//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 							//for the disjoint columns diversification strategy
 
-
 	/** Heuristic Labeling algorithm to solve the ng-SPPRC. */
 	public HeuristicLabelingPricingProblemSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
@@ -72,7 +71,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		dataModel.heuristicPricingTime+=totalTime;
 		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
-
 
 	/** Selects a set of labels to process (the ones with most remaining load). */
 	public ArrayList<Label> labelsToProcessNext(){
@@ -260,6 +258,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					newRoutes.add(column);
 				}
 			}
+			if (newRoutes.size() == 0) { this.pricingProblemInfeasible = true; this.objective=Double.MAX_VALUE; }
 		}
 		close(); //restart
 		return disjointBlocks(newRoutes);
@@ -303,27 +302,72 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	 */
 	@Override
 	protected void setObjective() {
-
+		
 		pricingProblem.reducedCostThreshold = 0.0;
 		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
-		//Update the objective function with the new dual values
-		for (int a = 0; a < dataModel.numArcs; a++) {
-			Arc arc = dataModel.arcs[a];
-			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
-				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];
-			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
-			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
-			else arc.modifiedCost = 0;
+
+		if (dataModel.smoothed_duals.isEmpty()){
+
+			//Update the objective function with the new dual values
+			for (int a = 0; a < dataModel.numArcs; a++) {
+
+				Arc arc = dataModel.arcs[a]; double modCost;
+
+				if (arc.tail>=1 && arc.tail<=dataModel.C) modCost = arc.cost-pricingProblem.dualCosts[arc.tail-1]; //routing arcs
+				else if(arc.tail== 0) modCost = arc.cost; //arcs from the depot source
+				else if(arc.tail>dataModel.V) modCost = -pricingProblem.dualCosts[arc.tail-3];
+				else modCost = 0;
+
+				arc.modifiedCost = modCost;
+				dataModel.smoothed_duals.put(arc, modCost);
+			}
+
+			//Check charging time branching decisions
+			int i=0;
+			for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
+				Arc arc;
+				if (branching.startCharging){ arc = dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep); }
+				else { arc = dataModel.graph.getEdge(dataModel.V+branching.timestep,0); }
+				arc.modifiedCost -= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+				dataModel.smoothed_duals.put(arc, dataModel.smoothed_duals.get(arc) - pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i]);
+				
+			}
+
+		} else {
+
+			// Update the modified costs with the new dual values
+			for (int a = 0; a < dataModel.numArcs; a++) {
+
+				Arc arc = dataModel.arcs[a]; double modCost;
+
+				if (arc.tail>=1 && arc.tail<=dataModel.C) modCost = arc.cost-pricingProblem.dualCosts[arc.tail-1]; //routing arcs
+				else if(arc.tail== 0) modCost = arc.cost; //arcs from the depot source
+				else if(arc.tail>dataModel.V) modCost = -pricingProblem.dualCosts[arc.tail-3];
+				else modCost = 0;
+				
+				arc.modifiedCost = modCost;
+			}
+
+			// Check charging time branching decisions
+			int i=0;
+			for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
+				Arc arc;
+				if (branching.startCharging){ arc = dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep); }
+				else { arc = dataModel.graph.getEdge(dataModel.V+branching.timestep,0); }
+				arc.modifiedCost -= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			}
+
+			// Exponential smoothing of the values
+			for (int a = 0; a < dataModel.numArcs; a++) {
+				Arc arc = dataModel.arcs[a]; double modCost;
+				modCost = dataModel.alpha*dataModel.smoothed_duals.get(arc) + (1-dataModel.alpha)*arc.modifiedCost;
+				
+				arc.modifiedCost = modCost;
+				dataModel.smoothed_duals.put(arc, modCost);
+			}
+
 		}
 
-		//Check charging time branching decisions
-		int i=0;
-		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
-			if(branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			i++;
-		}
 	}
 
 	/**
@@ -427,7 +471,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		realTime = Math.floor(realTime*100)/100; //two decimals
 		return realTime;
 	}
-
 
 	/**
 	 * @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object.

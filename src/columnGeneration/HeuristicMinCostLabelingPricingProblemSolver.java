@@ -16,6 +16,8 @@ import java.util.Set;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
+
+import branchAndPrice.ChargingTimeInequality;
 import branchAndPrice.FixArc;
 import branchAndPrice.RemoveArc;
 
@@ -31,7 +33,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public final int numCols = 400; 						//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
-
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -81,7 +82,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
 
-
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
 	 */
@@ -106,7 +106,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if(!currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
 		return labelsToProcessNext;
 	}
-
 
 	/**
 	 * Given a new (non-dominated) label, updates the nodes to be processed
@@ -215,7 +214,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
 	}
-
 
 	/**
 	 * When the CG procedure terminates, the close function is invoked. 
@@ -356,7 +354,31 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	@Override
 	protected void setObjective() {
-		//Already done by the heuristic labeling (must be invoked first)
+
+		// Calculates the real reduced cost threshold using only the dual information of the current information
+		pricingProblem.reducedCostThreshold = 0.0;
+		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
+
+		// Must only update the modified cost of the arcs, the smoothed values were already computed by the heuristic solver
+		
+		//Update the objective function with the new dual values
+		for (int a = 0; a < dataModel.numArcs; a++) {
+			Arc arc = dataModel.arcs[a];
+			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
+				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];
+			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
+			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
+			else arc.modifiedCost = 0;
+		}
+
+		//Check charging time branching decisions
+		int i=0;
+		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
+			if(branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			i++;
+		}
 	}
 
 	/**

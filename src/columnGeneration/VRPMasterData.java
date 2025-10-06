@@ -36,6 +36,13 @@ public final class VRPMasterData extends MasterData<EVRPTW, Route, PricingProble
 		this.branchingChargingTimes = new HashMap<ChargingTimeInequality, IloRange>();
 	}
 
+	@Override
+	public void addColumn(Route column, IloNumVar variable) {
+      if (!((OrderedBiMap)this.varMap.get(column.associatedPricingProblem)).containsKey(column)){
+         ((OrderedBiMap)this.varMap.get(column.associatedPricingProblem)).put(column, variable);
+      }
+   }
+
 	public Map<NumberVehiclesInequalities, IloRange> getBranchingNumberOfVehicles(){
 		return new HashMap<NumberVehiclesInequalities, IloRange>(this.branchingNumberOfVehicles);
 	}
