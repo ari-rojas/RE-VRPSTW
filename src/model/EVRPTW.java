@@ -65,7 +65,7 @@ public final class EVRPTW implements ModelInterface {
 	public int[] infeasibleArcs; 						//infeasible arcs in the pricing problem
 
 	// Dual stabilization
-	public double alpha = 0.2;
+	public double alpha = 0.15;
 	public Map<Arc, Double> smoothed_duals;
 
 	//Log file creation
