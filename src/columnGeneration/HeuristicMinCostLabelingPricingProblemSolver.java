@@ -315,6 +315,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				}
 			}
 		}
+
+		if (dataModel.print_log) {
+				logger.debug("Finished exact pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
+				logger.debug("Found " + newRoutes.size() + " columns");
+		}
+		
 		close();
 		return disjointBlocks(newRoutes);
 	}
