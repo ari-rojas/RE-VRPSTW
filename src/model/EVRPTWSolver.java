@@ -245,7 +245,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "New Pricing Acc", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "New Pricing", args[2]);
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
