@@ -328,6 +328,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 								foundBranches = true;
 
 							} else {
+
+								((Master)master).remove_lexicographic_elements();
 								
 								foundBranches = bc.canPerformBranching(bapNode.getSolution());
 								if (foundBranches){
