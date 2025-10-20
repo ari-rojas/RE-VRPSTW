@@ -261,6 +261,12 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				}
 			}
 		}
+
+		if (dataModel.print_log) {
+				logger.debug("Finished heuristic pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
+				logger.debug("Found " + newRoutes.size() + " columns");
+		}
+
 		close(); //restart
 		return disjointBlocks(newRoutes);
 	}
