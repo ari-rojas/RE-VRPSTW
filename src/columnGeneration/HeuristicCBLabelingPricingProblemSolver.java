@@ -209,17 +209,18 @@ public final class HeuristicCBLabelingPricingProblemSolver extends AbstractPrici
 		long startTime = System.currentTimeMillis();
 		this.runLabeling(); 									//runs the labeling algorithm
 
+		
+		if (this.newRoutes.size() == 0) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
+		else { this.pricingProblemInfeasible=false; }
+		
+		long totalTime = System.currentTimeMillis()-startTime;
+		dataModel.heuristicPricingTime+=totalTime;
+		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime));
+		
 		if (dataModel.print_log) {
 			logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
 			logger.debug("Found " + this.newRoutes.size() + " columns");
 		}
-		
-		if (this.newRoutes.size() == 0) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
-		else { this.pricingProblemInfeasible=false; }
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime));
 		
 		close(); //restart
 		return disjointBlocks();

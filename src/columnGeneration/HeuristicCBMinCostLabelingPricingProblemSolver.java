@@ -250,10 +250,6 @@ public final class HeuristicCBMinCostLabelingPricingProblemSolver extends Abstra
 			long startTime = System.currentTimeMillis();
 			existsElementaryRoute = this.runLabeling(); 										//runs the labeling algorithm
 
-			if (dataModel.print_log) {
-				logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
-				logger.debug("Found " + this.newRoutes.size() + " columns");
-			}
 			
 			if(this.newRoutes.size() + this.nonElementaryRoutes.size() == 0) { existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE; }
 			else { this.pricingProblemInfeasible=false; }
@@ -265,12 +261,17 @@ public final class HeuristicCBMinCostLabelingPricingProblemSolver extends Abstra
 				else {this.newRoutes = this.nonElementaryRoutes; existsElementaryRoute = true;}
 			}
 			
-
+			
 			long totalTime = System.currentTimeMillis()-startTime;
 			dataModel.exactPricingTime+=totalTime;
 			if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 		}
-
+		
+		if (dataModel.print_log) {
+			logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
+			logger.debug("Found " + this.newRoutes.size() + " columns");
+		}
+		
 		close();
 		return disjointBlocks();
 	}
