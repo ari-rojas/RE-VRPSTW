@@ -228,17 +228,15 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	}
 
 	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
+		
 		// Solve Lexicographic Master Problem
 		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
-
 		long time=System.currentTimeMillis(); double new_cost = 0;
 
-		Master new_Master = ((Master)this.master).copy();
-		//logger.debug("MP Objective: "+this.master.getObjective());
-		new_cost = new_Master.minimizeBatteryDepletion(bapNode.getSolution(), timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), ((Master)this.master).getMasterData().getBranchingNumberOfVehicles(), ((Master)this.master).getMasterData().getBranchingChargingTimes(), this.master.getObjective());
-		bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
+		new_cost = ((Master)master).minimizeBatteryDepletion(this.master.getObjective(), timeLimit);
+		bapNode.storeSolution(new_cost, bapNode.getBound(), master.getSolution(), master.getCuts());
 
-		Double obj = new_Master.getObjective();
+		Double obj = master.getObjective();
 		this.timeSolvingMaster += (System.currentTimeMillis()-time);
 		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj, new_cost);
 
