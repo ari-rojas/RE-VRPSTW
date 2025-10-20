@@ -208,7 +208,6 @@ public final class HeuristicCBLabelingPricingProblemSolver extends AbstractPrici
 		this.newRoutes = new ArrayList<>();
 		long startTime = System.currentTimeMillis();
 		this.runLabeling(); 									//runs the labeling algorithm
-
 		
 		if (this.newRoutes.size() == 0) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
 		else { this.pricingProblemInfeasible=false; }
