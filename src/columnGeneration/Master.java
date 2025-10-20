@@ -73,8 +73,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
 			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
 			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 1e-6);
-			//cplex.setParam(IloCplex.Param.Barrier.ConvergeTol, 1e-3);
-			//cplex.setParam(IloCplex.Param.RandomSeed, 30);
+			cplex.setParam(IloCplex.Param.RandomSeed, 30);
 
 			obj= cplex.addMinimize();		//objective
 			//Partitioning constraints
