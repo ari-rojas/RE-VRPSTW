@@ -664,12 +664,54 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		}
 	}
 
-	public double minimizeBatteryDepletion(List<Route> solution, long timeLimit, List<Route> cols, List<AbstractInequality> src_list, Map<NumberVehiclesInequalities, IloRange> vehic_branches_map, Map<ChargingTimeInequality, IloRange> time_branches_map, double minCost){
+	public double minimizeBatteryDepletion(double minCost, long timeLimit){
 
-		
+		double new_cost = 0;
 
-		return Math.round(0);
+		try {
+
+			IloLinearNumExpr costExpr = masterData.cplex.linearNumExpr();
+			IloLinearNumExpr waitingExpr = masterData.cplex.linearNumExpr();
+			for (Route column: masterData.getVarMap().keyList()){
+				IloNumVar var=masterData.getVar(masterData.pricingProblem, column);
+				costExpr.addTerm(column.cost, var);
+				waitingExpr.addTerm(column.departureTime-(column.initialChargingTime+column.chargingTime), var);
+			}
+			//logger.debug("MP obj inside minimizeBatteryDepletion: "+minCost+" - "+Math.round(minCost));
+			costLexicoInequality = masterData.cplex.addLe(costExpr, this.getObjective(), "minCost");
+			//logger.debug("Cost constraint before solving: "+"<="+ cost_constraint.getUB());
+			
+			masterData.cplex.remove(masterData.cplex.getObjective());
+			masterData.cplex.addMinimize(waitingExpr);
+
+			//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
+			//masterData.cplex.setParam(IloCplex.Param.Read.Scale, -1);  // disable scaling
+			this.masterData.optimal = this.solveMasterProblem(timeLimit);
+			new_cost = masterData.cplex.getValue(costExpr);
+			
+			/* double lhs = new_cost;
+			masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution"+lhs+".lp"); */
+			/* logger.debug("Master optimal: "+((boolean)(masterData.cplex.getStatus()==IloCplex.Status.Optimal)));
+			logger.debug("Cost constraint after solving: "+lhs+"<="+cost_constraint.getUB()); */
+	
+
+		} catch (TimeLimitExceededException e) {
+			System.out.println("Time limit exceeded: " + e.getMessage());
+		} catch (IloException e) {
+			System.out.println("CPLEX encountered an error: " + e.getMessage());
+		}
+
+		return Math.round(new_cost);
 		
+	}
+
+
+	public void remove_lexicographic_elements(){
+
+		try { masterData.cplex.remove(costLexicoInequality); }
+		catch (IloException e) {
+			System.out.println("CPLEX encountered an error: " + e.getMessage());
+		}
 	}
 
 }
