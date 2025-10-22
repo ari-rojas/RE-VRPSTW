@@ -8,7 +8,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Deque;
 import java.util.PriorityQueue;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
@@ -28,7 +30,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 	public Vertex[] vertices = dataModel.vertices; 						//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 						//labels that need be processed
-	public final int numCols = 4000; 									//maximum number of routes (columns) allowed
+	public final int numCols = 400; 									//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 									//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 							//for the disjoint columns diversification strategy
 	public List<Route> newRoutes=new ArrayList<>();  			//list of routes
@@ -64,7 +66,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 				
 				if (currentLabel.vertex == 0) {
-					extend_charging_pricing(currentLabel);
+					continue;
 				} else { // Does not allow extensions beyond the outbound depot
 					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 						if(a.head>0 && a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
@@ -205,10 +207,11 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	protected List<Route> generateNewColumns() {
 
 		//Solve the problem and check the solution
-		this.newRoutes = new ArrayList<>();
 		long startTime = System.currentTimeMillis();
-		this.runLabeling(); 									//runs the labeling algorithm
 		
+		this.runLabeling(); 									//runs the labeling algorithm
+		pricingProblem.compute_charging_bounds(vertices[0].processedLabels);
+		this.charging_pricing();
 		
 		if (this.newRoutes.size() == 0) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
 		else { this.pricingProblemInfeasible=false; }
@@ -226,78 +229,74 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		return disjointBlocks();
 	}
 
-	public void extend_charging_pricing(Label label){
+	public void charging_pricing(){
 
-		int departureTime = (int) (label.remainingTime/10);
-		int load = dataModel.Q - label.remainingLoad;
-		int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
-		int chargingTime = label.chargingTime;
-		double reducedCost = label.reducedCost;
-		
-		// Retrieve route information
-		boolean isElementary = true;
-		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
-		ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-		
-		int currentVertex = label.vertex; Label currentLabel = label.clone();
-		int cost = 0;
+		this.newRoutes = new ArrayList<>();
 
-		while(currentVertex!=dataModel.C+1) {
-			Arc currentArc = dataModel.arcs[currentLabel.nextArc];
-			cost+=currentArc.cost;
-			int nextVertex = currentArc.head;
-			if (currentVertex>=1 && currentVertex<=dataModel.C) {
-				if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
-				else route.put(currentVertex, 1);
-			}
+		for (Label label: vertices[0].processedLabels){
 
-			currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
-			currentVertex = nextVertex;
-			arcs.add(currentArc.id);
-		}
+			int departureTime = (int) (label.remainingTime/10);
+			int chargingTime = label.chargingTime;
+			double reducedCost = label.reducedCost;
 
-		//Gets the route sequence (of customers)
-		int[] routeSequence = new int[arcs.size()-1];
-		int counter = 0;
-		for(Integer arc: arcs) {
-			if(counter>=routeSequence.length) break;
-			routeSequence[counter] = dataModel.arcs[arc].head;
-			counter++;
-		}
-		
-		// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
-		int t = departureTime-1;
-		double r_add = 0; int cont = departureTime-1;
+			if ((reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(departureTime) < -dataModel.precision) && (chargingTime<departureTime)){ // Only performs pricing for the routes that will have at least one column with reduced cost
 
-		while (t >= chargingTime){
+				int load = dataModel.Q - label.remainingLoad;
+				int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+				
+				// Retrieve route information
+				boolean isElementary = true;
+				HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
+				ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+				
+				int currentVertex = label.vertex; Label currentLabel = label.clone();
+				int cost = 0;
 
-			double r_substract = 0;
-			for (int i = t-chargingTime+1; i <= cont; i++){
-				r_substract += pricingProblem.dualCosts[dataModel.C + i - 1];
-			}
+				while(currentVertex!=dataModel.C+1) {
+					Arc currentArc = dataModel.arcs[currentLabel.nextArc];
+					cost+=currentArc.cost; int nextVertex = currentArc.head;
+					if (currentVertex>=1 && currentVertex<=dataModel.C) {
+						if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
+						else route.put(currentVertex, 1);
+					}
 
-			reducedCost += r_add - r_substract;
-			if (reducedCost < -dataModel.precision){
-				int initial = t-chargingTime+1;
-
-				Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);
-				this.newRoutes.add(column);
-			}
-
-			int next_t = t-chargingTime;
-			r_add = 0;
-			for (int tt = t; tt >= t-chargingTime+1; tt--){
-				if (pricingProblem.dualCosts[dataModel.C + tt - 1] < -dataModel.precision){
-					//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
-					next_t = tt - 1;
-					r_add = pricingProblem.dualCosts[dataModel.C + tt - 1];
-					break;
+					currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
+					currentVertex = nextVertex; arcs.add(currentArc.id);
 				}
+
+				//Gets the route sequence (of customers)
+				int[] routeSequence = new int[arcs.size()-1];
+				int counter = 0;
+				for(Integer arc: arcs) {
+					if(counter>=routeSequence.length) break;
+					routeSequence[counter] = dataModel.arcs[arc].head; counter++;
+				}
+				
+				// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
+				int t = departureTime-1;
+				while (t >= chargingTime){
+
+					reducedCost = pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
+					if (reducedCost < -dataModel.precision){
+						int initial = t-chargingTime+1;
+
+						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);
+						this.newRoutes.add(column);
+					}
+
+					int next_t = t-chargingTime;
+					for (int tt = t; tt >= t-chargingTime+1; tt--){
+						if (pricingProblem.negative_charging_duals[t]){
+							//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
+							next_t = tt - 1;
+							break;
+						}
+					}
+
+					t = next_t;
+				}
+			
 			}
-
-			cont = t-chargingTime;
-			t = next_t;
-
 		}
 
 	}
@@ -353,14 +352,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			else arc.modifiedCost = 0;
 		}
 
-		//Check charging time branching decisions
-		int i=0;
-		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
-			if (branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost -= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost -= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			if (!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold += pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			i++;
-		}
 	}
 
 	/**
