@@ -246,6 +246,7 @@ public final class EVRPTWSolver {
 		int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Bounding Pricing", args[2]);
+		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "Bounding Pricing", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}

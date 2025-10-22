@@ -129,7 +129,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			departures.addAll(boundsMap.keySet());
 			
 			int initial_t = 1;
-			double rc = reducedCostsMap.get(1); double min_rc = rc;
+			double rc = reducedCostsMap.get(b); double min_rc = rc;
 			for (int d: departures){
 				if (d <= b) continue; // skip if departure does not allow for sufficient charging
 

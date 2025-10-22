@@ -276,11 +276,11 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				int t = departureTime-1;
 				while (t >= chargingTime){
 
-					reducedCost = pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
-					if (reducedCost < -dataModel.precision){
+					double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
+					if (rc < -dataModel.precision){
 						int initial = t-chargingTime+1;
 
-						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initial, chargingTime);
+						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, rc, arcs, initial, chargingTime);
 						this.newRoutes.add(column);
 					}
 
