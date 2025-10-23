@@ -104,7 +104,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				for (int t=initial_t; t<=d-b-1; t++){
 					rc = - (this.S[t+b] - this.S[t]);
 					reducedCostsMap.put(t+b, rc);
-					if (rc < min_rc + dataModel.precision) min_rc = rc;
+					if (rc < min_rc - dataModel.precision) min_rc = rc;
 				}
 				boundsMap.put(d, min_rc);
 				initial_t = d-b;
@@ -137,14 +137,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					if (d <= lastD){ // if the departure is less than the previous maximum departure of the same charging time, then its reducedCost is already in the object
 						for (int t=initial_t; t<=d-b-1; t++){
 							rc = reducedCostsMap.get(t+b);
-							if (rc < min_rc + dataModel.precision) min_rc = rc;
+							if (rc < min_rc - dataModel.precision) min_rc = rc;
 						}
 
 					} else { // if not, the value needs to be added
 						for (int t=initial_t; t<=d-b-1; t++){
 							rc = - (this.S[t+b] - this.S[t]);
 							reducedCostsMap.put(t+b, rc);
-							if (rc < min_rc + dataModel.precision) min_rc = rc;
+							if (rc < min_rc - dataModel.precision) min_rc = rc;
 						}
 
 					}
