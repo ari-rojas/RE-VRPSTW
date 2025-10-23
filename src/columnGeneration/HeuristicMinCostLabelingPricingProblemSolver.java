@@ -336,7 +336,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 					int next_t = t-chargingTime;
 					for (int tt = t; tt >= t-chargingTime+1; tt--){
-						if (pricingProblem.negative_charging_duals[t]){
+						if (pricingProblem.negative_charging_duals[tt]){
 							//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
 							next_t = tt - 1;
 							break;
