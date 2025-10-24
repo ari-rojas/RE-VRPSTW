@@ -52,10 +52,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.S[t] = this.S[t - 1] + dual;
 		}
 
-		logger.debug("Identifying time periods with negative dual");
+		/* logger.debug("Identifying time periods with negative dual");
 		for (int t = 1; t <= this.maxT; t++){
 			if (this.negative_charging_duals[t]) logger.debug("Period "+t+": Yes");
-		}
+		} */
 
 		this.charging_reducedCosts = new HashMap<>();
 		this.charging_bounds = new HashMap<>();
