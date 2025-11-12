@@ -31,7 +31,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 	public Vertex[] vertices = dataModel.vertices; 			//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
-	public final int numCols = 400*10; 						//maximum number of routes (columns) allowed
+	public ArrayList<Label> routes_labels = new ArrayList<Label>();
+	public final int numRoutes = 50; 						//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 	public List<Route> newRoutes=new ArrayList<>();  			//list of routes
@@ -48,20 +49,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		this.nodesToProcess = new PriorityQueue<Vertex>(dataModel.V, new SortVertices());
 	}
 
-	/**
-	 * Runs the labeling algorithm
-	 */
+	/** Runs the labeling algorithm */
 	public void runLabeling() {
 
-		//Initialization
-		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
-		Label initialLabel = new Label(dataModel.C+1, dataModel.C+1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
-		this.nodesToProcess.add(vertices[dataModel.C+1]);
-		initialLabel.index = 0;
-		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
-
 		//Labeling algorithm
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+		this.routes_labels = new ArrayList<Label>();
+		while (!nodesToProcess.isEmpty() && this.routes_labels.size() <= this.numRoutes && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 
@@ -70,6 +63,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 				
 				if (currentLabel.vertex == 0) {
+					routes_labels.add(currentLabel);
 					continue;
 				} else {
 					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
@@ -84,7 +78,18 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				}
 			}
 		}
+	}
 
+	public void initialize_labeling(){
+
+		//Initialization
+		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
+		Label initialLabel = new Label(dataModel.C+1, dataModel.C+1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
+		this.nodesToProcess.add(vertices[dataModel.C+1]);
+		initialLabel.index = 0;
+		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
+		this.newRoutes = new ArrayList<>();
+		this.nonElementaryRoutes=new ArrayList<>();
 	}
 
 	/**
@@ -239,16 +244,22 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
-		this.newRoutes=new ArrayList<>();  			//list of routes
-		this.nonElementaryRoutes=new ArrayList<>();  //list of nonelementary routes
 
 		/**Until finding an elementary route or reaching a max neighborhood size*/
 		while(!existsElementaryRoute && !maxNeighborhoodSize) {
 
 			long startTime = System.currentTimeMillis();
-			this.runLabeling(); 										//runs the labeling algorithm
-			pricingProblem.update_charging_bounds(vertices[0].processedLabels);
-			existsElementaryRoute = this.charging_pricing();
+
+			this.initialize_labeling();
+
+			while (this.newRoutes.size()+this.nonElementaryRoutes.size() == 0 && !nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+				this.runLabeling(); // Runs the labeling algorithm for the routing part
+
+				// Initializes the bounding procedure
+				pricingProblem.update_charging_bounds(this.routes_labels);
+
+				existsElementaryRoute = this.charging_pricing(); // Performs the charging pricing
+			}
 			
 			if(this.newRoutes.size() + this.nonElementaryRoutes.size() == 0) { existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE; }
 			else { this.pricingProblemInfeasible=false; }
@@ -278,7 +289,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public boolean charging_pricing(){
 		
 		boolean existsElementaryRoute = false;
-		for (Label label: vertices[0].processedLabels){
+		for (Label label: this.routes_labels){
 			
 			int departureTime = (int) (label.remainingTime/10);
 			int chargingTime = label.chargingTime;
@@ -371,7 +382,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Diversify routes
 		int blocks = 10;
-		List<Route> disjointRoutes = new ArrayList<Route>(this.numCols);
+		List<Route> disjointRoutes = new ArrayList<Route>(this.numRoutes);
 		int[][] blocksWithCustomer = new int[dataModel.C][blocks];
 		for(Route route: this.newRoutes) {
 			for (int j = 0; j < blocks; j++) {
