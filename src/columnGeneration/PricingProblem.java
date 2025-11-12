@@ -43,7 +43,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 
 		// Precompute fixed sums of the charging dual variables
-		this.maxT = 0; for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last());
+		this.maxT = 0; for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
 		this.S = new double[dataModel.last_charging_period + 1]; this.S[0] = 0.0;
 		this.negative_charging_duals = new boolean[dataModel.last_charging_period + 1];
 		for (int t = 1; t <= this.maxT; t++) {
@@ -77,8 +77,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 
 		// Update precomputed fixed sums of the charging dual variables
-		for (TreeSet<Integer> set : existing_charging_times.values()) this.maxT = Math.max(this.maxT, set.last());
-		for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last());
+		for (TreeSet<Integer> set : existing_charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
+		for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
 		for (int t = prevT+1; t <= maxT; t++) {
 			double dual = this.dualCosts[dataModel.C + t - 1];
 			this.negative_charging_duals[t] = dual < -dataModel.precision;
