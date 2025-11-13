@@ -273,7 +273,7 @@ public final class HeuristicCBMinCostLabelingPricingProblemSolver extends Abstra
 		}
 		
 		close();
-		return disjointBlocks();
+		return this.newRoutes;
 	}
 
 
