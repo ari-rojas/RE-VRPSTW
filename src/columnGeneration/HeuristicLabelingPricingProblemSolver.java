@@ -223,7 +223,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		}
 		
 		close(); //restart
-		return disjointBlocks();
+		return this.newRoutes;
 	}
 
 	public void extend_charging_pricing(Label label){

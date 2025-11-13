@@ -272,7 +272,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		close();
-		return disjointBlocks();
+		return this.newRoutes;
 	}
 
 	public boolean extend_charging_pricing(Label label, boolean elementary){
