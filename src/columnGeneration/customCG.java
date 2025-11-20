@@ -121,7 +121,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException();
-			} else if (config.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+			} else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem

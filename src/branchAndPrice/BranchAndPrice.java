@@ -44,6 +44,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private final ExtendBAPNotifier extendedNotifier;
 
 	private List<Integer> chargingNodes = new ArrayList<Integer>();
+	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
 	private long timeChargingBranching = 0;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
@@ -266,6 +267,86 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		return new_cost;
 	}
 
+	protected boolean process_branching(BAPNode bapNode, List<BAPNode<EVRPTW, Route>> newBranches, long time){
+
+		// Initialize Branch Creator
+		BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
+		boolean foundBranches = false;
+
+		// 1. Branching on the number of vehicles
+
+		if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); } // TIME BRANCHING
+		foundBranches = bc.canPerformVehiclesBranching(bapNode.getSolution());
+		if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); } // TIME BRANCHING
+		
+		if (foundBranches){
+			
+			this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+			newBranches.addAll(bc.getVehiclesBranches(bapNode));
+
+			if (this.chargingNodes.contains(bapNode.nodeID)) { 
+				this.chargingNodes.add(newBranches.get(0).nodeID);
+				this.chargingNodes.add(newBranches.get(1).nodeID);
+			} // TIME BRANCHING
+			if (this.arcFlowNodes.contains(bapNode.nodeID)) {
+				this.arcFlowNodes.add(newBranches.get(0).nodeID);
+				this.arcFlowNodes.add(newBranches.get(1).nodeID);
+			}
+			
+			return true;
+
+		} else {
+
+			// 2. Branching on the routing arc flows
+
+			if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); } // TIME BRANCHING
+			foundBranches = bc.canPerformRoutingArcsBranching(bapNode.getSolution());
+			if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); } // TIME BRANCHING
+
+			if (foundBranches) {
+
+				this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+				newBranches.addAll(bc.getRoutingArcsBranches(bapNode));
+
+				if (this.chargingNodes.contains(bapNode.nodeID)) {
+					this.chargingNodes.add(newBranches.get(0).nodeID);
+					this.chargingNodes.add(newBranches.get(1).nodeID);
+				} // TIME BRANCHING
+
+				this.arcFlowNodes.add(newBranches.get(0).nodeID);
+				this.arcFlowNodes.add(newBranches.get(1).nodeID);
+
+				return true;
+
+			} else {
+
+				// 3. Branching on the charging scheduling subgraph
+			
+				time = System.currentTimeMillis(); } // TIME BRANCHING
+				foundBranches = bc.canPerformBranching(bapNode.getSolution());
+				timeChargingBranching += (System.currentTimeMillis()-time); // TIME BRANCHING
+				
+				if (foundBranches) {
+
+					this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+					newBranches.addAll(bc.getBranches(bapNode));
+
+					this.chargingNodes.add(newBranches.get(0).nodeID);
+					this.chargingNodes.add(newBranches.get(1).nodeID);
+
+					if (this.arcFlowNodes.contains(bapNode.nodeID)){
+						this.arcFlowNodes.add(newBranches.get(0).nodeID);
+						this.arcFlowNodes.add(newBranches.get(1).nodeID);
+					}
+
+					return true;
+				}
+
+		}
+
+		return false;
+	}
+
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
@@ -278,7 +359,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		if (rootNode.getInitialColumns().isEmpty()) {
 		   rootNode.addInitialColumns(this.generateInitialFeasibleSolution(rootNode));
 		}
-  
+
+		dataModel.CUTSENABLED = false;
 		while(!this.queue.isEmpty()) {
 			BAPNode<EVRPTW, Route> bapNode = (BAPNode<EVRPTW, Route>)this.queue.poll();
 			this.notifier.fireNextNodeEvent(bapNode);
@@ -292,6 +374,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				long time = 0;
 				try { // Try solving the node
 					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
+					if (this.arcFlowNodes.contains(bapNode.nodeID)) { dataModel.CUTSENABLED = true; } else { dataModel.CUTSENABLED = false;}
 					this.solveBAPNode(bapNode, timeLimit);
 					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
@@ -320,45 +403,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						this.updateNodeGeneratedColumns(bapNode);
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
 						
-						// Initialize Branch Creator
-						BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
-						
-						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to look for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
 						// Look for Number of Vehicles or Customers Arc Flow branching
-						boolean foundBranches = false;
-						foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
-						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished looking for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
-						if (foundBranches){
-							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to add first branches at node "+bapNode.nodeID);} // TIME BRANCHING
-							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-							newBranches.addAll(bc.getFirstBranches(bapNode));
-							if (this.chargingNodes.contains(bapNode.nodeID)) { 
-								timeChargingBranching += (System.currentTimeMillis()-time);
-								this.chargingNodes.add(newBranches.get(0).nodeID);
-								this.chargingNodes.add(newBranches.get(1).nodeID);
-								//logger.debug("TIME BRANCHING - Finished adding first branches at node "+bapNode.nodeID);
-							} // TIME BRANCHING
-						} else {
-							
-							//logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
-							time = System.currentTimeMillis();
-							
-							foundBranches = bc.canPerformBranching(bapNode.getSolution());
-							if (foundBranches){
-								this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-								newBranches.addAll(bc.getBranches(bapNode));
-							}
-
-							timeChargingBranching += (System.currentTimeMillis()-time);
-							this.chargingNodes.add(newBranches.get(0).nodeID);
-							this.chargingNodes.add(newBranches.get(1).nodeID);
-							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
-
-						}
+						boolean foundBranches = process_branching(bapNode, newBranches, time);
 	
-						if (!foundBranches) {
-							throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
-						}
+						if (!foundBranches) { throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?"); }
 						
 						if (!newBranches.isEmpty()){
 							this.queue.addAll(newBranches);
