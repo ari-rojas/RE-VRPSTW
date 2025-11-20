@@ -1,8 +1,13 @@
 package columnGeneration;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -29,17 +34,38 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 	public int maxT;
 
+	public Map<Integer, Boolean> fullyDominated;
+	public Map<Integer, Integer> nonDominatedT;
+
+	private Map<Integer, List<Double>> nonDominatedRC;
+	private Label fakeLabel;
+
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
+
+		this.fakeLabel = new Label(dataModel.V, 0, 0, 0, 0, 0, new int[0], 0, new boolean[0], new boolean[0], new boolean[0], new HashSet<>());
+		this.fakeLabel.index = -1;
 	}
 
 	public void compute_charging_bounds(ArrayList<Label> labels){
 
+		this.fullyDominated = new HashMap<>();
+		this.nonDominatedT = new HashMap<>();
+		this.nonDominatedRC = new HashMap<>();
+
+		this.charging_reducedCosts = new HashMap<>();
+		this.charging_bounds = new HashMap<>();
+
+		// 1. Group labels by charging time b
+		Map<Integer, List<Label>> labelsByB = new HashMap<>();
+		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
+
+		// 2. Dominance filtering per charging time b
 		Map<Integer, TreeSet<Integer>> charging_times = new HashMap<>();
 
-		for (Label label: labels){
-			int departureTime = (int) (label.remainingTime/10);
-			charging_times.computeIfAbsent(label.chargingTime, k -> new TreeSet<>()).add(departureTime);
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
+			TreeSet<Integer> departures = filter_labels_same_chargingTime(entry); // returns the departures with non-fully-dominated labels
+			if (!departures.isEmpty()) charging_times.put(entry.getKey(), departures);
 		}
 
 		// Precompute fixed sums of the charging dual variables
@@ -57,23 +83,31 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			if (this.negative_charging_duals[t]) logger.debug("Period "+t+": Yes");
 		} */
 
-		this.charging_reducedCosts = new HashMap<>();
-		this.charging_bounds = new HashMap<>();
 		if (!charging_times.isEmpty()) process_charging_times_map(charging_times);
 
 	}
 
 	public void update_charging_bounds(ArrayList<Label> labels){
 
+		this.fullyDominated = new HashMap<>();
+		this.nonDominatedT = new HashMap<>();
 		int prevT = this.maxT;
+
+		// 1. Group labels by charging time b
+		Map<Integer, List<Label>> labelsByB = new HashMap<>();
+		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
+
 		Map<Integer, TreeSet<Integer>> charging_times = new HashMap<>(); // new charging times that have not been tracked before
 		Map<Integer, TreeSet<Integer>> existing_charging_times = new HashMap<>();
 
-		for (Label label: labels){
-			int d = (int) (label.remainingTime/10);
-			int b = label.chargingTime;
-			if (this.charging_bounds.containsKey(b)) existing_charging_times.computeIfAbsent(b, k -> new TreeSet<>()).add(d);
-			else charging_times.computeIfAbsent(b, k -> new TreeSet<>()).add(d);
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()){
+			int b = entry.getKey();
+			TreeSet<Integer> departures = filter_labels_same_chargingTime(entry);
+
+			if (!departures.isEmpty()) {
+				if (this.charging_bounds.containsKey(b)) existing_charging_times.put(b, departures);
+				else charging_times.put(b, departures);
+			}
 		}
 
 		// Update precomputed fixed sums of the charging dual variables
@@ -100,8 +134,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			int initial_t = 1;
 			double rc = - (this.S[b]-this.S[0]); double min_rc = rc;
 
-			Map<Integer, Double> reducedCostsMap = new HashMap<>(); reducedCostsMap.put(b, rc);
-			Map<Integer, Double> boundsMap = new HashMap<>();
+			Map<Integer, Double> reducedCostsMap = new LinkedHashMap<>(); reducedCostsMap.put(b, rc);
+			Map<Integer, Double> boundsMap = new LinkedHashMap<>();
 			
 			for (int d: departures){
 				if (d <= b) continue; // skip if departure does not allow for sufficient charging
@@ -130,12 +164,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			Map<Integer, Double> reducedCostsMap = this.charging_reducedCosts.get(b);
 			Map<Integer, Double> boundsMap = this.charging_bounds.get(b);
 			
-        	TreeSet<Integer> departures = e.getValue(); int lastD = Collections.max(boundsMap.keySet());
-			departures.addAll(boundsMap.keySet());
+        	TreeSet<Integer> departures = e.getValue(); // the charging_times entry has all the non-dominated departures for the current iteration
+			int lastD = Collections.max(boundsMap.keySet());
+			TreeSet<Integer> allDepartures = new TreeSet<>(departures); allDepartures.addAll(boundsMap.keySet());
 			
 			int initial_t = 1;
 			double rc = reducedCostsMap.get(b); double min_rc = rc;
-			for (int d: departures){
+			for (int d: allDepartures){
 				if (d <= b) continue; // skip if departure does not allow for sufficient charging
 
 				if (!boundsMap.containsKey(d)){ // if this is a new departure time
@@ -154,11 +189,88 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 					}
 					boundsMap.put(d, min_rc);
-				} else { min_rc = boundsMap.get(d); }
+				} else {
+					min_rc = boundsMap.get(d);
+					if (!departures.contains(d)) boundsMap.remove(d); // if d is not in the charging_times entry, it is dominated and thus removed from the boundsMap
+				}
 
 				initial_t = d-b;
 			}
 			
 		}
+	}
+
+	private TreeSet<Integer> filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry){
+
+		int b = entry.getKey();
+		List<Label> group = entry.getValue();
+
+		// (a) group by departure time d and keep only the labels with minimum reduced cost
+		Map<Integer, Label> bestPerDeparture = new HashMap<>();
+		if (this.charging_bounds.containsKey(b)) {
+			List<Integer> departures = new ArrayList<>(this.charging_bounds.get(b).keySet());
+			Collections.reverse(departures);
+
+			List<Double> nonDomRC = this.nonDominatedRC.get(b);
+			for (int i = 0; i<departures.size(); i++) {
+				int d = departures.get(i);
+				double rc = nonDomRC.get(i);
+
+				Label newFake = fakeLabel.clone(); newFake.reducedCost = rc; newFake.remainingTime = d*10; newFake.index = -1;
+				bestPerDeparture.put(d, newFake);
+			}
+		}
+
+		for (Label l : group) { // detects dominated labels of same departure time
+			int d = (int) (l.remainingTime / 10);
+			double rc = l.reducedCost;
+
+			if (!bestPerDeparture.containsKey(d)) bestPerDeparture.put(d, l);
+			else {
+				Label best = bestPerDeparture.get(d);
+				if (rc < best.reducedCost - dataModel.precision) {
+					// new best, old fully dominated
+					fullyDominated.put(best.index, true);
+					bestPerDeparture.put(d, l);
+				} else { fullyDominated.put(l.index, true); } // the new one is fully dominatws
+			}
+		}
+
+		// (b) sort in descending order of departure time
+		List<Label> sorted = new ArrayList<>(bestPerDeparture.values());
+		sorted.sort(Comparator.comparingInt((Label l) -> (int) (l.remainingTime / 10)).reversed());
+
+		// (c) sweep to detect dominance in time periods
+		TreeSet<Integer> departuresForB = new TreeSet<>();
+
+		Label bestLabel = sorted.get(0);
+		double bestRC = bestLabel.reducedCost; int bestD = (int) (bestLabel.remainingTime / 10);
+		departuresForB.add(bestD); fullyDominated.put(bestLabel.index, false);
+		List<Double> nonDomRC = new ArrayList<>(Arrays.asList(bestRC));
+		
+		int ix = 1;
+		while (ix < sorted.size()) {
+
+			Label l = sorted.get(ix);
+			double rc = l.reducedCost;
+
+			if (rc < bestRC - dataModel.precision) { // the current best label is partially dominated on t = 1 ... d
+				
+				int d = (int) (l.remainingTime/10);
+				this.nonDominatedT.put(bestLabel.index, d);
+				
+				// update sweep front
+				bestLabel = l; bestRC = rc; bestD = d;
+				departuresForB.add(d); fullyDominated.put(l.index, false);
+				nonDomRC.add(rc);
+			}  else  { fullyDominated.put(l.index, true); }
+
+			ix ++;
+		}
+		this.nonDominatedT.put(bestLabel.index, b);
+		
+		this.nonDominatedRC.put(b,nonDomRC);
+
+		return departuresForB;
 	}
 }

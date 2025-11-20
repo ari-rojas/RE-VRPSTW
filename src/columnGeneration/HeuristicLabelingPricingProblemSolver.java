@@ -51,7 +51,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Labeling algorithm
 		this.routes_labels = new ArrayList<Label>();
-		while (!nodesToProcess.isEmpty() && this.routes_labels.size() <= this.numRoutes && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 
@@ -253,67 +253,70 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		for (Label label: this.routes_labels){
 
-			int departureTime = (int) (label.remainingTime/10);
-			int chargingTime = label.chargingTime;
-			double reducedCost = label.reducedCost;
+			if (!pricingProblem.fullyDominated.get(label.index)) {
 
-			if ((reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(departureTime) < -dataModel.precision) && (chargingTime<departureTime)){ // Only performs pricing for the routes that will have at least one column with reduced cost
+				int departureTime = (int) (label.remainingTime/10);
+				int chargingTime = label.chargingTime;
+				double reducedCost = label.reducedCost;
 
-				int load = dataModel.Q - label.remainingLoad;
-				int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
-				
-				// Retrieve route information
-				boolean isElementary = true;
-				HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
-				ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-				
-				int currentVertex = label.vertex; Label currentLabel = label.clone();
-				int cost = 0;
+				if ((reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(departureTime) < -dataModel.precision) && (chargingTime<departureTime)){ // Only performs pricing for the routes that will have at least one column with reduced cost
 
-				while(currentVertex!=dataModel.C+1) {
-					Arc currentArc = dataModel.arcs[currentLabel.nextArc];
-					cost+=currentArc.cost; int nextVertex = currentArc.head;
-					if (currentVertex>=1 && currentVertex<=dataModel.C) {
-						if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
-						else route.put(currentVertex, 1);
-					}
+					int load = dataModel.Q - label.remainingLoad;
+					int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+					
+					// Retrieve route information
+					boolean isElementary = true;
+					HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
+					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+					
+					int currentVertex = label.vertex; Label currentLabel = label.clone();
+					int cost = 0;
 
-					currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
-					currentVertex = nextVertex; arcs.add(currentArc.id);
-				}
-
-				//Gets the route sequence (of customers)
-				int[] routeSequence = new int[arcs.size()-1];
-				int counter = 0;
-				for(Integer arc: arcs) {
-					if(counter>=routeSequence.length) break;
-					routeSequence[counter] = dataModel.arcs[arc].head; counter++;
-				}
-				
-				// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
-				int t = departureTime-1;
-				while (t >= chargingTime){
-
-					double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
-					if (rc < -dataModel.precision){
-						int initial = t-chargingTime+1;
-
-						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, rc, arcs, initial, chargingTime);
-						this.newRoutes.add(column);
-					}
-
-					int next_t = t-chargingTime;
-					for (int tt = t; tt >= t-chargingTime+1; tt--){
-						if (pricingProblem.negative_charging_duals[tt]){
-							//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
-							next_t = tt - 1;
-							break;
+					while(currentVertex!=dataModel.C+1) {
+						Arc currentArc = dataModel.arcs[currentLabel.nextArc];
+						cost+=currentArc.cost; int nextVertex = currentArc.head;
+						if (currentVertex>=1 && currentVertex<=dataModel.C) {
+							if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
+							else route.put(currentVertex, 1);
 						}
+
+						currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
+						currentVertex = nextVertex; arcs.add(currentArc.id);
 					}
 
-					t = next_t;
+					//Gets the route sequence (of customers)
+					int[] routeSequence = new int[arcs.size()-1];
+					int counter = 0;
+					for(Integer arc: arcs) {
+						if(counter>=routeSequence.length) break;
+						routeSequence[counter] = dataModel.arcs[arc].head; counter++;
+					}
+					
+					// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
+					int t = departureTime-1;
+					while (t >= pricingProblem.nonDominatedT.get(label.index)){
+
+						double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
+						if (rc < -dataModel.precision){
+							int initial = t-chargingTime+1;
+
+							Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, rc, arcs, initial, chargingTime);
+							this.newRoutes.add(column);
+						}
+
+						int next_t = t-chargingTime;
+						for (int tt = t; tt >= t-chargingTime+1; tt--){
+							if (pricingProblem.negative_charging_duals[tt]){
+								//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
+								next_t = tt - 1;
+								break;
+							}
+						}
+
+						t = next_t;
+					}
+				
 				}
-			
 			}
 		}
 

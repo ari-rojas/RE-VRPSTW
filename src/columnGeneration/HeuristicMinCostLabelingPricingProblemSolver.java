@@ -54,7 +54,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Labeling algorithm
 		this.routes_labels = new ArrayList<Label>();
-		while (!nodesToProcess.isEmpty() && this.routes_labels.size() <= this.numRoutes && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 
@@ -254,10 +254,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 			while (this.newRoutes.size()+this.nonElementaryRoutes.size() == 0 && !nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 				this.runLabeling(); // Runs the labeling algorithm for the routing part
-
-				// Initializes the bounding procedure
-				pricingProblem.update_charging_bounds(this.routes_labels);
-
+				pricingProblem.update_charging_bounds(this.routes_labels); // Initializes the bounding procedure
 				existsElementaryRoute = this.charging_pricing(); // Performs the charging pricing
 			}
 			
@@ -291,71 +288,74 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		boolean existsElementaryRoute = false;
 		for (Label label: this.routes_labels){
 			
-			int departureTime = (int) (label.remainingTime/10);
-			int chargingTime = label.chargingTime;
-			double reducedCost = label.reducedCost;
-			
-			if ((reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(departureTime) < -dataModel.precision) && (chargingTime<departureTime)){
-			
-				int load = dataModel.Q - label.remainingLoad;
-				int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+			if (!pricingProblem.fullyDominated.get(label.index)) {
+
+				int departureTime = (int) (label.remainingTime/10);
+				int chargingTime = label.chargingTime;
+				double reducedCost = label.reducedCost;
 				
-				// Retrieve route information
-				boolean isElementary = true;
-				HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
-				ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+				if ((reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(departureTime) < -dataModel.precision) && (chargingTime<departureTime)){
 				
-				int currentVertex = label.vertex; Label currentLabel = label.clone();
-				int cost = 0;
+					int load = dataModel.Q - label.remainingLoad;
+					int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+					
+					// Retrieve route information
+					boolean isElementary = true;
+					HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
+					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+					
+					int currentVertex = label.vertex; Label currentLabel = label.clone();
+					int cost = 0;
 
-				while(currentVertex!=dataModel.C+1) {
-					Arc currentArc = dataModel.arcs[currentLabel.nextArc];
-					cost+=currentArc.cost;
-					int nextVertex = currentArc.head;
-					if (currentVertex>=1 && currentVertex<=dataModel.C) {
-						if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
-						else route.put(currentVertex, 1);
-					}
-
-					currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
-					currentVertex = nextVertex;
-					arcs.add(currentArc.id);
-				}
-
-				//Gets the route sequence (of customers)
-				int[] routeSequence = new int[arcs.size()-1];
-				int counter = 0;
-				for(Integer arc: arcs) {
-					if(counter>=routeSequence.length) break;
-					routeSequence[counter] = dataModel.arcs[arc].head;
-					counter++;
-				}
-				
-				// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
-				int t = departureTime-1;
-				while (t >= chargingTime){
-
-					double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
-					if (rc < -dataModel.precision){
-						int initial = t-chargingTime+1;
-
-						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, rc, arcs, initial, chargingTime);
-						
-						if (isElementary) { existsElementaryRoute = true; this.newRoutes.add(column);}
-						else {this.nonElementaryRoutes.add(column);}
-					}
-
-					int next_t = t-chargingTime;
-					for (int tt = t; tt >= t-chargingTime+1; tt--){
-						if (pricingProblem.negative_charging_duals[tt]){
-							//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
-							next_t = tt - 1;
-							break;
+					while(currentVertex!=dataModel.C+1) {
+						Arc currentArc = dataModel.arcs[currentLabel.nextArc];
+						cost+=currentArc.cost;
+						int nextVertex = currentArc.head;
+						if (currentVertex>=1 && currentVertex<=dataModel.C) {
+							if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
+							else route.put(currentVertex, 1);
 						}
+
+						currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
+						currentVertex = nextVertex;
+						arcs.add(currentArc.id);
 					}
 
-					t = next_t;
+					//Gets the route sequence (of customers)
+					int[] routeSequence = new int[arcs.size()-1];
+					int counter = 0;
+					for(Integer arc: arcs) {
+						if(counter>=routeSequence.length) break;
+						routeSequence[counter] = dataModel.arcs[arc].head;
+						counter++;
+					}
+					
+					// MODE 1: ONLY FOR WHEN THERE IS NO CHARGING TIME BRANCHING
+					int t = departureTime-1;
+					while (t >= pricingProblem.nonDominatedT.get(label.index)){
 
+						double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
+						if (rc < -dataModel.precision){
+							int initial = t-chargingTime+1;
+
+							Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, rc, arcs, initial, chargingTime);
+							
+							if (isElementary) { existsElementaryRoute = true; this.newRoutes.add(column);}
+							else {this.nonElementaryRoutes.add(column);}
+						}
+
+						int next_t = t-chargingTime;
+						for (int tt = t; tt >= t-chargingTime+1; tt--){
+							if (pricingProblem.negative_charging_duals[tt]){
+								//logger.debug("Time period " + tt + ", dual " + pricingProblem.dualCosts[dataModel.C + tt - 1]);
+								next_t = tt - 1;
+								break;
+							}
+						}
+
+						t = next_t;
+
+					}
 				}
 			}
 		}
