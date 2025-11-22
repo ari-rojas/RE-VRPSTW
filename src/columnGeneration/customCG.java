@@ -99,7 +99,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			//We can stop when the optimality gap is closed. We still need to check for violated inequalities though.
 			if (Math.abs(objectiveMasterProblem - boundOnMasterObjective)<config.PRECISION){
 				//Check whether there are inequalities. Otherwise potentially an infeasible integer solution (e.g. TSP solution with subtours) might be returned.
-				if (config.CUTSENABLED){
+				if (dataModel.CUTSENABLED){
 					long time=System.currentTimeMillis();
 					hasNewCuts=master.hasNewCuts();
 					masterSolveTime+=(System.currentTimeMillis()-time); //Generating inequalities is considered part of the master problem
