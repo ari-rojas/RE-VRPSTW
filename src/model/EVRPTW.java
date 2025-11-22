@@ -67,6 +67,8 @@ public final class EVRPTW implements ModelInterface {
 	public String algorithm;
 	public String experiment;
 
+	public boolean CUTSENABLED;
+
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.
