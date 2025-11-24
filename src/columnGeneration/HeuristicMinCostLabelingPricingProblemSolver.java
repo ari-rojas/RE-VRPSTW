@@ -191,6 +191,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
+		if (source>0 && reducedCost+this.routing_bounds.get(source) >= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
+
 		//only negative reduced cost labels
 		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
 
