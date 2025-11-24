@@ -44,7 +44,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private final ExtendBAPNotifier extendedNotifier;
 
 	private List<Integer> chargingNodes = new ArrayList<Integer>();
-	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
+	private Map<Integer, Integer> arcFlowNodes = new HashMap<Integer, Integer>();
 	private long timeChargingBranching = 0;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
@@ -288,9 +288,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				this.chargingNodes.add(newBranches.get(0).nodeID);
 				this.chargingNodes.add(newBranches.get(1).nodeID);
 			} // TIME BRANCHING
-			if (this.arcFlowNodes.contains(bapNode.nodeID)) {
-				this.arcFlowNodes.add(newBranches.get(0).nodeID);
-				this.arcFlowNodes.add(newBranches.get(1).nodeID);
+			if (this.arcFlowNodes.containsKey(bapNode.nodeID)) {
+				this.arcFlowNodes.put(newBranches.get(0).nodeID, this.arcFlowNodes.get(bapNode.nodeID) + 1);
+				this.arcFlowNodes.put(newBranches.get(1).nodeID, this.arcFlowNodes.get(bapNode.nodeID) + 1);
 			}
 			
 			return true;
@@ -313,8 +313,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					this.chargingNodes.add(newBranches.get(1).nodeID);
 				} // TIME BRANCHING
 
-				this.arcFlowNodes.add(newBranches.get(0).nodeID);
-				this.arcFlowNodes.add(newBranches.get(1).nodeID);
+				if (this.arcFlowNodes.containsKey(bapNode.nodeID)){
+					this.arcFlowNodes.put(newBranches.get(0).nodeID, this.arcFlowNodes.get(bapNode.nodeID) + 1);
+					this.arcFlowNodes.put(newBranches.get(1).nodeID, this.arcFlowNodes.get(bapNode.nodeID) + 1);
+				} else {
+					this.arcFlowNodes.put(newBranches.get(0).nodeID, 1);
+					this.arcFlowNodes.put(newBranches.get(1).nodeID, 1);
+				}
 
 				return true;
 
@@ -334,9 +339,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					this.chargingNodes.add(newBranches.get(0).nodeID);
 					this.chargingNodes.add(newBranches.get(1).nodeID);
 
-					if (this.arcFlowNodes.contains(bapNode.nodeID)){
-						this.arcFlowNodes.add(newBranches.get(0).nodeID);
-						this.arcFlowNodes.add(newBranches.get(1).nodeID);
+					if (this.arcFlowNodes.containsKey(bapNode.nodeID)){
+						this.arcFlowNodes.put(newBranches.get(0).nodeID, this.arcFlowNodes.get(bapNode.nodeID) + 1);
+						this.arcFlowNodes.put(newBranches.get(1).nodeID, this.arcFlowNodes.get(bapNode.nodeID) + 1);
 					}
 
 					return true;
@@ -374,7 +379,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				long time = 0;
 				try { // Try solving the node
 					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
-					if (this.arcFlowNodes.contains(bapNode.nodeID)) { dataModel.CUTSENABLED = true; } else { dataModel.CUTSENABLED = false;}
+					if (this.arcFlowNodes.containsKey(bapNode.nodeID)) { dataModel.CUTSENABLED = true; dataModel.maximumNumberCuts = Math.min(3,this.arcFlowNodes.get(bapNode.nodeID))*10; } else { dataModel.CUTSENABLED = false; dataModel.maximumNumberCuts=0; }
 					this.solveBAPNode(bapNode, timeLimit);
 					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception

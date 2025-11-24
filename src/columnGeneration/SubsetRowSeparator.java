@@ -14,7 +14,7 @@ public class SubsetRowSeparator{
 
 	public static final double PRECISION=0.01; 			//precision considered for the cuts
 	public static double minimumThreshold = 0.1; 		//minimum violation for the cut with largest violation
-	public static int maximumNumberCuts = 30; 			//maximum number of cuts to add each iteration
+	//public static int maximumNumberCuts = 30; 			//maximum number of cuts to add each iteration
 	public static int maxCutsPerCustomer = 5; 			//maximum cuts where a customer appears (diversification)
 	private boolean SRCViolation=false; 				//if at least one violation has been found
 	private ArrayList<PreliminaryCut> cutSets; 			//customers triplets
@@ -33,7 +33,7 @@ public class SubsetRowSeparator{
 	public void separateRow(Map<Route, Double> routeValueMap){
 
 		//candidate for cuts
-		ArrayList<PreliminaryCut> preliminaryCutSet = new ArrayList<PreliminaryCut>(2*maximumNumberCuts);
+		ArrayList<PreliminaryCut> preliminaryCutSet = new ArrayList<PreliminaryCut>(2*dataModel.maximumNumberCuts);
 
 		//You can remove from the enumeration all customers that are visited in routes with a flow of 1
 		boolean[] customersToDiscard = new boolean[dataModel.C]; //true if the customer should be discarded
@@ -64,7 +64,7 @@ public class SubsetRowSeparator{
 			}
 		}
 		//Diversify the cuts
-		this.cutSets = new ArrayList<PreliminaryCut>(maximumNumberCuts);
+		this.cutSets = new ArrayList<PreliminaryCut>(dataModel.maximumNumberCuts);
 		Collections.sort(preliminaryCutSet, new SortByViolation());
 		if(preliminaryCutSet.size()==0 || preliminaryCutSet.get(0).violation<minimumThreshold) {SRCViolation=false; return;}
 		else SRCViolation = true;
@@ -75,7 +75,7 @@ public class SubsetRowSeparator{
 			if (add) {
 				for(int i: cut.cutSet) cutsWithCustomer[i-1]+=1;
 				cutSets.add(cut);
-				if(cutSets.size()>=maximumNumberCuts) return;
+				if(cutSets.size()>=dataModel.maximumNumberCuts) return;
 			}
 		}
 	}
