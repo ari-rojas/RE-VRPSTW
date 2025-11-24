@@ -269,8 +269,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
 		//Quick check
-		if(remainingTime+dataModel.graph.getEdge(head, depot).minimumTime > vertices[depot].closing_tw) return null;
-		if (remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(head, depot).minimumEnergy < 0) return null;
+		if (head < depot){
+			if(remainingTime+dataModel.graph.getEdge(head, depot).minimumTime > vertices[depot].closing_tw) return null;
+			if (remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(head, depot).minimumEnergy < 0) return null;
+		}
 
 		//Check whether the extension is actually feasible
 		if(remainingTime>vertices[head].closing_tw || chargingTime > dataModel.f_inverse[dataModel.E]) return null;
