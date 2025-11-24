@@ -279,7 +279,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
 		boolean[] ng_path = new boolean[dataModel.C];
-		ng_path[head-1] = true;
+		if (head < depot) ng_path[head-1] = true;
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		int lastHead = -1;
