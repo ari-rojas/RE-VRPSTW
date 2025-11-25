@@ -100,7 +100,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			dataModel.cutsRootNode=node.getInequalities().size();
 		}
 
-		List<Route> solution = node.getSolution();
+		return isIntegerSolution(node.getSolution());
+	}
+
+	protected boolean isIntegerSolution(List<Route> solution){
+
 		for(Route route: solution)
 			if(route.value>0+PRECISION && route.value<1-PRECISION) {return false;}
 
@@ -201,6 +205,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	 */
 	@Override
 	protected void solveBAPNode(BAPNode<EVRPTW,Route> bapNode, long timeLimit) throws TimeLimitExceededException {
+		// I want to override it with my method
+	}
+
+	protected CGResult solveNode(BAPNode<EVRPTW,Route> bapNode, long timeLimit) throws TimeLimitExceededException {
+		
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
@@ -218,9 +227,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				notifier.fireFinishCGEvent(bapNode, cg.getBound(), cg.getObjective(), cg.getNumberOfIterations(), cg.getMasterSolveTime(), cg.getPricingSolveTime(), cg.getNrGeneratedColumns());
 			}
 		}
+
 		ArrayList<Route> solution = new ArrayList<Route>(cg.getSolution().size()); //if not, it overwrites the value
 		for(Route route: cg.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
 		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts());
+
+		return new CGResult(cg.incumbentSolution, cg.incumbentSolutionObjective);
 	}
 
 	protected void processIntegerNode(BAPNode<EVRPTW, Route> bapNode){
@@ -365,6 +377,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		   rootNode.addInitialColumns(this.generateInitialFeasibleSolution(rootNode));
 		}
 
+		CGResult cgIncumbent;
+
 		dataModel.CUTSENABLED = false;
 		while(!this.queue.isEmpty()) {
 			BAPNode<EVRPTW, Route> bapNode = (BAPNode<EVRPTW, Route>)this.queue.poll();
@@ -380,7 +394,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				try { // Try solving the node
 					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
 					if (this.arcFlowNodes.containsKey(bapNode.nodeID)) { dataModel.CUTSENABLED = true; dataModel.maximumNumberCuts = Math.min(3,this.arcFlowNodes.get(bapNode.nodeID))*10; } else { dataModel.CUTSENABLED = false; dataModel.maximumNumberCuts=0; }
-					this.solveBAPNode(bapNode, timeLimit);
+					cgIncumbent = this.solveNode(bapNode, timeLimit);
 					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
 					this.queue.add(bapNode);
@@ -405,6 +419,15 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					if (this.isIntegerNode(bapNode)) { // If is integer, update incumbent
 						this.processIntegerNode(bapNode);
 					} else {
+
+						// Update of the global Primal Bound in case the local Primal Bound of the node is better
+						if (this.isIntegerSolution(cgIncumbent.cgIncumbentSolution) && (int) cgIncumbent.cgIncumbentObjective < objectiveIncumbentSolution) {
+							int integerObjective = MathProgrammingUtil.doubleToInt(cgIncumbent.cgIncumbentObjective);
+							this.objectiveIncumbentSolution = integerObjective;
+							this.upperBoundOnObjective = cgIncumbent.cgIncumbentObjective;
+							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
+						}
+
 						this.updateNodeGeneratedColumns(bapNode);
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
 						
@@ -476,5 +499,16 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 	public void removeExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.removeExtendBAPListener(listener);
+	}
+
+	public class CGResult {
+
+		public List<Route> cgIncumbentSolution;
+		public double cgIncumbentObjective;
+
+		public CGResult(List<Route> incumbentSolution, double primalBound){
+			this.cgIncumbentSolution = incumbentSolution;
+			this.cgIncumbentObjective = primalBound;
+		}
 	}
 }
