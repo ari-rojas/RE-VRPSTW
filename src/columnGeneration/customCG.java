@@ -153,7 +153,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			if(route.value>0+config.PRECISION && route.value<1-config.PRECISION) {isInteger = false; break;}
 
 		//Update incumbent solution
-		if(isInteger && this.cutoffValue>master.getObjective()) {
+		if(isInteger && this.cutoffValue>objectiveMasterProblem) {
 			this.incumbentSolution = new ArrayList<>();
 			this.cutoffValue = (int) (master.getObjective()+0.5);
 			this.incumbentSolutionObjective = this.cutoffValue;
