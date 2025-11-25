@@ -393,7 +393,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				long time = 0;
 				try { // Try solving the node
 					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
-					if (this.arcFlowNodes.containsKey(bapNode.nodeID)) { dataModel.CUTSENABLED = true; dataModel.maximumNumberCuts = Math.min(3,this.arcFlowNodes.get(bapNode.nodeID))*10; } else { dataModel.CUTSENABLED = false; dataModel.maximumNumberCuts=0; }
+					if (this.arcFlowNodes.containsKey(bapNode.nodeID)) { dataModel.CUTSENABLED = true; dataModel.maximumNumberCuts = 30; } else { dataModel.CUTSENABLED = false; dataModel.maximumNumberCuts=0; }
 					cgIncumbent = this.solveNode(bapNode, timeLimit);
 					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
