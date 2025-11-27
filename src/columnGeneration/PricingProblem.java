@@ -1,6 +1,6 @@
 package columnGeneration;
 
-
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -13,7 +13,6 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
-import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 
 import branchAndPrice.ChargingTimeInequality;
 import model.EVRPTW;
