@@ -46,7 +46,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		Map<Integer, List<Integer>> mergedMap = new HashMap<>();
 		ArrayList<Label> mergedLabels = new ArrayList<>();
 
-		int cont = 0;
+		long startTime = System.currentTimeMillis(); int cont = 0;
 		for (Arc arc: dataModel.arcs){
 			
 			if (arc.head <= dataModel.C+1){ // only routing arcs
@@ -72,7 +72,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 		}
 
+		long totalTime = System.currentTimeMillis()-startTime;
+		dataModel.exactPricingTime+=totalTime;
+		if (dataModel.print_log) {
+			logger.debug("Time merging forward and backward labels: " + FRC.getTimeInSeconds(totalTime));
+			logger.debug("Found "+mergedLabels.size()+" merged labels");
+		}
+
 		
+
+
+
 
 	}
 
