@@ -3,12 +3,14 @@ package columnGeneration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.TreeSet;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 
@@ -28,10 +30,24 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
+	// Information for Fixing by Reduced Costs procedure
 	public ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
 	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasibleArcs;
+
+	// Charging pricing information
+	public double[] S;
+	public boolean[] negative_charging_duals;
+	public Map<Integer, Map<Integer, Double>> charging_bounds;
+	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
+	public int maxT;
+
+	public Map<Integer, Boolean> fullyDominated;
+	public Map<Integer, Integer> nonDominatedT;
+
+	private Map<Integer, List<Double>> nonDominatedRC;
+	private Label fakeLabel;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -118,7 +134,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			HashSet<Integer> srcIndices = new HashSet<Integer>(updatedLabel.srcIndices);
 			boolean[] eta = updatedLabel.eta.clone();
 
-			for(int srcIndex: dataModel.vertices[source].SRCIndices) {
+			for(int srcIndex: this.SRCIndices.get(source)) {
 				if (updatedLabel.eta[srcIndex]) {
 					eta[srcIndex] = false;
 					int dualIndex = dataModel.C+dataModel.last_charging_period+srcIndex;
@@ -335,7 +351,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 			boolean[] eta = currentLabel.eta.clone();
 			HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
-			for(int srcIndex: vertices[head].SRCIndices) {
+			for(int srcIndex: this.pricingProblem.SRCIndices.get(head)) {
 				if(currentLabel.eta[srcIndex]) {
 					eta[srcIndex] = false;
 					int dualIndex = dataModel.C+dataModel.last_charging_period+srcIndex;
