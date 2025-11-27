@@ -43,6 +43,7 @@ import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolv
 import org.jorlib.frameworks.columnGeneration.util.Configuration;
 import branchAndPrice.BranchAndPrice;
 import branchAndPrice.BranchingRules;
+import branchAndPrice.CGFixingByReducedCostEvent;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
@@ -243,7 +244,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Double Heuristic Root", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Fixing by RC", args[2]);
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
@@ -379,6 +380,14 @@ public final class EVRPTWSolver {
 
 				logger.debug("Finished master -> RMP objective: {}, Total cost: {}", new Object[]{lexiEvent.depletion,lexiEvent.cost });
 
+			}
+		}
+
+		@Override
+		public void fixingByReducedCost(CGFixingByReducedCostEvent frcEvent){
+			if (dataModel.print_log) {
+				logger.debug("================ FIXING BY REDUCED COST ================");
+				logger.debug("UB = {} LB = {} Gap = {}",new Object[]{frcEvent.UB, frcEvent.LB, Math.round((1-frcEvent.LB/frcEvent.UB)*1e4)/1e4});
 			}
 		}
 

@@ -77,5 +77,17 @@ public class ExtendBAPNotifier{
       }
     }
 
+    public void fireFixingByReducedCostEvent(BAPNode node, double obj, double cost) {
+      CGFixingByReducedCostEvent frcEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.fixingByReducedCost(frcEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (frcEvent == null) {
+          frcEvent = new CGFixingByReducedCostEvent(this.parent, node, obj, cost);
+        }
+      }
+    }
+
 
 }

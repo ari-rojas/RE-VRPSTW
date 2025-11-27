@@ -12,4 +12,6 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishLexicographicMaster(FinishLexicographicMasterEvent var1);
 
+    void fixingByReducedCost(CGFixingByReducedCostEvent var1);
+
 }
