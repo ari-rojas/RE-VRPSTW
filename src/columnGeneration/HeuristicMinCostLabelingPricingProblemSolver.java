@@ -229,11 +229,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}else {
 			for (int i = 0; i < vertices.length; i++) {
-				if (i <= dataModel.C+1) { pricingProblem.bwLabels.add(vertices[i].processedLabels); pricingProblem.SRCIndices.add(vertices[i].SRCIndices); }	
+				if (i <= dataModel.C+1) { pricingProblem.bwLabels.add(new ArrayList<>(vertices[i].processedLabels)); pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices)); }	
+				
 				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
 				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
-				vertices[i].SRCIndices = new ArrayList<>(); 
+				vertices[i].SRCIndices = new ArrayList<>();
 			}
+			pricingProblem.infeasibleArcs = infeasibleArcs.clone();
 		}
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 	}
@@ -413,7 +415,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		return false;
 	}
 
-
 	/**
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
@@ -471,7 +472,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			return true;
 		}
 	}
-
 
 	public int[] get_route_sequence(Label label) {
 
