@@ -68,6 +68,8 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	public boolean CUTSENABLED;
+	public double globalLB;
+	public boolean hasPerformedFRC = false;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 

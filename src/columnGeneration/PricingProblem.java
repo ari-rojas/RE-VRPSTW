@@ -5,6 +5,7 @@ import java.util.Set;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import branchAndPrice.ChargingTimeInequality;
 import model.EVRPTW;
+import model.EVRPTW.Vertex;
 
 /**
  * This class defines the pricing problem. 
@@ -17,7 +18,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
+	private ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
+	private ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
+
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
+		
 	}
+
+
+
 }

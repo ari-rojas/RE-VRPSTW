@@ -376,6 +376,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		dataModel.CUTSENABLED = false;
 		while(!this.queue.isEmpty()) {
+			
+			// Update Lower Bound
+			double globalLB = Double.MIN_VALUE;
+			for (BAPNode node: this.queue) globalLB = node.getBound();
+			this.lowerBoundOnObjective = globalLB;
+			this.dataModel.globalLB = globalLB;
+
 			BAPNode<EVRPTW, Route> bapNode = (BAPNode<EVRPTW, Route>)this.queue.poll();
 			this.notifier.fireNextNodeEvent(bapNode);
 			if (this.nodeCanBePruned(bapNode)) { // If can be pruned by bound BEFORE solving it

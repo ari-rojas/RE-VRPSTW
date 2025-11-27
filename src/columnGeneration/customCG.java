@@ -96,7 +96,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				throw new UnsupportedOperationException("Problem with LB");
 			}
 
-			//We can stop when the optimality gap is closed. We still need to check for violated inequalities though.
+			//We can stop when the optimality if we reach the previous LB. We still need to check for violated inequalities though.
 			if (Math.abs(objectiveMasterProblem - boundOnMasterObjective)<config.PRECISION){
 				//Check whether there are inequalities. Otherwise potentially an infeasible integer solution (e.g. TSP solution with subtours) might be returned.
 				if (dataModel.CUTSENABLED){
@@ -130,6 +130,14 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 
 		} while (foundNewColumns || hasNewCuts);
+
+		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
+		if (1-dataModel.globalLB/this.cutoffValue < 0.1 - dataModel.precision && !dataModel.hasPerformedFRC) {
+			
+			dataModel.hasPerformedFRC = true;
+		}
+		
+
 		colGenSolveTime = System.currentTimeMillis() - colGenSolveTime;
 		notifier.fireFinishCGEvent();
 
