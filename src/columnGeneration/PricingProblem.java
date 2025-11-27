@@ -1,5 +1,6 @@
 package columnGeneration;
 
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -241,6 +242,80 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 		}
 
+	}
+
+	private TreeSet<Integer> filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry){
+
+		int b = entry.getKey();
+		List<Label> group = entry.getValue();
+
+		// (a) group by departure time d and keep only the labels with minimum reduced cost
+		Map<Integer, Label> bestPerDeparture = new HashMap<>();
+		if (this.charging_bounds.containsKey(b)) {
+			List<Integer> departures = new ArrayList<>(this.charging_bounds.get(b).keySet());
+			Collections.reverse(departures);
+
+			List<Double> nonDomRC = this.nonDominatedRC.get(b);
+			for (int i = 0; i<departures.size(); i++) {
+				int d = departures.get(i);
+				double rc = nonDomRC.get(i);
+
+				Label newFake = fakeLabel.clone(); newFake.reducedCost = rc; newFake.remainingTime = d*10; newFake.index = -1;
+				bestPerDeparture.put(d, newFake);
+			}
+		}
+
+		for (Label l : group) { // detects dominated labels of same departure time
+			int d = (int) (l.remainingTime / 10);
+			double rc = l.reducedCost;
+
+			if (!bestPerDeparture.containsKey(d)) bestPerDeparture.put(d, l);
+			else {
+				Label best = bestPerDeparture.get(d);
+				if (rc < best.reducedCost - dataModel.precision) {
+					// new best, old fully dominated
+					fullyDominated.put(best.index, true);
+					bestPerDeparture.put(d, l);
+				} else { fullyDominated.put(l.index, true); } // the new one is fully dominatws
+			}
+		}
+
+		// (b) sort in descending order of departure time
+		List<Label> sorted = new ArrayList<>(bestPerDeparture.values());
+		sorted.sort(Comparator.comparingInt((Label l) -> (int) (l.remainingTime / 10)).reversed());
+
+		// (c) sweep to detect dominance in time periods
+		TreeSet<Integer> departuresForB = new TreeSet<>();
+
+		Label bestLabel = sorted.get(0);
+		double bestRC = bestLabel.reducedCost; int bestD = (int) (bestLabel.remainingTime / 10);
+		departuresForB.add(bestD); fullyDominated.put(bestLabel.index, false);
+		List<Double> nonDomRC = new ArrayList<>(Arrays.asList(bestRC));
+		
+		int ix = 1;
+		while (ix < sorted.size()) {
+
+			Label l = sorted.get(ix);
+			double rc = l.reducedCost;
+
+			if (rc < bestRC - dataModel.precision) { // the current best label is partially dominated on t = 1 ... d
+				
+				int d = (int) (l.remainingTime/10);
+				this.nonDominatedT.put(bestLabel.index, d);
+				
+				// update sweep front
+				bestLabel = l; bestRC = rc; bestD = d;
+				departuresForB.add(d); fullyDominated.put(l.index, false);
+				nonDomRC.add(rc);
+			}  else  { fullyDominated.put(l.index, true); }
+
+			ix ++;
+		}
+		this.nonDominatedT.put(bestLabel.index, b);
+		
+		this.nonDominatedRC.put(b,nonDomRC);
+
+		return departuresForB;
 	}
 
 	private final class PartialSequence {
