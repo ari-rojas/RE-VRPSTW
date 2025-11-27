@@ -155,6 +155,78 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return new PartialSequence(aSeq, route);
 	}
 
+	public void compute_charging_bounds(ArrayList<Label> labels){
+
+		this.fullyDominated = new HashMap<>();
+		this.nonDominatedT = new HashMap<>();
+		this.nonDominatedRC = new HashMap<>();
+
+		this.charging_reducedCosts = new HashMap<>();
+		this.charging_bounds = new HashMap<>();
+
+		// 1. Group labels by charging time b
+		Map<Integer, List<Label>> labelsByB = new HashMap<>();
+		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
+
+		// 2. Dominance filtering per charging time b
+		Map<Integer, TreeSet<Integer>> charging_times = new HashMap<>();
+
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
+			TreeSet<Integer> departures = filter_labels_same_chargingTime(entry); // returns the departures with non-fully-dominated labels
+			if (!departures.isEmpty()) charging_times.put(entry.getKey(), departures);
+		}
+
+		// Precompute fixed sums of the charging dual variables
+		this.maxT = 0; for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
+		this.S = new double[dataModel.last_charging_period + 1]; this.S[0] = 0.0;
+		this.negative_charging_duals = new boolean[dataModel.last_charging_period + 1];
+		for (int t = 1; t <= this.maxT; t++) {
+			double dual = this.dualCosts[dataModel.C + t - 1];
+			this.negative_charging_duals[t] = dual < -dataModel.precision;
+			this.S[t] = this.S[t - 1] + dual;
+		}
+
+		/* logger.debug("Identifying time periods with negative dual");
+		for (int t = 1; t <= this.maxT; t++){
+			if (this.negative_charging_duals[t]) logger.debug("Period "+t+": Yes");
+		} */
+
+		if (!charging_times.isEmpty()) process_charging_times_map(charging_times);
+
+	}
+
+	public void process_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times){
+
+		for (Map.Entry<Integer, TreeSet<Integer>> e : charging_times.entrySet()){
+
+			int b = e.getKey();
+        	TreeSet<Integer> departures = e.getValue();
+
+			int initial_t = 1;
+			double rc = - (this.S[b]-this.S[0]); double min_rc = rc;
+
+			Map<Integer, Double> reducedCostsMap = new LinkedHashMap<>(); reducedCostsMap.put(b, rc);
+			Map<Integer, Double> boundsMap = new LinkedHashMap<>();
+			
+			for (int d: departures){
+				if (d <= b) continue; // skip if departure does not allow for sufficient charging
+
+				for (int t=initial_t; t<=d-b-1; t++){
+					rc = - (this.S[t+b] - this.S[t]);
+					reducedCostsMap.put(t+b, rc);
+					if (rc < min_rc - dataModel.precision) min_rc = rc;
+				}
+				boundsMap.put(d, min_rc);
+				initial_t = d-b;
+			}
+				
+			this.charging_reducedCosts.put(b, reducedCostsMap);
+			this.charging_bounds.put(b, boundsMap);
+			
+		}
+
+	}
+
 	private final class PartialSequence {
 
 		public ArrayList<Integer> arcsSequence;
