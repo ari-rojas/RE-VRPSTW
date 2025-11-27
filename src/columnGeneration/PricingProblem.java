@@ -18,14 +18,23 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
-	private ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
-	private ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
+	public ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
+	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
+	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
 		
 	}
 
+	public void fixByReducedCosts(){
 
+	}
+
+	public ArrayList<ArrayList<Label>> getForwardLabels(){
+
+		return new ArrayList<>();
+
+	}
 
 }

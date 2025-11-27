@@ -2,6 +2,8 @@ package columnGeneration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -19,6 +21,14 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> isSolverExact = new HashMap<>();
+	static {
+		isSolverExact.put(HeuristicLabelingPricingProblemSolver.class, false);
+		isSolverExact.put(HeuristicLabelingSecondPricingProblemSolver.class, false);
+		isSolverExact.put(HeuristicMinCostLabelingPricingProblemSolver.class, true);
+		isSolverExact.put(HeuristicLabelingMultigraphPricingProblemSolver.class, false);
+		isSolverExact.put(ExactLabelingMultigraphPricingProblemSolver.class, true);
+	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
@@ -132,7 +142,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		} while (foundNewColumns || hasNewCuts);
 
 		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
-		if (1-dataModel.globalLB/this.cutoffValue < 0.1 - dataModel.precision && !dataModel.hasPerformedFRC) {
+		if (1-this.boundOnMasterObjective/this.cutoffValue < 0.1 - dataModel.precision && !dataModel.hasPerformedFRC) {
 			
 			dataModel.hasPerformedFRC = true;
 		}

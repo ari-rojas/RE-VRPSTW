@@ -229,6 +229,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}else {
 			for (int i = 0; i < vertices.length; i++) {
+				if (i <= dataModel.C+1) { pricingProblem.bwLabels.add(vertices[i].processedLabels); pricingProblem.SRCIndices.add(vertices[i].SRCIndices); }	
 				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
 				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
 				vertices[i].SRCIndices = new ArrayList<>(); 
