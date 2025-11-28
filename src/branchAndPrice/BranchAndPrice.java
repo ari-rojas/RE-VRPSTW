@@ -381,7 +381,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			double globalLB = Double.MIN_VALUE;
 			for (BAPNode node: this.queue) globalLB = node.getBound();
 			this.lowerBoundOnObjective = globalLB;
-			this.dataModel.globalLB = globalLB;
+			this.dataModel.globalLB = globalLB; this.dataModel.isTheOnlyNode = this.queue.size() == 1;
+			this.dataModel.globalUB = this.objectiveIncumbentSolution;
 
 			BAPNode<EVRPTW, Route> bapNode = (BAPNode<EVRPTW, Route>)this.queue.poll();
 			this.notifier.fireNextNodeEvent(bapNode);

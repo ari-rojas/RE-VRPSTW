@@ -69,6 +69,8 @@ public final class EVRPTW implements ModelInterface {
 
 	public boolean CUTSENABLED;
 	public double globalLB;
+	public double globalUB;
+	public boolean isTheOnlyNode;
 	public boolean hasPerformedFRC = false;
 
 	/**

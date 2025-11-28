@@ -273,7 +273,11 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 			else {
 				this.pricingProblemInfeasible=false;
+				double bestReducedCost = Double.MAX_VALUE;
+
 				for (Label label: vertices[dataModel.V].unprocessedLabels) {
+
+					if(label.reducedCost < bestReducedCost) bestReducedCost = label.reducedCost;
 					int departureTime = (int) (label.remainingTime/10);
 					int load = dataModel.Q - label.remainingLoad;
 					if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
@@ -309,6 +313,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						else {nonElementaryRoutes.add(column);}
 					}
 				}
+				
+				
+				pricingProblem.bestReducedCost = bestReducedCost;
 				//Enlarge ng-sets (neighborhoods)
 				if (!existsElementaryRoute) {
 					maxNeighborhoodSize = true;
