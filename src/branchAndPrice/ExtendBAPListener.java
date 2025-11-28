@@ -14,4 +14,6 @@ public interface ExtendBAPListener extends EventListener {
 
     void fixingByReducedCost(CGFixingByReducedCostEvent var1);
 
+    void finishFixingByReducedCost(CGFinishFixingByReducedCostEvent var1);
+
 }

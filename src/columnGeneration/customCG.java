@@ -9,8 +9,12 @@ import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
 import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
+import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
+
+import branchAndPrice.RemoveArc;
+import branchAndPrice.ExtendBAPNotifier;
 import model.EVRPTW;
 
 /**
@@ -140,14 +144,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 
 		} while (foundNewColumns || hasNewCuts);
-
-		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
-		if (1-this.boundOnMasterObjective/this.cutoffValue < 0.1 - dataModel.precision && !dataModel.hasPerformedFRC) {
-			
-			dataModel.hasPerformedFRC = true;
-		}
 		
-
 		colGenSolveTime = System.currentTimeMillis() - colGenSolveTime;
 		notifier.fireFinishCGEvent();
 

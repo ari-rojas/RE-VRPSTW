@@ -48,7 +48,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 	}
 
-	public void fixByReducedCosts(long timeLimit){
+	public Map<Integer, Double> fixByReducedCosts(long timeLimit){
 
 		FixByReducedCostSolver FRC = new FixByReducedCostSolver(dataModel, timeLimit);
 		this.fwLabels = FRC.runForwardLabeling();
@@ -57,22 +57,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		ArrayList<Label> mergedLabels = new ArrayList<>();
 
 		long startTime = System.currentTimeMillis(); int cont = 0;
-		for (Arc arc: dataModel.arcs){
+		for (Arc arc: dataModel.graph.edgeSet()){
 			
-			if (infeasibleArcs[arc.id] == 0 && arc.head <= dataModel.C+1){ // only routing arcs
+			if (arc.minCostAlternative && infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
 
 				ArrayList<Label> forwardLabels = this.fwLabels.get(arc.tail);
 				ArrayList<Label> backwardLabels = this.bwLabels.get(arc.head);
 
-				for (Label fwL: forwardLabels){
+				for (Label fwL: forwardLabels){ // Attempt to merge all the forward and backward labels that use this arc
 					for (Label bwL: backwardLabels){
 
 						Label newLabel = mergeLabel(FRC, fwL, bwL, arc);
 						if (newLabel != null){
 							newLabel.index = cont;
 							mergedLabels.add(newLabel);
-							if (mergedMap.containsKey(arc.id)) mergedMap.get(arc.id).add(cont);
-							else mergedMap.put(arc.id, new ArrayList<>(cont));
+							mergedMap.computeIfAbsent(arc.id, k -> new ArrayList<Integer>()).add(cont);
 							cont ++;
 						}
 
@@ -96,7 +95,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			logger.debug("Time computing charging bounds: " + FRC.getTimeInSeconds(totalTime));
 		}
 
-		ArrayList<Integer> arcsToRemove = new ArrayList<>();
+		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
 
 			int arcID = entry.getKey(); List<Integer> labelIDs = entry.getValue();
@@ -108,32 +107,31 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				if (rc < min_rc - dataModel.precision) min_rc = rc;
 			}
 
-			if (min_rc - bestReducedCost > dataModel.globalUB - dataModel.globalLB) arcsToRemove.add(arcID);
+			if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
 
 		}
 
-
-
-
+		return arcsToRemove;
 
 	}
 
 	private Label mergeLabel(FixByReducedCostSolver FRC, Label fwL, Label bwL, Arc arc){
 
+		Label updatedLabel = bwL.clone();
+		
 		PartialSequence fwSequence = get_forward_sequence(fwL, arc);
 		boolean[] fwRoute = fwSequence.route;
 		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
 
 		for (int i=1; i<=dataModel.C; i++){ // Elementarity assessment
-			bwL.unreachable[i-1] = bwL.unreachable[i-1] || bwL.ng_path[i-1];
-			if (fwRoute[i] && bwL.unreachable[i-1]) return null;
+			updatedLabel.unreachable[i-1] = updatedLabel.unreachable[i-1] || updatedLabel.ng_path[i-1];
+			if (fwRoute[i] && updatedLabel.unreachable[i-1]) return null;
 		}
 		
 		Arc currentArc = arc;
 		if (fwL.remainingLoad + bwL.remainingLoad - dataModel.Q < 0) return null; // Load feasibility
 		if (fwL.remainingTime + dataModel.arcs[currentArc.id].time > bwL.remainingTime) return null; // Time feasibility
 		
-		Label updatedLabel = bwL.clone();
 		for (int arcID: arcExtensions){ // Worst-case energy feasibility
 			updatedLabel = FRC.extendBackwardLabel(updatedLabel, dataModel.arcs[arcID]);
 			if (updatedLabel==null) return null;
@@ -163,12 +161,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000; updatedLabel.reducedCost = reducedCost;
 
+		int aux = 0;
+
 		return updatedLabel;
 	}
 
 	private PartialSequence get_forward_sequence(Label fwL, Arc initialArc){
 
-		ArrayList<Integer> aSeq = new ArrayList<>(initialArc.id);
+		ArrayList<Integer> aSeq = new ArrayList<>(); aSeq.add(initialArc.id);
 		boolean[] route = new boolean[dataModel.C+1];
 		
 		Label currentLabel = fwL.clone();
@@ -257,7 +257,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.route = route;
 		}
 	}
-
 
 	public final class FixByReducedCostSolver {
 

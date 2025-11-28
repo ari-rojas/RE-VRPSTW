@@ -44,6 +44,7 @@ import org.jorlib.frameworks.columnGeneration.util.Configuration;
 import branchAndPrice.BranchAndPrice;
 import branchAndPrice.BranchingRules;
 import branchAndPrice.CGFixingByReducedCostEvent;
+import branchAndPrice.CGFinishFixingByReducedCostEvent;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
@@ -242,9 +243,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		//int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Fixing by RC", args[2]);
+		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Fixing by RC", args[2]);
+		EVRPTW evrptw = new EVRPTW("R106-50", 3, 0, true, "Fixing by RC", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
@@ -387,7 +389,19 @@ public final class EVRPTWSolver {
 		public void fixingByReducedCost(CGFixingByReducedCostEvent frcEvent){
 			if (dataModel.print_log) {
 				logger.debug("================ FIXING BY REDUCED COST ================");
-				logger.debug("UB = {} LB = {} Gap = {}",new Object[]{frcEvent.UB, frcEvent.LB, Math.round((1-frcEvent.LB/frcEvent.UB)*1e4)/1e4});
+				logger.debug("UB = {} LB = {} Gap = {} ({})",new Object[]{frcEvent.UB, frcEvent.LB, frcEvent.UB-frcEvent.LB, Math.round((1-frcEvent.LB/frcEvent.UB)*1e4)/1e4});
+			}
+		}
+
+		@Override
+		public void finishFixingByReducedCost(CGFinishFixingByReducedCostEvent frcEvent){
+			if (dataModel.print_log) {
+				
+				for(Map.Entry<Integer, Double> entry: frcEvent.arcs.entrySet()){
+					int arcID = entry.getKey(); Arc arc = dataModel.arcs[arcID];
+					double rc = entry.getValue();
+					logger.debug("Arc {} ({},{}): RC - RC* = {} - {} = {}",new Object[]{arcID, arc.tail, arc.head, Math.round(rc*1e4)/1e4, Math.round(frcEvent.best_rc*1e4)/1e4, Math.round((rc-frcEvent.best_rc)*1e4)/1e4});
+				}
 			}
 		}
 

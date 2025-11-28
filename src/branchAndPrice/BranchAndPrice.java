@@ -17,6 +17,7 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
+import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 
@@ -376,15 +377,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		dataModel.CUTSENABLED = false;
 		while(!this.queue.isEmpty()) {
-			
-			// Update Lower Bound
-			double globalLB = Double.MIN_VALUE;
-			for (BAPNode node: this.queue) globalLB = node.getBound();
-			this.lowerBoundOnObjective = globalLB;
-			this.dataModel.globalLB = globalLB; this.dataModel.isTheOnlyNode = this.queue.size() == 1;
-			this.dataModel.globalUB = this.objectiveIncumbentSolution;
 
 			BAPNode<EVRPTW, Route> bapNode = (BAPNode<EVRPTW, Route>)this.queue.poll();
+			this.dataModel.isRootNode = bapNode.nodeID == 0;
 			this.notifier.fireNextNodeEvent(bapNode);
 			if (this.nodeCanBePruned(bapNode)) { // If can be pruned by bound BEFORE solving it
 				this.notifier.firePruneNodeEvent(bapNode, bapNode.getBound());
@@ -429,6 +424,18 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.objectiveIncumbentSolution = integerObjective;
 							this.upperBoundOnObjective = cgIncumbent.cgIncumbentObjective;
 							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
+						}
+
+						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
+						if (bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision) {
+
+							extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
+
+							Map<Integer, Double> arcsToRemove = ((PricingProblem)pricingProblems.get(0)).fixByReducedCosts(timeLimit);
+							for (int arcID: arcsToRemove.keySet()){ RemoveArc bd = new RemoveArc(pricingProblems.get(0), arcID, dataModel, new ArrayList<AbstractInequality>(), 0); }
+
+							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
+
 						}
 						
 						this.updateNodeGeneratedColumns(bapNode);

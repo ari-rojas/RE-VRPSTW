@@ -68,10 +68,9 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	public boolean CUTSENABLED;
-	public double globalLB;
-	public double globalUB;
-	public boolean isTheOnlyNode;
-	public boolean hasPerformedFRC = false;
+	public double LB_FRC;
+	public double UB_FRC;
+	public boolean isRootNode;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
@@ -264,30 +263,33 @@ public final class EVRPTW implements ModelInterface {
 			this.numArcs++;
 			Node link = linkNodes.item(i);
 			Element linkElement = (Element) link;
-
+			
+			Element customElements = (Element) linkElement.getElementsByTagName("custom").item(0);
+			boolean minCostAlternative = Boolean.parseBoolean(customElements.getElementsByTagName("is_min_cost").item(0).getTextContent());
+			
+			//if (minCostAlternative) {
 			//id, head and tail
 			int id = Integer.parseInt(linkElement.getAttribute("id"));
+			//int id = this.numArcs;
 			int tail = Integer.parseInt(linkElement.getAttribute("tail"));
 			int head = Integer.parseInt(linkElement.getAttribute("head"));
-
+			
 			//travel cost and travel time
 			int cost = Integer.parseInt(linkElement.getElementsByTagName("travel_cost").item(0).getTextContent());
 			int time = Integer.parseInt(linkElement.getElementsByTagName("travel_time").item(0).getTextContent());
-
+			
 			//custom elements (energy and minimum values)
-			Element customElements = (Element) linkElement.getElementsByTagName("custom").item(0);
 			int energy = Integer.parseInt(customElements.getElementsByTagName("energy_consumption").item(0).getTextContent());
 			int energy_deviation = 0;
 			if (!this.getName().substring(0, 2).equals("DY")) energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation").item(0).getTextContent());
 			int minimumCost = Integer.parseInt(customElements.getElementsByTagName("min_cost").item(0).getTextContent());
 			int minimumTime = Integer.parseInt(customElements.getElementsByTagName("min_time").item(0).getTextContent());
 			int minimumEnergy = Integer.parseInt(customElements.getElementsByTagName("min_energy").item(0).getTextContent());
-			boolean minCostAlternative = Boolean.parseBoolean(customElements.getElementsByTagName("is_min_cost").item(0).getTextContent());
-
+			
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, minimumCost, minimumTime, minimumEnergy, minCostAlternative);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
-
+			//}
 			
 		}
 	}
