@@ -10,6 +10,8 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
+import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import model.EVRPTW;
 
 /**

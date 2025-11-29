@@ -46,7 +46,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 * Runs the labeling algorithm
 	 */
 	public void runLabeling() {
-
+		
 		//Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(dataModel.C+1, dataModel.C+1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
@@ -252,6 +252,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	@Override
 	protected List<Route> generateNewColumns() {
+
+		///////////////////////////////////////////////////////////
+		int cont = 0;
+		for (int ix = 0; ix < dataModel.numArcs; ix++) {if (infeasibleArcs[ix] > 0) cont ++; }
+		logger.debug("There are {}/{} infeasible arcs", new Object[]{cont, dataModel.numArcs});
+		///////////////////////////////////////////////////////////
 
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;

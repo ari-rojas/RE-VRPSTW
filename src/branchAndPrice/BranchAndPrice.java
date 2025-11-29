@@ -14,7 +14,9 @@ import java.util.Iterator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.GraphManipulator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
@@ -442,8 +444,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
 							for(Route route: bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
 							
-							bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), new ArrayList<AbstractInequality>());
+							List<BranchingDecision> removals = new ArrayList();
+							for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel, bapNode.getInequalities(),0));}
+							
+							bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), removals);
 							bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
+
+							this.graphManipulator.next(bapNode);
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 
@@ -519,6 +526,18 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 	public void removeExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.removeExtendBAPListener(listener);
+	}
+	
+
+	public class ExposedGraphManipulator extends GraphManipulator{
+
+		public ExposedGraphManipulator(BAPNode rootNode){
+			super(rootNode);
+		}
+
+		public void fireBranchingDecision(BranchingDecision bd){
+			super.branc
+		}
 	}
 
 	public class CGResult {
