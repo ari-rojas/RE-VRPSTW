@@ -527,18 +527,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public void removeExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.removeExtendBAPListener(listener);
 	}
-	
-
-	public class ExposedGraphManipulator extends GraphManipulator{
-
-		public ExposedGraphManipulator(BAPNode rootNode){
-			super(rootNode);
-		}
-
-		public void fireBranchingDecision(BranchingDecision bd){
-			super.branc
-		}
-	}
 
 	public class CGResult {
 
