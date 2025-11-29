@@ -129,10 +129,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		//Inherit the cuts generated (not necessary)
 
 		//Solve MIP at root node (optional)
-		if(bapNode.nodeID == 0) {
+		/* if(bapNode.nodeID == 0) {
 			try {solveIPAtRootNode(bapNode);} 
 			catch (IloException e) {e.printStackTrace();}
-		}
+		} */
 
 	}
 
