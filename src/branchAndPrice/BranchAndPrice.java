@@ -438,12 +438,14 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							Map<Integer, Double> arcsToRemove = ((PricingProblem)pricingProblems.get(0)).fixByReducedCosts(timeLimit);
 							
-							List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
-							columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
-
 							List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
 							for(Route route: bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
 							
+							// Deleting columns containing the eliminated arcs
+							List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
+							columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
+							
+							// Removing the arcs via fake branching decisions
 							List<BranchingDecision> removals = new ArrayList();
 							for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel, bapNode.getInequalities(),0));}
 							
