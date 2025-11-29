@@ -419,7 +419,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					if (this.isIntegerNode(bapNode)) { // If is integer, update incumbent
 						this.processIntegerNode(bapNode);
 					} else {
-
 						
 						// Update of the global Primal Bound in case the local Primal Bound of the node is better
 						if (this.isIntegerSolution(cgIncumbent.cgIncumbentSolution) && (int) cgIncumbent.cgIncumbentObjective < objectiveIncumbentSolution) {
@@ -428,8 +427,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.upperBoundOnObjective = cgIncumbent.cgIncumbentObjective;
 							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
 						}
+
+						logger.debug("Bounds: UB = {} LB = {}", new Object[]{this.objectiveIncumbentSolution, bapNode.getBound()});
 						
 						this.updateNodeGeneratedColumns(bapNode);
+						logger.debug("Bounds: UB = {} LB = {}", new Object[]{this.objectiveIncumbentSolution, bapNode.getBound()});
+						logger.debug("Computed gap: {} {}", new Object[]{1-bapNode.getBound()/this.objectiveIncumbentSolution, bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision});
 						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
 						if (bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision) {
 
