@@ -449,9 +449,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							List<BranchingDecision> removals = new ArrayList();
 							for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel, bapNode.getInequalities(),0));}
 							
+							// Destroy and re-create the rootNode
 							bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), removals);
 							bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
-
+							
+							// Fire the fake branching events for the listeners to update
 							this.graphManipulator.next(bapNode);
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
