@@ -418,6 +418,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						this.processIntegerNode(bapNode);
 					} else {
 
+						
 						// Update of the global Primal Bound in case the local Primal Bound of the node is better
 						if (this.isIntegerSolution(cgIncumbent.cgIncumbentSolution) && (int) cgIncumbent.cgIncumbentObjective < objectiveIncumbentSolution) {
 							int integerObjective = MathProgrammingUtil.doubleToInt(cgIncumbent.cgIncumbentObjective);
@@ -425,7 +426,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.upperBoundOnObjective = cgIncumbent.cgIncumbentObjective;
 							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
 						}
-
+						
+						this.updateNodeGeneratedColumns(bapNode);
 						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
 						if (bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision) {
 
@@ -437,11 +439,16 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
 							columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
 
+							List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
+							for(Route route: bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
+							
+							bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), new ArrayList<AbstractInequality>());
+							bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
+
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 
 						}
 						
-						this.updateNodeGeneratedColumns(bapNode);
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
 						
 						// Look for Number of Vehicles or Customers Arc Flow branching
