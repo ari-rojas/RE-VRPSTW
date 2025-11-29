@@ -396,7 +396,7 @@ public final class EVRPTWSolver {
 		@Override
 		public void finishFixingByReducedCost(CGFinishFixingByReducedCostEvent frcEvent){
 			if (dataModel.print_log) {
-				
+				logger.debug("Removing {} arcs.",frcEvent.arcs.size());
 				for(Map.Entry<Integer, Double> entry: frcEvent.arcs.entrySet()){
 					int arcID = entry.getKey(); Arc arc = dataModel.arcs[arcID];
 					double rc = entry.getValue();

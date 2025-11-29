@@ -429,10 +429,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
 						if (bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision) {
 
+							dataModel.UB_FRC = this.objectiveIncumbentSolution; dataModel.LB_FRC = bapNode.getBound();
 							extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
 
 							Map<Integer, Double> arcsToRemove = ((PricingProblem)pricingProblems.get(0)).fixByReducedCosts(timeLimit);
-							for (int arcID: arcsToRemove.keySet()){ RemoveArc bd = new RemoveArc(pricingProblems.get(0), arcID, dataModel, new ArrayList<AbstractInequality>(), 0); }
+							
+							List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
+							columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 

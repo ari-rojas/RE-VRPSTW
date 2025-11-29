@@ -81,6 +81,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 		}
 
+		/// Just for the charging times bound computation
+		for (Label label: bwLabels.get(0)){ mergedLabels.add(label); }
+
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
 		if (dataModel.print_log) {
@@ -94,6 +97,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		if (dataModel.print_log) {
 			logger.debug("Time computing charging bounds: " + FRC.getTimeInSeconds(totalTime));
 		}
+
+		/// Computing the best reduced cost of the pricing problem
+		bestReducedCost = Double.MAX_VALUE;
+		for (Label label: bwLabels.get(0)) {
+			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
+			if (rc < bestReducedCost - dataModel.precision) bestReducedCost = rc; 
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////
+		/* logger.debug("Printing the non-dominated backward labels at the depot (0):");
+		for (Label label: this.bwLabels.get(0)){
+			int departure = (int)(label.remainingTime/10);
+			logger.debug("Label: {}, Bound: {}",new Object[]{label.toString(), charging_bounds.get(label.chargingTime).get(departure)});
+		} */
+		///////////////////////////////////////////////////////////////////////////////////////////
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
@@ -160,8 +178,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			updatedLabel.eta = eta; updatedLabel.srcIndices = srcIndices;
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000; updatedLabel.reducedCost = reducedCost;
-
-		int aux = 0;
 
 		return updatedLabel;
 	}
@@ -320,8 +336,24 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		public Label extendBackwardLabel(Label currentLabel, Arc arc) {
 
 			int source = arc.tail;
+			if (source>=1 && source<=dataModel.C)
+				if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
 
 			double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
+
+			boolean[] eta = currentLabel.eta.clone();
+			HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
+			for(int srcIndex: vertices[source].SRCIndices) {
+				if(currentLabel.eta[srcIndex]) {
+					eta[srcIndex] = false;
+					int dualIndex = dataModel.C+dataModel.last_charging_period+srcIndex;
+					reducedCost-=pricingProblem.dualCosts[dualIndex];
+					srcIndices.remove(srcIndex);
+				}
+				else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
+			}
+			reducedCost = Math.floor(reducedCost*10000)/10000;
+
 			int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 			int remainingTime = currentLabel.remainingTime-arc.time;
 			if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
@@ -333,15 +365,41 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				else { remainingEnergy[gam] = currentLabel.remainingEnergy[gam] - arc.energy; }
 				if (remainingEnergy[gam] < 0) return null;
 			}
+			
+			int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
-			// Stronger check
+			//Quick check
+			if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).minimumTime<vertices[0].opening_tw) return null;
 			if (source>0 && remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(0, source).minimumEnergy < 0) return null;
 
-			// Mark current customer as unreachable (elementarity)
+			//Check whether the extension is actually feasible
+			if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
+
 			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			if(source>0) unreachable[source-1] = true;
-			
-			Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, currentLabel.chargingTime+0,unreachable, currentLabel.ng_path.clone(), currentLabel.eta.clone(), new HashSet<Integer>(currentLabel.srcIndices));
+			boolean[] ng_path = new boolean[dataModel.C];
+			if(source>0) ng_path[source-1] = true;
+			else ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
+
+			//Mark unreachable customers and ng-path cycling restrictions
+			if(source>0) {
+				
+				int lastTail = -1;
+				for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
+					if(c.tail==lastTail || c.tail==0 || unreachable[c.tail-1]) continue;
+					//unreachable
+					if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.minimumTime<vertices[c.tail].opening_tw || 
+							remainingEnergy[dataModel.gamma]-c.minimumEnergy<0 || 
+							Math.min(remainingTime-c.minimumTime, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).minimumTime<vertices[0].opening_tw
+							|| remainingEnergy[dataModel.gamma]-c.minimumEnergy - dataModel.graph.getEdge(0, c.tail).minimumEnergy<0) {
+						unreachable[c.tail-1] = true;
+					}
+					//ng-path
+					if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
+					else ng_path[c.tail-1] = false;
+					lastTail = c.tail;
+				}
+			}
+			Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
 			return extendedLabel;
 
 		}
