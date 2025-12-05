@@ -157,17 +157,16 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		// Worst-case energy feasibility
 		int remainingEnergy = bwL.remainingEnergy[0] - arc.energy - fwSequence.nominalEnergy; if (remainingEnergy < 0) return null; // Nominal energy consumption
 
-		TreeSet<Integer> energy_deviations = new TreeSet<>(Comparator.reverseOrder());
+		ArrayList<Integer> energy_deviations = new ArrayList<>();
 		energy_deviations.add(arc.energy_deviation); energy_deviations.addAll(fwSequence.worstEnergyDevs);
 		for (int g=0; g<dataModel.gamma; g++){ energy_deviations.add(bwL.remainingEnergy[g] - bwL.remainingEnergy[g+1]); }
 		
-		int cont = 0;
+		energy_deviations.sort(Comparator.reverseOrder()); int cont = 0;
 		for (Integer e_dev: energy_deviations){ remainingEnergy -= e_dev; cont ++; if (cont == dataModel.gamma) break; }
 		if (remainingEnergy < 0) return null; // Worst-case energy consumption
 
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy];
-		if (chargingTime >= (int)(bwL.remainingTime/10)) return null; // Charging interval feasibility
-
+		
 		/////////////////////////////////
 		/// RESOURCES UPDATE
 		/////////////////////////////////
@@ -183,7 +182,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (int arcID: arcExtensions){
 			Arc extArc = dataModel.arcs[arcID];
 			int source = extArc.tail;
-
+			
 			reducedCost += extArc.modifiedCost;
 			remainingTime -= remainingTime-extArc.time;
 			if(remainingTime> dataModel.vertices[source].closing_tw) remainingTime = dataModel.vertices[source].closing_tw;
@@ -191,6 +190,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		
 		updatedLabel.reducedCost = reducedCost;
+		
+		if (chargingTime >= (int)(remainingTime/10)) return null; // Charging interval feasibility
 		updatedLabel.remainingTime = remainingTime;
 
 		updatedLabel.vertex = 0;
