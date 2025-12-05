@@ -328,7 +328,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int i = 0; i <= dataModel.C+1; i++) { this.fwLabels.add(vertices[i].processedLabels); }
 
 			ArrayList<ArrayList<PartialSequence>> fwSequences = new ArrayList<>();
-			for (int i = 0; i <= dataModel.C+1; i++){
+			for (int i = 0; i <= dataModel.C; i++){
 				ArrayList<PartialSequence> allSequences = new ArrayList<>();
 				for (Label label: vertices[i].processedLabels){ allSequences.add(get_forward_sequence(label)); }
 				fwSequences.add(allSequences);
