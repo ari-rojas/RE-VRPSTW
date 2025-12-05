@@ -144,13 +144,15 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// MERGE FEASIBILITY ASSESSMENT
 		/////////////////////////////////
 
-		for (int i=1; i<=dataModel.C; i++){ // Elementarity assessment
+		// Elementarity assessment
+		if ( arc.tail > 0 && updatedLabel.unreachable[arc.tail - 1]) return null;
+		for (int i=1; i<=dataModel.C; i++){ 
 			updatedLabel.unreachable[i-1] = updatedLabel.unreachable[i-1] || updatedLabel.ng_path[i-1];
 			if (fwRoute[i] && updatedLabel.unreachable[i-1]) return null;
 		}
 		
 		if (fwSequence.remainingLoad + bwL.remainingLoad - dataModel.Q < 0) return null; // Load feasibility
-		if (fwSequence.cumulativeTime + dataModel.arcs[arc.id].time > bwL.remainingTime) return null; // Time feasibility
+		if (fwSequence.cumulativeTime + arc.time > bwL.remainingTime) return null; // Time feasibility
 		
 		// Worst-case energy feasibility
 		int remainingEnergy = bwL.remainingEnergy[0] - arc.energy - fwSequence.nominalEnergy; if (remainingEnergy < 0) return null; // Nominal energy consumption
@@ -186,7 +188,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			remainingTime -= remainingTime-extArc.time;
 			if(remainingTime> dataModel.vertices[source].closing_tw) remainingTime = dataModel.vertices[source].closing_tw;
 		}
-		reducedCost = Math.floor(reducedCost*10000)/10000; updatedLabel.reducedCost = reducedCost;
+		reducedCost = Math.floor(reducedCost*10000)/10000;
+		
+		updatedLabel.reducedCost = reducedCost;
+		updatedLabel.remainingTime = remainingTime;
 
 		updatedLabel.vertex = 0;
 
@@ -332,6 +337,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				ArrayList<PartialSequence> allSequences = new ArrayList<>();
 				for (Label label: vertices[i].processedLabels){ allSequences.add(get_forward_sequence(label)); }
 				fwSequences.add(allSequences);
+				//logger.debug("Forward Labels at vertex {}: {}. Forward Sequences: {}", new Object[]{i, this.fwLabels.get(i).size(), fwSequences.get(i).size()});
 			}
 
 			long totalTime = System.currentTimeMillis()-startTime;
