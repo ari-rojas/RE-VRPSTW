@@ -433,10 +433,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						this.updateNodeGeneratedColumns(bapNode);
 						logger.debug("Bounds: UB = {} LB = {}", new Object[]{this.objectiveIncumbentSolution, bapNode.getBound()});
 						logger.debug("Computed gap: {} {}", new Object[]{1-bapNode.getBound()/this.objectiveIncumbentSolution, bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision});
-						logger.debug("Node ID: ", bapNode.nodeID);
-						logger.debug("Gap is smaller than 10%: ", (1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4));
+						logger.debug("Node ID: {}", bapNode.nodeID);
+						logger.debug("Gap is smaller than 10%: {}", (1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4));
 						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
-						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - dataModel.precision))) {
+						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4))) {
 
 							dataModel.UB_FRC = this.objectiveIncumbentSolution; dataModel.LB_FRC = bapNode.getBound();
 							extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
