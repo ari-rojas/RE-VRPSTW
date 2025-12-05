@@ -67,7 +67,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				for (PartialSequence fwL: forwardSequences){ // Attempt to merge all the forward and backward labels that use this arc
 					for (Label bwL: backwardLabels){
 
-						Label newLabel = mergeLabel(FRC, fwL, bwL, arc);
+						Label newLabel = mergeLabel(fwL, bwL, arc);
 						if (newLabel != null){
 							newLabel.index = cont;
 							mergedLabels.add(newLabel);
@@ -133,7 +133,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	private Label mergeLabel(FixByReducedCostSolver FRC, PartialSequence fwSequence, Label bwL, Arc arc){
+	private Label mergeLabel(PartialSequence fwSequence, Label bwL, Arc arc){
 
 		Label updatedLabel = bwL.clone();
 		
