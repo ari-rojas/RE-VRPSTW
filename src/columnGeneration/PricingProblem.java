@@ -56,10 +56,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		Map<Integer, List<Integer>> mergedMap = new HashMap<>();
 		ArrayList<Label> mergedLabels = new ArrayList<>();
 
-		long startTime = System.currentTimeMillis(); int cont = 0;
+		long startTime = System.currentTimeMillis(); int cont = 0; int arcCont = 0;
 		for (Arc arc: dataModel.graph.edgeSet()){
 			
 			if (arc.minCostAlternative && infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
+				arcCont ++;
 
 				ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 				ArrayList<Label> backwardLabels = this.bwLabels.get(arc.head);
@@ -84,15 +85,15 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		////////////////////////////////////////////
 		/// DEBUG
 		///////////////////////////////////////////
+		logger.debug("Total of arcs evaluated: " + arcCont);
 
 		int maxMerged = 0; int arcMaxMerged = -1;
 		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()) { if (entry.getValue().size() > maxMerged) { maxMerged = entry.getValue().size(); arcMaxMerged = entry.getKey(); } }
 		logger.debug("Arc with the most merged labels: {} with {} labels", new Object[]{dataModel.arcs[arcMaxMerged].toString(), maxMerged});
 		for (int labelIx: mergedMap.get(arcMaxMerged)) { logger.debug(mergedLabels.get(labelIx).toString()); }
 
-
 		// Just for the charging times bound computation
-		for (Label label: bwLabels.get(0)){ mergedLabels.add(label); }
+		for (Label label: bwLabels.get(0)){ mergedLabels.add(label.clone()); }
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
@@ -144,8 +145,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	}
 
 	private Label mergeLabel(PartialSequence fwSequence, Label bwL, Arc arc){
-
-		Label updatedLabel = bwL.clone();
 		
 		/////////////////////////////////
 		/// MERGE FEASIBILITY ASSESSMENT
@@ -155,33 +154,35 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
 		
 		// Elementarity assessment
-		if ( arc.tail > 0 && (updatedLabel.unreachable[arc.tail - 1] || updatedLabel.ng_path[arc.tail - 1])) return null;
+		if ( arc.tail > 0 && (bwL.unreachable[arc.tail - 1] || bwL.ng_path[arc.tail - 1])) return null;
 		for (int i=1; i<=dataModel.C; i++){ 
-			updatedLabel.unreachable[i-1] = updatedLabel.unreachable[i-1] || updatedLabel.ng_path[i-1];
-			if (fwRoute[i] && updatedLabel.unreachable[i-1]) return null;
+			if (fwRoute[i] && (bwL.unreachable[i-1] || bwL.ng_path[i-1])) return null;
 		}
 		
 		if (fwSequence.remainingLoad + bwL.remainingLoad - dataModel.Q < 0) return null; // Load feasibility
 		if (fwSequence.cumulativeTime + arc.time > bwL.remainingTime) return null; // Time feasibility
 		
 		// Worst-case energy feasibility
-		int remainingEnergy = bwL.remainingEnergy[0] - arc.energy - fwSequence.nominalEnergy; if (remainingEnergy < 0) return null; // Nominal energy consumption
+		int[] remainingEnergy = new int[dataModel.gamma + 1];
+		remainingEnergy[0] = bwL.remainingEnergy[0] - arc.energy - fwSequence.nominalEnergy; if (remainingEnergy[0] < 0) return null; // Nominal energy consumption
 
 		ArrayList<Integer> energy_deviations = new ArrayList<>();
 		energy_deviations.add(arc.energy_deviation); energy_deviations.addAll(fwSequence.worstEnergyDevs);
 		for (int g=0; g<dataModel.gamma; g++){ energy_deviations.add(bwL.remainingEnergy[g] - bwL.remainingEnergy[g+1]); }
 		
 		energy_deviations.sort(Comparator.reverseOrder()); int cont = 0;
-		for (Integer e_dev: energy_deviations){ remainingEnergy -= e_dev; cont ++; if (cont == dataModel.gamma) break; }
-		if (remainingEnergy < 0) return null; // Worst-case energy consumption
+		for (Integer e_dev: energy_deviations){ cont ++; remainingEnergy[cont] = remainingEnergy[cont-1]-e_dev; if (cont == dataModel.gamma) break; }
+		if (remainingEnergy[dataModel.gamma] < 0) return null; // Worst-case energy consumption
 
-		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy];
+		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 		
 		/////////////////////////////////
 		/// RESOURCES UPDATE
 		/////////////////////////////////
 		
-		updatedLabel.remainingEnergy[dataModel.gamma] = remainingEnergy;
+		Label updatedLabel = new Label(0, arc.id, -1, 0, 0, 0, new int[dataModel.gamma + 1], 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[1], new HashSet<>() );
+
+		for (int g = 0; g<= dataModel.gamma; g++) updatedLabel.remainingEnergy[g] = remainingEnergy[g];
 		updatedLabel.chargingTime = chargingTime;
 		updatedLabel.remainingLoad = fwSequence.remainingLoad + bwL.remainingLoad - dataModel.Q;
 		

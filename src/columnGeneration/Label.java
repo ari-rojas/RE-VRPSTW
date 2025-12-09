@@ -48,7 +48,7 @@ public class Label{
 
 	public Label clone(){
 		
-		return new Label(this.vertex, this.nextArc, this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices);
+		return new Label(this.vertex, this.nextArc, this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy.clone(), this.chargingTime, this.unreachable.clone(), this.ng_path.clone(), this.eta.clone(), new HashSet<>(this.srcIndices));
 	}
 
 	/** @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object. */
