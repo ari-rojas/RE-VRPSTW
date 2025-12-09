@@ -81,7 +81,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 		}
 
-		/// Just for the charging times bound computation
+		////////////////////////////////////////////
+		/// DEBUG
+		///////////////////////////////////////////
+
+		int maxMerged = 0; int arcMaxMerged = -1;
+		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()) { if (entry.getValue().size() > maxMerged) { maxMerged = entry.getValue().size(); arcMaxMerged = entry.getKey(); } }
+		logger.debug("Arc with the most merged labels: {} with {} labels", new Object[]{dataModel.arcs[arcMaxMerged].toString(), maxMerged});
+		for (int labelIx: mergedMap.get(arcMaxMerged)) { logger.debug(mergedLabels.get(labelIx).toString()); }
+
+
+		// Just for the charging times bound computation
 		for (Label label: bwLabels.get(0)){ mergedLabels.add(label); }
 
 		long totalTime = System.currentTimeMillis()-startTime;
@@ -137,15 +147,15 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Label updatedLabel = bwL.clone();
 		
-		boolean[] fwRoute = fwSequence.route;
-		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
-
 		/////////////////////////////////
 		/// MERGE FEASIBILITY ASSESSMENT
 		/////////////////////////////////
-
+		
+		boolean[] fwRoute = fwSequence.route;
+		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
+		
 		// Elementarity assessment
-		if ( arc.tail > 0 && updatedLabel.unreachable[arc.tail - 1]) return null;
+		if ( arc.tail > 0 && (updatedLabel.unreachable[arc.tail - 1] || updatedLabel.ng_path[arc.tail - 1])) return null;
 		for (int i=1; i<=dataModel.C; i++){ 
 			updatedLabel.unreachable[i-1] = updatedLabel.unreachable[i-1] || updatedLabel.ng_path[i-1];
 			if (fwRoute[i] && updatedLabel.unreachable[i-1]) return null;
