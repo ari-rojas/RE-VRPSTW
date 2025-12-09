@@ -56,10 +56,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		Map<Integer, List<Integer>> mergedMap = new HashMap<>();
 		ArrayList<Label> mergedLabels = new ArrayList<>();
 
-		long startTime = System.currentTimeMillis(); int cont = 0;
+		long startTime = System.currentTimeMillis(); int cont = 0; int arcCont = 0;
 		for (Arc arc: dataModel.graph.edgeSet()){
 			
 			if (arc.minCostAlternative && infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
+				arcCont ++;
 
 				ArrayList<Label> forwardLabels = this.fwLabels.get(arc.tail);
 				ArrayList<Label> backwardLabels = this.bwLabels.get(arc.head);
@@ -84,7 +85,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		////////////////////////////////////////////
 		/// DEBUG
 		///////////////////////////////////////////
-
+		logger.debug("Total of arcs evaluated: " + arcCont);
 		int debugArc = 78;
 		logger.debug("Arc {} with {} labels", new Object[]{dataModel.arcs[debugArc].toString(), mergedMap.get(debugArc).size()});
 		for (int labelIx: mergedMap.get(debugArc)) { logger.debug(mergedLabels.get(labelIx).toString()); }
