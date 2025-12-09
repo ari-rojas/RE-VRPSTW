@@ -85,11 +85,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		////////////////////////////////////////////
 		/// DEBUG
 		///////////////////////////////////////////
+		
 		logger.debug("Total of arcs evaluated: " + arcCont);
+
+		logger.debug("Arcs with feasible merged labels:");
+		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
+			logger.debug("Arc "+ dataModel.arcs[entry.getKey()].toString() + " , with "+ entry.getValue().size() + " labels");
+		}
+
 		int debugArc = 78;
 		logger.debug("Arc {} with {} labels", new Object[]{dataModel.arcs[debugArc].toString(), mergedMap.get(debugArc).size()});
 		for (int labelIx: mergedMap.get(debugArc)) { logger.debug(mergedLabels.get(labelIx).toString()); }
 
+		////////////////////////////////////////////
+		/// END DEBUG
+		///////////////////////////////////////////
 
 		/// Just for the charging times bound computation
 		for (Label label: bwLabels.get(0)){ mergedLabels.add(label); }
