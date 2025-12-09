@@ -344,7 +344,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				}
 			}
 
-			//for (int i = 0; i <= dataModel.C+1; i++){ fwLabels.add(vertices[i].processedLabels); logger.debug("Forward labels at vertex {}: {}", new Object[]{i, fwLabels.get(i).size()}); }
+			for (int i = 0; i <= dataModel.C+1; i++){ fwLabels.add(vertices[i].processedLabels); }// logger.debug("Forward labels at vertex {}: {}", new Object[]{i, fwLabels.get(i).size()}); }
 
 			long totalTime = System.currentTimeMillis()-startTime;
 			dataModel.exactPricingTime+=totalTime;
