@@ -243,10 +243,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		//int gamma = Integer.parseInt(args[1]);
+		int gamma = Integer.parseInt(args[1]);
 
-		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC Efficient", args[2]);
-		EVRPTW evrptw = new EVRPTW("R106-50", 3, 0, true, "FRC Efficient", "Debug");
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC Efficient", args[2]);
+		//EVRPTW evrptw = new EVRPTW("R106-50", 3, 0, true, "FRC Efficient", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
