@@ -85,12 +85,22 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		////////////////////////////////////////////
 		/// DEBUG
 		///////////////////////////////////////////
+		
 		logger.debug("Total of arcs evaluated: " + arcCont);
+		logger.debug("Arcs with feasible merged labels:");
+		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
+			logger.debug("Arc "+ dataModel.arcs[entry.getKey()].toString() + " , with "+ entry.getValue().size() + " labels");
+		}
 
 		int maxMerged = 0; int arcMaxMerged = -1;
 		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()) { if (entry.getValue().size() > maxMerged) { maxMerged = entry.getValue().size(); arcMaxMerged = entry.getKey(); } }
 		logger.debug("Arc with the most merged labels: {} with {} labels", new Object[]{dataModel.arcs[arcMaxMerged].toString(), maxMerged});
 		for (int labelIx: mergedMap.get(arcMaxMerged)) { logger.debug(mergedLabels.get(labelIx).toString()); }
+
+		////////////////////////////////////////////
+		/// END DEBUG
+		///////////////////////////////////////////
+
 
 		// Just for the charging times bound computation
 		for (Label label: bwLabels.get(0)){ mergedLabels.add(label.clone()); }
