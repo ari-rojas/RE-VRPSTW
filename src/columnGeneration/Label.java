@@ -1,5 +1,6 @@
 package columnGeneration;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 
@@ -42,7 +43,7 @@ public class Label{
 	/** Obtains the string representation of a label. */
 	@Override
 	public String toString(){
-		return "l("+vertex+"): r="+reducedCost+",q="+remainingLoad+",t="+remainingTime+", e="+remainingEnergy.toString() + ", b="+chargingTime;
+		return "l("+vertex+"): r="+reducedCost+",q="+remainingLoad+",t="+remainingTime+", e="+Arrays.toString(remainingEnergy) + ", b="+chargingTime + ", ix="+index;
 	}
 
 	public Label clone(){
