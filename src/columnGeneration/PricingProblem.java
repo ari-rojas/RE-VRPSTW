@@ -99,7 +99,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		////////////////////////////////////////////
 		/// END DEBUG
-		///////////////////////////////////////////
+		////////////////////////////////////////////
 
 
 		// Just for the charging times bound computation
@@ -123,7 +123,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		bestReducedCost = Double.MAX_VALUE;
 		for (Label label: bwLabels.get(0)) {
 			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-			if (rc < bestReducedCost - dataModel.precision) bestReducedCost = rc; 
+			if (rc < bestReducedCost - 1e-6) bestReducedCost = rc; 
 		}
 
 		//////////////////////////////////////////////////////////////////////////////////////////
@@ -147,6 +147,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
 
 			if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
+			if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{dataModel.arcs[arcID].toString(), min_rc});
 
 		}
 
