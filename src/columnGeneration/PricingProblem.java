@@ -56,7 +56,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 		this.compute_charging_bounds(bwLabels.get(0)); // Initialize the charging bounds dictionary with the full backward labels
 		/// Computing the best reduced cost of the pricing problem
-		bestReducedCost = Double.MAX_VALUE; if (bwLabels.get(0).isEmpty()) bestReducedCost = 0;
+		bestReducedCost = Double.MAX_VALUE; //if (bwLabels.get(0).isEmpty()) bestReducedCost = 0;
 		for (Label label: bwLabels.get(0)) {
 			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
 			if (rc < bestReducedCost - 1e-6) bestReducedCost = rc; 
