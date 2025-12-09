@@ -205,7 +205,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			int source = extArc.tail;
 			
 			reducedCost += extArc.modifiedCost;
-			remainingTime -= remainingTime-extArc.time;
+			remainingTime -= extArc.time;
 			if(remainingTime> dataModel.vertices[source].closing_tw) remainingTime = dataModel.vertices[source].closing_tw;
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
