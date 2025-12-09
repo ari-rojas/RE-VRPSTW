@@ -140,7 +140,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
 		//only negative reduced cost labels
-		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
+		//if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
 
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;

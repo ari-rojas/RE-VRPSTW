@@ -56,7 +56,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 		this.compute_charging_bounds(bwLabels.get(0)); // Initialize the charging bounds dictionary with the full backward labels
 		/// Computing the best reduced cost of the pricing problem
-		bestReducedCost = Double.MAX_VALUE;
+		bestReducedCost = Double.MAX_VALUE; if (bwLabels.get(0).isEmpty()) bestReducedCost = 0;
 		for (Label label: bwLabels.get(0)) {
 			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
 			if (rc < bestReducedCost - 1e-6) bestReducedCost = rc; 
@@ -134,14 +134,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	private void process_merged_labels(int arcID, ArrayList<Label> mergedLabels, Map<Integer,Double> arcsToRemove){
 
-		double min_rc = Double.MAX_VALUE;
-		for (Label label: mergedLabels){
-			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-			if (rc < min_rc - dataModel.precision) min_rc = rc;
-		}
+		if (!mergedLabels.isEmpty()){
+			this.update_charging_bounds(mergedLabels);
+			double min_rc = Double.MAX_VALUE;
+			for (Label label: mergedLabels){
+				double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
+				if (rc < min_rc - dataModel.precision) min_rc = rc;
+			}
 
-		if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
-		if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{dataModel.arcs[arcID].toString(), min_rc});
+			if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
+			if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{dataModel.arcs[arcID].toString(), min_rc});
+		}
 
 	}
 
@@ -239,6 +242,40 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
+	public void update_charging_bounds(ArrayList<Label> labels){
+
+		int prevT = this.maxT;
+
+		// 1. Group labels by charging time b
+		Map<Integer, List<Label>> labelsByB = new HashMap<>();
+		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
+
+		Map<Integer, TreeSet<Integer>> charging_times = new HashMap<>(); // new charging times that have not been tracked before
+		Map<Integer, TreeSet<Integer>> existing_charging_times = new HashMap<>();
+
+		for (Label label : labels){
+
+			int b = label.chargingTime;
+			int d = (int)(label.remainingTime/10);
+
+			if (this.charging_bounds.containsKey(b)) existing_charging_times.computeIfAbsent(b, k -> new TreeSet<Integer>()).add(d);
+			else charging_times.computeIfAbsent(b, k -> new TreeSet<Integer>()).add(d);
+		}
+
+		// Update precomputed fixed sums of the charging dual variables
+		for (TreeSet<Integer> set : existing_charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
+		for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
+		for (int t = prevT+1; t <= maxT; t++) {
+			double dual = this.dualCosts[dataModel.C + t - 1];
+			this.negative_charging_duals[t] = dual < -dataModel.precision;
+			this.S[t] = this.S[t - 1] + dual;
+		}
+
+		if (!charging_times.isEmpty()) process_charging_times_map(charging_times);
+		if (!existing_charging_times.isEmpty()) update_charging_times_map(existing_charging_times);
+		
+	}
+
 	public void process_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times){
 
 		for (Map.Entry<Integer, TreeSet<Integer>> e : charging_times.entrySet()){
@@ -269,6 +306,47 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 		}
 
+	}
+
+	public void update_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times){
+
+		for (Map.Entry<Integer, TreeSet<Integer>> e : charging_times.entrySet()){
+			
+			int b = e.getKey();
+			Map<Integer, Double> reducedCostsMap = this.charging_reducedCosts.get(b);
+			Map<Integer, Double> boundsMap = this.charging_bounds.get(b);
+			
+        	TreeSet<Integer> departures = e.getValue(); // the charging_times entry has all the non-dominated departures for the current iteration
+			int lastD = Collections.max(boundsMap.keySet());
+			TreeSet<Integer> allDepartures = new TreeSet<>(departures); allDepartures.addAll(boundsMap.keySet());
+			
+			int initial_t = 1;
+			double rc = reducedCostsMap.get(b); double min_rc = rc;
+			for (int d: allDepartures){
+				if (d <= b) continue; // skip if departure does not allow for sufficient charging
+
+				if (!boundsMap.containsKey(d)){ // if this is a new departure time
+					if (d <= lastD){ // if the departure is less than the previous maximum departure of the same charging time, then its reducedCost is already in the object
+						for (int t=initial_t; t<=d-b-1; t++){
+							rc = reducedCostsMap.get(t+b);
+							if (rc < min_rc - dataModel.precision) min_rc = rc;
+						}
+
+					} else { // if not, the value needs to be added
+						for (int t=initial_t; t<=d-b-1; t++){
+							rc = - (this.S[t+b] - this.S[t]);
+							reducedCostsMap.put(t+b, rc);
+							if (rc < min_rc - dataModel.precision) min_rc = rc;
+						}
+
+					}
+					boundsMap.put(d, min_rc);
+				} else { min_rc = boundsMap.get(d); }
+
+				initial_t = d-b;
+			}
+			
+		}
 	}
 
 	private final class PartialSequence {
