@@ -50,13 +50,20 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit){
 
+		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 		FixByReducedCostSolver FRC = new FixByReducedCostSolver(dataModel, timeLimit);
 		this.fwSequences = FRC.runForwardLabeling();
-
-		Map<Integer, List<Integer>> mergedMap = new HashMap<>();
-		ArrayList<Label> mergedLabels = new ArrayList<>();
-
-		long startTime = System.currentTimeMillis(); int cont = 0; int arcCont = 0;
+		
+		this.compute_charging_bounds(bwLabels.get(0)); // Initialize the charging bounds dictionary with the full backward labels
+		/// Computing the best reduced cost of the pricing problem
+		bestReducedCost = Double.MAX_VALUE;
+		for (Label label: bwLabels.get(0)) {
+			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
+			if (rc < bestReducedCost - 1e-6) bestReducedCost = rc; 
+		}
+		
+		long startTime = System.currentTimeMillis();
+		int cont = 0; int arcCont = 0;
 		for (Arc arc: dataModel.graph.edgeSet()){
 			
 			if (arc.minCostAlternative && infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
@@ -65,6 +72,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 				ArrayList<Label> backwardLabels = this.bwLabels.get(arc.head);
 
+				ArrayList<Label> mergedLabels = new ArrayList<>();
+
 				for (PartialSequence fwL: forwardSequences){ // Attempt to merge all the forward and backward labels that use this arc
 					for (Label bwL: backwardLabels){
 
@@ -72,12 +81,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						if (newLabel != null){
 							newLabel.index = cont;
 							mergedLabels.add(newLabel);
-							mergedMap.computeIfAbsent(arc.id, k -> new ArrayList<Integer>()).add(cont);
 							cont ++;
 						}
-
+						
 					}
 				}
+				
+				this.process_merged_labels(arc.id, mergedLabels, arcsToRemove);
 			}
 			
 		}
@@ -101,29 +111,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// END DEBUG
 		////////////////////////////////////////////
 
-
-		// Just for the charging times bound computation
-		for (Label label: bwLabels.get(0)){ mergedLabels.add(label.clone()); }
-
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
 		if (dataModel.print_log) {
 			logger.debug("Time merging forward and backward labels: " + FRC.getTimeInSeconds(totalTime));
-			logger.debug("Found "+mergedLabels.size()+" merged labels");
-		}
-
-		startTime = System.currentTimeMillis();
-		this.compute_charging_bounds(mergedLabels);
-		totalTime = System.currentTimeMillis()-startTime;
-		if (dataModel.print_log) {
-			logger.debug("Time computing charging bounds: " + FRC.getTimeInSeconds(totalTime));
-		}
-
-		/// Computing the best reduced cost of the pricing problem
-		bestReducedCost = Double.MAX_VALUE;
-		for (Label label: bwLabels.get(0)) {
-			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-			if (rc < bestReducedCost - 1e-6) bestReducedCost = rc; 
+			logger.debug("Found "+cont+" merged labels");
 		}
 
 		//////////////////////////////////////////////////////////////////////////////////////////
@@ -134,24 +126,22 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		} */
 		///////////////////////////////////////////////////////////////////////////////////////////
 
-		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
-		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
-
-			int arcID = entry.getKey(); List<Integer> labelIDs = entry.getValue();
-
-			double min_rc = Double.MAX_VALUE;
-			for (int labID: labelIDs){
-				Label label = mergedLabels.get(labID);
-				double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-				if (rc < min_rc - dataModel.precision) min_rc = rc;
-			}
-
-			if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
-			if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{dataModel.arcs[arcID].toString(), min_rc});
-
-		}
+		
 
 		return arcsToRemove;
+
+	}
+
+	private void process_merged_labels(int arcID, ArrayList<Label> mergedLabels, Map<Integer,Double> arcsToRemove){
+
+		double min_rc = Double.MAX_VALUE;
+		for (Label label: mergedLabels){
+			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
+			if (rc < min_rc - dataModel.precision) min_rc = rc;
+		}
+
+		if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
+		if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{dataModel.arcs[arcID].toString(), min_rc});
 
 	}
 
