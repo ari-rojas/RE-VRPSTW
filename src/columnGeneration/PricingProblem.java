@@ -86,7 +86,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		///////////////////////////////////////////
 
 		int debugArc = 78;
-		logger.debug("Arc with the most merged labels: {} with {} labels", new Object[]{dataModel.arcs[debugArc].toString(), mergedMap.get(debugArc).size()});
+		logger.debug("Arc {} with {} labels", new Object[]{dataModel.arcs[debugArc].toString(), mergedMap.get(debugArc).size()});
 		for (int labelIx: mergedMap.get(debugArc)) { logger.debug(mergedLabels.get(labelIx).toString()); }
 
 
