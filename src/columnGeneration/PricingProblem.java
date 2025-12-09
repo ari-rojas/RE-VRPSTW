@@ -86,7 +86,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// DEBUG
 		///////////////////////////////////////////
 		
-		logger.debug("Total of arcs evaluated: " + arcCont);
+		/* logger.debug("Total of arcs evaluated: " + arcCont);
 
 		logger.debug("Arcs with feasible merged labels:");
 		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
@@ -95,7 +95,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		int debugArc = 78;
 		logger.debug("Arc {} with {} labels", new Object[]{dataModel.arcs[debugArc].toString(), mergedMap.get(debugArc).size()});
-		for (int labelIx: mergedMap.get(debugArc)) { logger.debug(mergedLabels.get(labelIx).toString()); }
+		for (int labelIx: mergedMap.get(debugArc)) { logger.debug(mergedLabels.get(labelIx).toString()); } */
 
 		////////////////////////////////////////////
 		/// END DEBUG
@@ -344,7 +344,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				}
 			}
 
-			for (int i = 0; i <= dataModel.C+1; i++){ fwLabels.add(vertices[i].processedLabels); logger.debug("Forward labels at vertex {}: {}", new Object[]{i, fwLabels.get(i).size()}); }
+			//for (int i = 0; i <= dataModel.C+1; i++){ fwLabels.add(vertices[i].processedLabels); logger.debug("Forward labels at vertex {}: {}", new Object[]{i, fwLabels.get(i).size()}); }
 
 			long totalTime = System.currentTimeMillis()-startTime;
 			dataModel.exactPricingTime+=totalTime;
