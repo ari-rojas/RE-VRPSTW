@@ -655,4 +655,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		
 	}
 
+	public void clean_masterData_varMap(){
+
+		masterData=this.buildModel();
+		cutHandler.setMasterData(masterData);
+	}
+
 }

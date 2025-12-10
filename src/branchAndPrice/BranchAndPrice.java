@@ -50,6 +50,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
 	private long timeChargingBranching = 0;
 
+	private boolean hasPerformedFRC = false;
+
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
@@ -436,7 +438,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						logger.debug("Node ID: {}", bapNode.nodeID);
 						logger.debug("Gap is smaller than 10%: {}", (1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4));
 						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
-						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4))) {
+						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4)) && !hasPerformedFRC) {
 
 							dataModel.UB_FRC = this.objectiveIncumbentSolution; dataModel.LB_FRC = bapNode.getBound();
 							extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
@@ -449,6 +451,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							// Deleting columns containing the eliminated arcs
 							List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
 							columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
+							columns.removeIf(col -> col.isArtificialColumn);
 							
 							// Removing the arcs via fake branching decisions
 							List<BranchingDecision> removals = new ArrayList();
@@ -463,7 +466,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 
-							this.queue.add(bapNode); this.arcFlowNodes.add(0);
+							this.queue.add(bapNode); this.arcFlowNodes.add(0); hasPerformedFRC = true;
+							((Master)this.master).clean_masterData_varMap();
 							continue;
 						}
 						
