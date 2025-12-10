@@ -463,6 +463,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 
+							this.queue.add(bapNode); this.arcFlowNodes.add(0);
+							continue;
 						}
 						
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
