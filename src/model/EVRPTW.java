@@ -72,6 +72,8 @@ public final class EVRPTW implements ModelInterface {
 	public double UB_FRC;
 	public boolean isRootNode;
 
+	public boolean hasSetPricingObjective = false;
+
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.

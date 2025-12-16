@@ -465,10 +465,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.graphManipulator.next(bapNode);
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
-
-							this.queue.add(bapNode); this.arcFlowNodes.add(0); hasPerformedFRC = true;
-							((Master)this.master).clean_masterData_varMap();
-							continue;
+							
+							this.arcFlowNodes.add(0);
+							//this.queue.add(bapNode);  hasPerformedFRC = true;
+							//((Master)this.master).clean_masterData_varMap();
+							//continue;
 						}
 						
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();

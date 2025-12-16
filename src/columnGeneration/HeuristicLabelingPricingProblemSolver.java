@@ -330,6 +330,8 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
 			i++;
 		}
+
+		dataModel.hasSetPricingObjective = true;
 	}
 
 	/**

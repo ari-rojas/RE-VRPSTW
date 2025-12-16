@@ -113,7 +113,7 @@ public final class EVRPTWSolver {
 		bap.addExtendCGEventListener(debugger);
 
 		//Solve the problem problem through Branch-and-Price
-		bap.runBranchAndPrice(System.currentTimeMillis()+21600000L);
+		bap.runBranchAndPrice(System.currentTimeMillis()+10800000L);
 
 		//Print solution
 		/* PrintWriter out;

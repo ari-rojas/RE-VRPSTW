@@ -308,7 +308,8 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	 */
 	@Override
 	protected void setObjective() {
-        //Already done by the first heuristic pricing (must be invoked first)
+		
+		dataModel.hasSetPricingObjective = false;
 	}
 
 	/**
