@@ -66,7 +66,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int cont = 0; int arcCont = 0;
 		for (Arc arc: dataModel.graph.edgeSet()){
 			
-			if (arc.minCostAlternative && infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
+			if (infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
 				arcCont ++;
 
 				ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
@@ -410,7 +410,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					if(isDominated) continue;
 					else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 					for(Arc a: dataModel.graph.outgoingEdgesOf(currentLabel.vertex)) {
-						if(a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
 						if(this.pricingProblem.infeasibleArcs[a.id] > 0) continue;
 						Label extendedLabel;
 						extendedLabel = extendForwardLabel(currentLabel, a);
@@ -498,34 +497,25 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
 			//Quick check
-			if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).minimumTime<vertices[0].opening_tw) return null;
-			if (source>0 && remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(0, source).minimumEnergy < 0) return null;
+			if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
 
 			//Check whether the extension is actually feasible
 			if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
 			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			boolean[] ng_path = new boolean[dataModel.C];
+			boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
 			if(source>0) ng_path[source-1] = true;
-			else ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
 
 			//Mark unreachable customers and ng-path cycling restrictions
 			if(source>0) {
 				
-				int lastTail = -1;
 				for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
-					if(c.tail==lastTail || c.tail==0 || unreachable[c.tail-1]) continue;
+					if(c.tail==0 || unreachable[c.tail-1]) continue;
 					//unreachable
-					if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.minimumTime<vertices[c.tail].opening_tw || 
-							remainingEnergy[dataModel.gamma]-c.minimumEnergy<0 || 
-							Math.min(remainingTime-c.minimumTime, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).minimumTime<vertices[0].opening_tw
-							|| remainingEnergy[dataModel.gamma]-c.minimumEnergy - dataModel.graph.getEdge(0, c.tail).minimumEnergy<0) {
+					if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
+						Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
 						unreachable[c.tail-1] = true;
 					}
-					//ng-path
-					if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
-					else ng_path[c.tail-1] = false;
-					lastTail = c.tail;
 				}
 			}
 			Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
@@ -568,32 +558,24 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			//Quick check
 			if (head < depot){
-				if(remainingTime+dataModel.graph.getEdge(head, depot).minimumTime > vertices[depot].closing_tw) return null;
-				if (remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(head, depot).minimumEnergy < 0) return null;
+				if(remainingTime+dataModel.graph.getEdge(head, depot).time > vertices[depot].closing_tw) return null;
 			}
 
 			//Check whether the extension is actually feasible
 			if(remainingTime>vertices[head].closing_tw || chargingTime > dataModel.f_inverse[dataModel.E]) return null;
 
 			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			boolean[] ng_path = new boolean[dataModel.C];
+			boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.unreachable.length);
 			if (head < depot) ng_path[head-1] = true;
 
 			//Mark unreachable customers and ng-path cycling restrictions
-			int lastHead = -1;
 			for (Arc c: dataModel.graph.outgoingEdgesOf(head)) {
-				if(c.head==lastHead || c.head==depot || unreachable[c.head-1]) continue;
+				if(c.head==depot || unreachable[c.head-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.minimumTime>vertices[c.head].closing_tw || 
-						remainingEnergy[dataModel.gamma]-c.minimumEnergy<0 || 
-						Math.max(remainingTime+c.minimumTime, vertices[c.head].opening_tw)+dataModel.graph.getEdge(c.head, depot).minimumTime>vertices[depot].closing_tw
-						|| remainingEnergy[dataModel.gamma]-c.minimumEnergy - dataModel.graph.getEdge(0, c.head).minimumEnergy<0) {
+				if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.time>vertices[c.head].closing_tw || 
+					Math.max(remainingTime+c.time, vertices[c.head].opening_tw)+dataModel.graph.getEdge(c.head, depot).time>vertices[depot].closing_tw ) {
 					unreachable[c.head-1] = true;
 				}
-				//ng-path
-				if (currentLabel.ng_path[c.head-1] && vertices[head].neighbors.contains(c.head)) ng_path[c.head-1] = true;
-				else ng_path[c.head-1] = false;
-				lastHead = c.head;
 			}
 			
 			Label extendedLabel = new Label(head, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
@@ -708,7 +690,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// Ng-paths and unreachable resources
 			Vertex currentVertex = vertices[L1.vertex];
 			if (currentVertex.id > 0) {
-				for(int i: currentVertex.neighbors) {
+				for(int i=1; i<=dataModel.C; i++) {
 					
 					//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
 					boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way

@@ -30,8 +30,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		isSolverExact.put(HeuristicLabelingPricingProblemSolver.class, false);
 		isSolverExact.put(HeuristicLabelingSecondPricingProblemSolver.class, false);
 		isSolverExact.put(HeuristicMinCostLabelingPricingProblemSolver.class, true);
-		isSolverExact.put(HeuristicLabelingMultigraphPricingProblemSolver.class, false);
-		isSolverExact.put(ExactLabelingMultigraphPricingProblemSolver.class, true);
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
