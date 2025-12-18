@@ -41,8 +41,6 @@ public final class EVRPTW implements ModelInterface {
 	public int numArcs; 									//number of arcs
 	public int numArcsRoadNetwork; 							//number of arcs in the road network
 	public int numVertices; 								//number of vertices
-	public int twoAlternativesPairs; 						//number of node pairs with two alternatives to travel
-	public double avgAlternatives; 							//avg. number of alternatives to travel
 	public int gamma;										//uncertainty budget by vehicle (route)
 
 	//Energy information
@@ -184,8 +182,6 @@ public final class EVRPTW implements ModelInterface {
 		//number of chargers, number of arcs, two alternatives pairs, and average number of alternatives
 		if (this.print_log) this.B = Integer.parseInt(infoElement.getElementsByTagName("num_chargers").item(0).getTextContent());
 		this.numArcsRoadNetwork = Integer.parseInt(infoElement.getElementsByTagName("num_arcs").item(0).getTextContent());
-		this.twoAlternativesPairs = Integer.parseInt(infoElement.getElementsByTagName("two_alternatives_pairs").item(0).getTextContent());
-		this.avgAlternatives = Double.parseDouble(infoElement.getElementsByTagName("avg_alternatives").item(0).getTextContent());
 	}
 
 	/** Defines the vertices (according to the information in the .xml file) */
