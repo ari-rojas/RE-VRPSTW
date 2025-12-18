@@ -41,8 +41,6 @@ public final class EVRPTW implements ModelInterface {
 	public int numArcs; 									//number of arcs
 	public int numArcsRoadNetwork; 							//number of arcs in the road network
 	public int numVertices; 								//number of vertices
-	public int twoAlternativesPairs; 						//number of node pairs with two alternatives to travel
-	public double avgAlternatives; 							//avg. number of alternatives to travel
 	public int gamma;										//uncertainty budget by vehicle (route)
 
 	//Energy information
@@ -53,8 +51,6 @@ public final class EVRPTW implements ModelInterface {
 	public int[] f_inverse; 								//(inverse) recharging function
 
 	//Acceleration strategies and BPC
-	public final int Delta; 								//number of neighbors (ng-path).
-	public final int DeltaMax; 								//maximum neighborhood size
 	public final double precision = 0.09; 					//precision for the column generation algorithm (it is scaled by 10)
 	public long exactPricingTime = 0; 						//time spent on the exact labeling algorithm
 	public long heuristicPricingTime = 0; 					//time spent on the heuristic labeling algorithm
@@ -78,8 +74,6 @@ public final class EVRPTW implements ModelInterface {
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}
-		this.Delta = (this.instanceName.substring(start_ix, end_ix).equals("R1") || this.instanceName.substring(start_ix, end_ix).equals("C1") || this.instanceName.substring(start_ix, end_ix+1).equals("RC1")) ? 7 : 12;
-		this.DeltaMax = Delta+5;
 		this.C = Integer.parseInt(this.instanceName.substring(Math.max(this.instanceName.length() - 2, 0))); // Number of customers must be the last two
 		this.V = C+2;
 		this.graph = new DirectedWeightedMultigraph<Integer, EVRPTW.Arc>(Arc.class);
@@ -154,35 +148,6 @@ public final class EVRPTW implements ModelInterface {
 			//Load fleet (vehicle profile and charging information)
 			loadFleet(doc);
 
-			/** Neighborhoods (ng-path). **/
-			for (int i = 1; i <= this.C; i++) {
-
-				//Sort arcs
-				ArrayList<Arc> incoming = new ArrayList<Arc>(graph.incomingEdgesOf(i));
-				Collections.sort(incoming, new SortByCost());
-				ArrayList<Arc> outgoing = new ArrayList<Arc>(graph.outgoingEdgesOf(i));
-				Collections.sort(outgoing, new SortByCost());
-
-				int outgoingIndex = 0;
-				int incomingIndex = 0;
-				boolean processOutgoing = true;
-				while(true) {
-					if((outgoingIndex>=outgoing.size() && incomingIndex>=incoming.size()) || vertices[i].neighbors.size()>=this.Delta) break;
-					else if(outgoingIndex>=outgoing.size()) processOutgoing = false;
-					else if(incomingIndex>=incoming.size()) processOutgoing = true;
-					else if (outgoing.get(outgoingIndex).cost<incoming.get(incomingIndex).cost) {
-						processOutgoing=true;
-					}else {processOutgoing = false;}
-					int nextCustomer = (processOutgoing) ? outgoing.get(outgoingIndex).head: incoming.get(incomingIndex).tail;
-					if (nextCustomer!=0 && nextCustomer!=C+1 && !vertices[i].neighbors.contains(nextCustomer)) {
-						vertices[i].neighbors.add(nextCustomer);
-					}
-					if(processOutgoing) outgoingIndex++;
-					else incomingIndex++;
-				}
-				vertices[i].neighbors.add(i); //does not count for the Delta
-			}
-
 			/** (A priori) unreachable customers **/
 			for (int i = 1; i <= this.C; i++) {
 				for (int j = 1; j <= this.C; j++) {
@@ -219,8 +184,6 @@ public final class EVRPTW implements ModelInterface {
 		//number of chargers, number of arcs, two alternatives pairs, and average number of alternatives
 		if (this.print_log) this.B = Integer.parseInt(infoElement.getElementsByTagName("num_chargers").item(0).getTextContent());
 		this.numArcsRoadNetwork = Integer.parseInt(infoElement.getElementsByTagName("num_arcs").item(0).getTextContent());
-		this.twoAlternativesPairs = Integer.parseInt(infoElement.getElementsByTagName("two_alternatives_pairs").item(0).getTextContent());
-		this.avgAlternatives = Double.parseDouble(infoElement.getElementsByTagName("avg_alternatives").item(0).getTextContent());
 	}
 
 	/** Defines the vertices (according to the information in the .xml file) */
@@ -275,12 +238,8 @@ public final class EVRPTW implements ModelInterface {
 			int energy = Integer.parseInt(customElements.getElementsByTagName("energy_consumption").item(0).getTextContent());
 			int energy_deviation = 0;
 			if (!this.getName().substring(0, 2).equals("DY")) energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation").item(0).getTextContent());
-			int minimumCost = Integer.parseInt(customElements.getElementsByTagName("min_cost").item(0).getTextContent());
-			int minimumTime = Integer.parseInt(customElements.getElementsByTagName("min_time").item(0).getTextContent());
-			int minimumEnergy = Integer.parseInt(customElements.getElementsByTagName("min_energy").item(0).getTextContent());
-			boolean minCostAlternative = Boolean.parseBoolean(customElements.getElementsByTagName("is_min_cost").item(0).getTextContent());
 
-			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, minimumCost, minimumTime, minimumEnergy, minCostAlternative);
+			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
 
@@ -337,7 +296,6 @@ public final class EVRPTW implements ModelInterface {
 		public int opening_tw; 							//opening time window
 		public int closing_tw; 							//closing time window
 		public HashSet<Integer> unreachable; 			//(a priori) unreachable customers from this vertex
-		public HashSet<Integer> neighbors; 				//neighbors of the vertex 
 		public ArrayList<Integer> SRCIndices; 			//indices of the SRC containing this vertex
 		public ArrayList<Label> processedLabels; 		//labels that have reached the vertex and are non-dominated
 		public PriorityQueue<Label> unprocessedLabels; 	//labels that have reached the vertex but have not yet been processed
@@ -359,7 +317,6 @@ public final class EVRPTW implements ModelInterface {
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
 			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
 			this.SRCIndices = new ArrayList<>();
-			this.neighbors = new HashSet<Integer>(C);
 		}
 
 
@@ -397,18 +354,13 @@ public final class EVRPTW implements ModelInterface {
 		public int time; 							//time of the arc
 		public int energy; 							//energy of the arc
 		public int energy_deviation;				//worst-case energy deviation of the arc
-		public int minimiumCost; 					//minimum cost (multigraph representation)
-		public int minimumTime; 					//minimum time (multigraph representation)
-		public int minimumEnergy; 					//minimum energy (multigraph representation)
-		public boolean minCostAlternative; 			//indicates if is the minimum cost alternative
 		public double modifiedCost; 				//modified cost of the arc
 
 		/**
 		 * Creates a new arc.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
 		 */
-		public Arc(int id, int tail, int head, int cost, int time, int energy, int energy_deviation, int minimiumCost, int minimumTime,
-				int minimumEnergy, boolean minCostAlternative) {
+		public Arc(int id, int tail, int head, int cost, int time, int energy, int energy_deviation) {
 			this.id = id;
 			this.tail = tail;
 			this.head = head;
@@ -416,10 +368,6 @@ public final class EVRPTW implements ModelInterface {
 			this.time = time;
 			this.energy = energy;
 			this.energy_deviation = energy_deviation;
-			this.minimiumCost = minimiumCost;
-			this.minimumTime = minimumTime;
-			this.minimumEnergy = minimumEnergy;
-			this.minCostAlternative = minCostAlternative;
 			this.modifiedCost = 0.0;
 		}
 
