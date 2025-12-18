@@ -50,8 +50,6 @@ import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingPricingProblemSolver;
-import columnGeneration.HeuristicLabelingMultigraphPricingProblemSolver;
-import columnGeneration.ExactLabelingMultigraphPricingProblemSolver;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
@@ -92,8 +90,6 @@ public final class EVRPTWSolver {
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
 		solvers.add(HeuristicLabelingPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
-		//solvers.add(HeuristicLabelingMultigraphPricingProblemSolver.class);
-		//solvers.add(ExactLabelingMultigraphPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution=this.getInitialSolution(pricingProblem);
@@ -200,31 +196,30 @@ public final class EVRPTWSolver {
 				if(added) break;
 				for(Arc arc2: dataModel.graph.getAllEdges(i, dataModel.C+1)) {
 					
-					if (arc.minCostAlternative && arc2.minCostAlternative){
-						int cost = arc.cost+arc2.cost;
-						int energy = arc.energy+arc2.energy;
-						if (dataModel.gamma > 1) {
-							energy += arc.energy_deviation + arc2.energy_deviation;
-						} else if (dataModel.gamma == 1) {
-							if (arc.energy_deviation + arc.energy > arc2.energy_deviation + arc2.energy) energy += arc.energy_deviation;
-							else energy += arc2.energy_deviation;
-						}
-
-						if(energy>dataModel.E) continue;
-						routeSequence = new int[] {i};
-						ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-						arcs.add(arc.id);arcs.add(arc2.id);
-						int latestDeparture = dataModel.vertices[i].closing_tw-arc.time;
-						latestDeparture = (int) (latestDeparture/10);
-						int initialChargingTime = latestDeparture-dataModel.f_inverse[energy];
-
-						//Add the route
-						Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initialChargingTime, dataModel.f_inverse[energy]);
-						column.BBnode=0;
-						initSolution.add(column);
-						added = true;
-						break;
+					int cost = arc.cost+arc2.cost;
+					int energy = arc.energy+arc2.energy;
+					if (dataModel.gamma > 1) {
+						energy += arc.energy_deviation + arc2.energy_deviation;
+					} else if (dataModel.gamma == 1) {
+						if (arc.energy_deviation + arc.energy > arc2.energy_deviation + arc2.energy) energy += arc.energy_deviation;
+						else energy += arc2.energy_deviation;
 					}
+
+					if(energy>dataModel.E) continue;
+					routeSequence = new int[] {i};
+					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+					arcs.add(arc.id);arcs.add(arc2.id);
+					int latestDeparture = dataModel.vertices[i].closing_tw-arc.time;
+					latestDeparture = (int) (latestDeparture/10);
+					int initialChargingTime = latestDeparture-dataModel.f_inverse[energy];
+
+					//Add the route
+					Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initialChargingTime, dataModel.f_inverse[energy]);
+					column.BBnode=0;
+					initSolution.add(column);
+					added = true;
+					break;
+					
 
 				}
 			}
