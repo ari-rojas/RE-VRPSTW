@@ -57,7 +57,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-					if(a.head>0 && a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
+					if(a.head>0 && a.head<=dataModel.C+1) continue;
 					if(infeasibleArcs[a.id] > 0) continue;
 					Label extendedLabel;
 					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
@@ -143,8 +143,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
 		//Quick check
-		if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).minimumTime<vertices[0].opening_tw) return null;
-		if (source>0 && remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(0, source).minimumEnergy < 0) return null;
+		if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
 
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
@@ -154,16 +153,13 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source>0) {
-			int lastTail = -1;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
-				if(c.tail==lastTail || c.tail==0 || unreachable[c.tail-1]) continue;
+				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.minimumTime<vertices[c.tail].opening_tw || 
-						remainingEnergy[dataModel.gamma]-c.minimumEnergy<0 || Math.min(remainingTime-c.minimumTime, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).minimumTime<vertices[0].opening_tw
-						|| remainingEnergy[dataModel.gamma]-c.minimumEnergy - dataModel.graph.getEdge(0, c.tail).minimumEnergy<0) {
+				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
+					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw) {
 					unreachable[c.tail-1] = true;
 				}
-				lastTail = c.tail;
 			}
 		}
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime , unreachable, currentLabel.ng_path, eta, srcIndices);
