@@ -189,6 +189,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int source = arc.tail;
 
 		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
+		if(source == dataModel.V && (currentLabel.chargingTime>0)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
