@@ -31,7 +31,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 
-
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
@@ -190,7 +189,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int source = arc.tail;
 
 		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
-		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
