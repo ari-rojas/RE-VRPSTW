@@ -212,6 +212,7 @@ public final class EVRPTWSolver {
 			int latestDeparture = Math.min(dataModel.vertices[i].closing_tw, dataModel.vertices[dataModel.C+1].closing_tw-arc2.time)-arc.time;
 			latestDeparture = (int) (latestDeparture/10);
 			int chargingTime = dataModel.f_inverse[energy];
+			if (latestDeparture < dataModel.vertices[0].opening_tw || chargingTime >= latestDeparture) continue;
 
 			// Add the route
 			int initial_t = latestDeparture - chargingTime;
