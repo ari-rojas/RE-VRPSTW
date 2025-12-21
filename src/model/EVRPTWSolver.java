@@ -240,7 +240,7 @@ public final class EVRPTWSolver {
 		int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC Efficient", args[2]);
-		//EVRPTW evrptw = new EVRPTW("R106-50", 3, 0, true, "FRC Efficient", "Debug");
+		//EVRPTW evrptw = new EVRPTW("R104-50", 3, 0, true, "FRC Efficient", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}

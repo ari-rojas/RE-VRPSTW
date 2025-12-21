@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
+
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 
 import branchAndPrice.ChargingTimeInequality;
@@ -51,7 +52,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		this.fwSequences = FRC.runForwardLabeling();
 		
 		this.compute_charging_bounds(); // Compute the charging bounds for ALL charging and departure times
-		for (int c = 1; c <= dataModel.C+1; c++){  }
 		for (int c = 0; c <= dataModel.C; c++){ this.fwSequences.get(c).sort( Comparator.comparing(l -> l.reducedCost)); }
 		
 		long startTime = System.currentTimeMillis();
@@ -61,30 +61,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			backwardLabels.sort( Comparator.comparing(l -> l.reducedCost));
 
 			for (Arc arc: dataModel.graph.incomingEdgesOf(c)){
-				
 				if (infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
 
 					ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
-					for (PartialSequence fwL: forwardSequences){ // Attempt to merge all the forward and backward labels that use this arc
-						for (Label bwL: backwardLabels){
-
-							Label newLabel = mergeLabel(fwL, bwL, arc);
-							if (newLabel != null){
-								newLabel.index = cont;
-								cont ++;
-							}
-							
-						}
-					}
-					
+					double min_rc = findMinimumRCPath(backwardLabels, forwardSequences, arc);
+					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) { arcsToRemove.put(arc.id, min_rc); cont++; }//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
+					if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 					
 				}
-				
 			}
 
 			backwardLabels.clear();
 		}
+
+		this.fwSequences.clear(); this.bwLabels.clear(); this.charging_bounds.clear();
 
 		////////////////////////////////////////////
 		/// DEBUG
@@ -126,20 +117,63 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	private void process_merged_labels(int arcID, ArrayList<Label> mergedLabels, Map<Integer,Double> arcsToRemove){
+	private double findMinimumRCPath(ArrayList<Label> bwLabels, ArrayList<PartialSequence> fwSequences, Arc arc) {
 
-		if (!mergedLabels.isEmpty()){
-			
-			double min_rc = Double.MAX_VALUE;
-			for (Label label: mergedLabels){
-				double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-				if (rc < min_rc - dataModel.precision) min_rc = rc;
+        int nFw = fwSequences.size();
+        int nBw = bwLabels.size();
+
+        PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s2.rc, s1.rc) );
+        pq.add(new MergeState(0, 0, arc.modifiedCost + bwLabels.get(0).reducedCost + fwSequences.get(0).reducedCost));
+
+        HashSet<Long> visited = new HashSet<>();
+        visited.add(key(0, 0));
+
+		double bestReducedCost = Double.POSITIVE_INFINITY;
+        while (!pq.isEmpty()) {
+            MergeState current = pq.poll();
+            
+			int fw = current.f;
+            PartialSequence fwSeq = fwSequences.get(fw);
+            
+			int bw = current.b;
+            Label bwLab = bwLabels.get(bw);
+
+			if (!Double.isInfinite(bestReducedCost) && bestReducedCost <= current.rc - dataModel.precision){ return bestReducedCost; }
+			else {
+				Label newLabel = mergeLabel(fwSeq, bwLab, arc);
+				if (newLabel != null){
+					double chBound = this.charging_bounds.get(newLabel.chargingTime).get((int)(newLabel.remainingTime/10));
+					double complete_rc = newLabel.reducedCost + chBound;
+					
+					if (complete_rc < bestReducedCost - dataModel.precision){
+						bestReducedCost = complete_rc;
+						if (Math.abs(chBound) < dataModel.precision){ return bestReducedCost; } // if the charging bound of the new best label is 0, is optimal
+					}
+				}
 			}
 
-			if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
-			if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{dataModel.arcs[arcID].toString(), min_rc});
-		}
+            // neighbor: (i+1, j)
+            if (fw + 1 < nFw) {
+                long k = key(fw + 1, bw);
+                if (visited.add(k)) {
+                    pq.add(new MergeState(fw + 1, bw, arc.modifiedCost + fwSequences.get(fw+1).reducedCost + bwLab.reducedCost));
+                }
+            }
 
+            // neighbor: (i, j+1)
+            if (bw + 1 < nBw) {
+                long k = key(fw, bw + 1);
+                if (visited.add(k)) {
+                    pq.add(new MergeState(fw, bw + 1, arc.modifiedCost + fwSeq.reducedCost + bwLabels.get(bw + 1).reducedCost));
+                }
+            }
+        }
+
+        return bestReducedCost;
+    }
+
+	private long key(int fw, int bw) {
+		return (((long) fw) << 32) | (bw & 0xffffffffL);
 	}
 
 	private Label mergeLabel(PartialSequence fwSequence, Label bwL, Arc arc){
@@ -206,7 +240,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return updatedLabel;
 	}
 
-	public void compute_charging_bounds(){
+	private void compute_charging_bounds(){
 
 		this.charging_bounds = new HashMap<>();
 
@@ -228,7 +262,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	public void process_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times, double[] S){
+	private void process_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times, double[] S){
 
 		for (Map.Entry<Integer, TreeSet<Integer>> e : charging_times.entrySet()){
 
@@ -257,6 +291,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
+	private static final class MergeState {
+        final int f, b;
+        final double rc;
+        MergeState(int f, int b, double rc) { this.f = f; this.b = b; this.rc = rc; }
+    }
+
 	private final class PartialSequence {
 
 		public double reducedCost;
@@ -284,9 +324,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
 		public long timeLimit;
 
-		
-		public ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
-
 		/**
 		 * Labeling algorithm to solve the ng-SPPRC
 		 */
@@ -299,8 +336,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 
 		public ArrayList<ArrayList<PartialSequence>> runForwardLabeling() {
-
-			this.fwLabels = new ArrayList<>();
 
 			//Initialization
 			int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
@@ -328,14 +363,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				}
 			}
 
-			for (int i = 0; i <= dataModel.C+1; i++) {
-				this.fwLabels.add(vertices[i].processedLabels);
-				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
-			}
-			vertices[dataModel.C+1].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			vertices[dataModel.C+1].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
-
 			ArrayList<ArrayList<PartialSequence>> fwSequences = new ArrayList<>();
 			for (int i = 0; i <= dataModel.C; i++){
 				ArrayList<PartialSequence> allSequences = new ArrayList<>();
@@ -344,11 +371,16 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				//logger.debug("Forward Labels at vertex {}: {}. Forward Sequences: {}", new Object[]{i, this.fwLabels.get(i).size(), fwSequences.get(i).size()});
 			}
 
+			for (int i = 0; i <= dataModel.C+1; i++) {
+				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+			}
+			vertices[dataModel.C+1].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+			vertices[dataModel.C+1].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+
 			long totalTime = System.currentTimeMillis()-startTime;
 			dataModel.exactPricingTime+=totalTime;
 			if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
-
-			this.fwLabels.clear();
 
 			return fwSequences;
 		}
@@ -366,7 +398,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				Arc currentArc = dataModel.arcs[currentLabel.nextArc];
 				int nextVertex = currentArc.tail;
 
-				currentLabel = this.fwLabels.get(nextVertex).get(currentLabel.nextLabelIndex);
+				currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
 				if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) aSeq.add(currentArc.id);
 				currentVertex = nextVertex;
 			}
