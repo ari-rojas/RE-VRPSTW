@@ -187,41 +187,41 @@ public final class EVRPTWSolver {
 		upperBound = Math.pow(10, 20);
 		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
 
-		//Dummy routes (possibly feasible)
+		//Dummy routes (feasible)
 		for(int i=1; i<=dataModel.C; i++){ //a route for each customer
 			route = new HashMap<Integer, Integer>();
 			route.put(i, 1);
-			boolean added = false;
-			for(Arc arc: dataModel.graph.getAllEdges(0, i)) {
-				if(added) break;
-				for(Arc arc2: dataModel.graph.getAllEdges(i, dataModel.C+1)) {
+			
+			Arc arc = dataModel.graph.getEdge(0, i);
+			Arc arc2 = dataModel.graph.getEdge(i, dataModel.C+1);
+			if (arc == null || arc2 == null) continue; // safe check
 					
-					int cost = arc.cost+arc2.cost;
-					int energy = arc.energy+arc2.energy;
-					if (dataModel.gamma > 1) {
-						energy += arc.energy_deviation + arc2.energy_deviation;
-					} else if (dataModel.gamma == 1) {
-						if (arc.energy_deviation + arc.energy > arc2.energy_deviation + arc2.energy) energy += arc.energy_deviation;
-						else energy += arc2.energy_deviation;
-					}
-
-					if(energy>dataModel.E) continue;
-					routeSequence = new int[] {i};
-					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					arcs.add(arc.id);arcs.add(arc2.id);
-					int latestDeparture = dataModel.vertices[i].closing_tw-arc.time;
-					latestDeparture = (int) (latestDeparture/10);
-					int initialChargingTime = latestDeparture-dataModel.f_inverse[energy];
-
-					//Add the route
-					Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initialChargingTime, dataModel.f_inverse[energy]);
-					column.BBnode=0;
-					initSolution.add(column);
-					added = true;
-					break;
-
-				}
+			int cost = arc.cost+arc2.cost;
+			int energy = arc.energy+arc2.energy;
+			if (dataModel.gamma > 1) {
+				energy += arc.energy_deviation + arc2.energy_deviation;
+			} else if (dataModel.gamma == 1) {
+				if (arc.energy_deviation + arc.energy > arc2.energy_deviation + arc2.energy) energy += arc.energy_deviation;
+				else energy += arc2.energy_deviation;
 			}
+
+			if(energy>dataModel.E) continue;
+			routeSequence = new int[] {i};
+			ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+			arcs.add(arc.id);arcs.add(arc2.id);
+			int latestDeparture = Math.min(dataModel.vertices[i].closing_tw, dataModel.vertices[dataModel.C+1].closing_tw-arc2.time)-arc.time;
+			latestDeparture = (int) (latestDeparture/10);
+			int chargingTime = dataModel.f_inverse[energy];
+
+			// Add the route
+			int initial_t = latestDeparture - chargingTime;
+			while (initial_t > 0) {
+				Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initial_t, chargingTime);
+				column.BBnode=0;
+				initSolution.add(column);
+				initial_t -= chargingTime;
+			}
+
 		}
 
 		return initSolution;
