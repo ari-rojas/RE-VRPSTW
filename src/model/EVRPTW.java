@@ -51,6 +51,8 @@ public final class EVRPTW implements ModelInterface {
 	public int[] f_inverse; 								//(inverse) recharging function
 
 	//Acceleration strategies and BPC
+	public final int Delta;
+	public final int DeltaMax;
 	public final double precision = 0.09; 					//precision for the column generation algorithm (it is scaled by 10)
 	public long exactPricingTime = 0; 						//time spent on the exact labeling algorithm
 	public long heuristicPricingTime = 0; 					//time spent on the heuristic labeling algorithm
@@ -64,7 +66,6 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	public boolean CUTSENABLED;
-	public int maximumNumberCuts;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
@@ -75,6 +76,8 @@ public final class EVRPTW implements ModelInterface {
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}
+		this.Delta = (this.instanceName.substring(start_ix, end_ix).equals("R1") || this.instanceName.substring(start_ix, end_ix).equals("C1") || this.instanceName.substring(start_ix, end_ix+1).equals("RC1")) ? 7 : 12;
+		this.DeltaMax = Delta+5;
 		this.C = Integer.parseInt(this.instanceName.substring(Math.max(this.instanceName.length() - 2, 0))); // Number of customers must be the last two
 		this.V = C+2;
 		this.graph = new DirectedWeightedMultigraph<Integer, EVRPTW.Arc>(Arc.class);
@@ -148,6 +151,35 @@ public final class EVRPTW implements ModelInterface {
 
 			//Load fleet (vehicle profile and charging information)
 			loadFleet(doc);
+
+			/** Neighborhoods (ng-path). **/
+			for (int i = 1; i <= this.C; i++) {
+
+				//Sort arcs
+				ArrayList<Arc> incoming = new ArrayList<Arc>(graph.incomingEdgesOf(i));
+				Collections.sort(incoming, new SortByCost());
+				ArrayList<Arc> outgoing = new ArrayList<Arc>(graph.outgoingEdgesOf(i));
+				Collections.sort(outgoing, new SortByCost());
+
+				int outgoingIndex = 0;
+				int incomingIndex = 0;
+				boolean processOutgoing = true;
+				while(true) {
+					if((outgoingIndex>=outgoing.size() && incomingIndex>=incoming.size()) || vertices[i].neighbors.size()>=this.Delta) break;
+					else if(outgoingIndex>=outgoing.size()) processOutgoing = false;
+					else if(incomingIndex>=incoming.size()) processOutgoing = true;
+					else if (outgoing.get(outgoingIndex).cost<incoming.get(incomingIndex).cost) {
+						processOutgoing=true;
+					}else {processOutgoing = false;}
+					int nextCustomer = (processOutgoing) ? outgoing.get(outgoingIndex).head: incoming.get(incomingIndex).tail;
+					if (nextCustomer!=0 && nextCustomer!=C+1 && !vertices[i].neighbors.contains(nextCustomer)) {
+						vertices[i].neighbors.add(nextCustomer);
+					}
+					if(processOutgoing) outgoingIndex++;
+					else incomingIndex++;
+				}
+				vertices[i].neighbors.add(i); //does not count for the Delta
+			}
 
 			/** (A priori) unreachable customers **/
 			for (int i = 1; i <= this.C; i++) {
@@ -243,6 +275,7 @@ public final class EVRPTW implements ModelInterface {
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
+
 			
 		}
 	}
@@ -296,6 +329,7 @@ public final class EVRPTW implements ModelInterface {
 		public int opening_tw; 							//opening time window
 		public int closing_tw; 							//closing time window
 		public HashSet<Integer> unreachable; 			//(a priori) unreachable customers from this vertex
+		public HashSet<Integer> neighbors;
 		public ArrayList<Integer> SRCIndices; 			//indices of the SRC containing this vertex
 		public ArrayList<Label> processedLabels; 		//labels that have reached the vertex and are non-dominated
 		public PriorityQueue<Label> unprocessedLabels; 	//labels that have reached the vertex but have not yet been processed
@@ -317,6 +351,7 @@ public final class EVRPTW implements ModelInterface {
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
 			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
 			this.SRCIndices = new ArrayList<>();
+			this.neighbors = new HashSet<Integer>(C);
 		}
 
 
