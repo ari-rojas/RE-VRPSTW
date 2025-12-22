@@ -152,6 +152,35 @@ public final class EVRPTW implements ModelInterface {
 			//Load fleet (vehicle profile and charging information)
 			loadFleet(doc);
 
+			/** Neighborhoods (ng-path). **/
+			for (int i = 1; i <= this.C; i++) {
+
+				//Sort arcs
+				ArrayList<Arc> incoming = new ArrayList<Arc>(graph.incomingEdgesOf(i));
+				Collections.sort(incoming, new SortByCost());
+				ArrayList<Arc> outgoing = new ArrayList<Arc>(graph.outgoingEdgesOf(i));
+				Collections.sort(outgoing, new SortByCost());
+
+				int outgoingIndex = 0;
+				int incomingIndex = 0;
+				boolean processOutgoing = true;
+				while(true) {
+					if((outgoingIndex>=outgoing.size() && incomingIndex>=incoming.size()) || vertices[i].neighbors.size()>=this.Delta) break;
+					else if(outgoingIndex>=outgoing.size()) processOutgoing = false;
+					else if(incomingIndex>=incoming.size()) processOutgoing = true;
+					else if (outgoing.get(outgoingIndex).cost<incoming.get(incomingIndex).cost) {
+						processOutgoing=true;
+					}else {processOutgoing = false;}
+					int nextCustomer = (processOutgoing) ? outgoing.get(outgoingIndex).head: incoming.get(incomingIndex).tail;
+					if (nextCustomer!=0 && nextCustomer!=C+1 && !vertices[i].neighbors.contains(nextCustomer)) {
+						vertices[i].neighbors.add(nextCustomer);
+					}
+					if(processOutgoing) outgoingIndex++;
+					else incomingIndex++;
+				}
+				vertices[i].neighbors.add(i); //does not count for the Delta
+			}
+
 			/** (A priori) unreachable customers **/
 			for (int i = 1; i <= this.C; i++) {
 				for (int j = 1; j <= this.C; j++) {
