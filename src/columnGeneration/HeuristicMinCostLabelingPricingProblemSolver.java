@@ -1,6 +1,5 @@
 package columnGeneration;
 
-
 import model.EVRPTW;
 import model.EVRPTW.Arc;
 import model.EVRPTW.Vertex;
@@ -118,6 +117,38 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	}
 
 	/**
+	 * This class is invoked when only nonelementary routes are found. 
+	 * @return true if the maximum size per neighborhood has been reached
+	 */
+	public boolean enlargeNeighborhoods(List<Route> nonElementaryRoutes) {
+
+		boolean enlarged = false;
+		ArrayList<Integer> cyclingVertics = new ArrayList<Integer>();
+		for(Route route:nonElementaryRoutes) {
+			ArrayList<Integer> visitedCustomers = new ArrayList<Integer>(dataModel.C);
+			boolean[] visited = new boolean[dataModel.C];
+			for(int arc: route.arcs) {
+				int head = dataModel.arcs[arc].head;
+				if(head<dataModel.C) {
+					visitedCustomers.add(head);
+					if(visited[head-1]) { //there is a cycle
+						for (int i = visitedCustomers.size()-2; i >=0; i--) {
+							int node = visitedCustomers.get(i);
+							if(node == head) {cyclingVertics.add(head); break;}
+							else if(!dataModel.vertices[node].neighbors.contains(head) && dataModel.vertices[node].neighbors.size()<=dataModel.DeltaMax) { 
+								dataModel.vertices[node].neighbors.add(head); 
+								enlarged = true;
+								if (dataModel.print_log) logger.debug("Adding: " + head + " to the neighborhood of: "+node + " (size=" + dataModel.vertices[node].neighbors.size()+")");
+							}
+						}
+					}else visited[head-1] = true;
+				}
+			}
+		}
+		return enlarged;
+	}
+
+	/**
 	 * Label extension procedure
 	 */
 	public Label extendLabel(Label currentLabel, Arc arc) {
@@ -141,9 +172,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
-		//only negative reduced cost labels
-		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
-
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
@@ -165,9 +193,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-		boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
+		boolean[] ng_path = new boolean[dataModel.C];
 		if(source>0) ng_path[source-1] = true;
-		
+		else ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
+
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source>0) {
 			
@@ -178,7 +207,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
 					unreachable[c.tail-1] = true;
 				}
-				
+
+				//ng-path
+				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
+				else ng_path[c.tail-1] = false;
 			}
 		}
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
@@ -194,7 +226,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int source = arc.tail;
 
 		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
-		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
+		if(source == dataModel.V && currentLabel.chargingTime>0) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
@@ -247,48 +279,60 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	protected List<Route> generateNewColumns() {
 
 		//Solve the problem and check the solution
+		boolean existsElementaryRoute=false;
+		boolean maxNeighborhoodSize=false;
 		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
+		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
 
-		this.runLabeling(); 										//runs the labeling algorithm
+		while (!existsElementaryRoute && !maxNeighborhoodSize){
+			this.runLabeling(); 										//runs the labeling algorithm
 
-		if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
-			pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
-		}
-		else {
-			this.pricingProblemInfeasible=false;
-			for (Label label: vertices[dataModel.V].unprocessedLabels) {
-				int departureTime = (int) (label.remainingTime/10);
-				int load = dataModel.Q - label.remainingLoad;
-				if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
-					
-					HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C); int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
-					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
-					int currentVertex = label.vertex;
-					while(currentVertex!=dataModel.C+1) {
-						Arc currentArc = dataModel.arcs[label.nextArc];
-						cost+=currentArc.cost;
-						int nextVertex = currentArc.head;
-						if (currentVertex>=1 && currentVertex<=dataModel.C) {
-							if(route.containsKey(currentVertex)) {route.replace(currentVertex, route.get(currentVertex)+1); } 
-							else route.put(currentVertex, 1);
-						}else if(currentVertex!=dataModel.V && currentVertex!=0) chargingTime++;
+			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
+				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
+			} else {
+				this.pricingProblemInfeasible=false;
+				for (Label label: vertices[dataModel.V].unprocessedLabels) {
+					int departureTime = (int) (label.remainingTime/10);
+					int load = dataModel.Q - label.remainingLoad;
+					if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
+						boolean isElementary = true;
+						HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C); int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
+						ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+						int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
+						int currentVertex = label.vertex;
+						while(currentVertex!=dataModel.C+1) {
+							Arc currentArc = dataModel.arcs[label.nextArc];
+							cost+=currentArc.cost;
+							int nextVertex = currentArc.head;
+							if (currentVertex>=1 && currentVertex<=dataModel.C) {
+								if(route.containsKey(currentVertex)) {route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false; } 
+								else route.put(currentVertex, 1);
+							}else if(currentVertex!=dataModel.V && currentVertex!=0) chargingTime++;
 
-						label = vertices[nextVertex].processedLabels.get(label.nextLabelIndex);
-						if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) arcs.add(currentArc.id);
-						currentVertex = nextVertex;
+							label = vertices[nextVertex].processedLabels.get(label.nextLabelIndex);
+							if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) arcs.add(currentArc.id);
+							currentVertex = nextVertex;
+						}
+
+						//Gets the route sequence (of customers)
+						int[] routeSequence = new int[arcs.size()-1];
+						int counter = 0;
+						for(Integer arc: arcs) {
+							if(counter>=routeSequence.length) break;
+							routeSequence[counter] = dataModel.arcs[arc].head;
+							counter++;
+						}
+						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
+						if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
+						else {nonElementaryRoutes.add(column);}
 					}
-
-					//Gets the route sequence (of customers)
-					int[] routeSequence = new int[arcs.size()-1];
-					int counter = 0;
-					for(Integer arc: arcs) {
-						if(counter>=routeSequence.length) break;
-						routeSequence[counter] = dataModel.arcs[arc].head;
-						counter++;
-					}
-					Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
-					newRoutes.add(column);
+				}
+				if (!existsElementaryRoute) {
+					maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes); 
+					if(!maxNeighborhoodSize) {
+						nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>();
+						restart();} //restart //run again
+					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
 			}
 		}
@@ -435,7 +479,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			// Ng-paths and unreachable resources
 			Vertex currentVertex = vertices[L1.vertex];
 			if (currentVertex.id > 0) {
-				for(int i=1; i<=dataModel.C; i++) {
+				for(int i: vertices[currentVertex.id].neighbors) {
 					
 					//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
 					boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way

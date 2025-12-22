@@ -51,6 +51,8 @@ public final class EVRPTW implements ModelInterface {
 	public int[] f_inverse; 								//(inverse) recharging function
 
 	//Acceleration strategies and BPC
+	public final int Delta;
+	public final int DeltaMax;
 	public final double precision = 0.09; 					//precision for the column generation algorithm (it is scaled by 10)
 	public long exactPricingTime = 0; 						//time spent on the exact labeling algorithm
 	public long heuristicPricingTime = 0; 					//time spent on the heuristic labeling algorithm
