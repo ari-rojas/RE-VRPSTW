@@ -326,7 +326,7 @@ public final class HeuristicLabelingFourthPricingProblemSolver extends AbstractP
 	 */
 	@Override
 	protected void setObjective() {
-		// Nanai
+		// Este sí
 		pricingProblem.reducedCostThreshold = 0.0;
 		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
 		//Update the objective function with the new dual values

@@ -331,7 +331,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes); 
 					if(!maxNeighborhoodSize) {
 						nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>();
-						if (dataModel.print_log) logger.debug("Enlarging Neighborhoods");
 						restart();} //restart //run again
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
