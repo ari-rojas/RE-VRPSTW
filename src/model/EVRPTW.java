@@ -66,6 +66,7 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	public boolean CUTSENABLED;
+	public int maximumNumberCuts = 30;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
