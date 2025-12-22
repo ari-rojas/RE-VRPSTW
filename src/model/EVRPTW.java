@@ -329,6 +329,7 @@ public final class EVRPTW implements ModelInterface {
 		public int opening_tw; 							//opening time window
 		public int closing_tw; 							//closing time window
 		public HashSet<Integer> unreachable; 			//(a priori) unreachable customers from this vertex
+		public HashSet<Integer> neighbors;
 		public ArrayList<Integer> SRCIndices; 			//indices of the SRC containing this vertex
 		public ArrayList<Label> processedLabels; 		//labels that have reached the vertex and are non-dominated
 		public PriorityQueue<Label> unprocessedLabels; 	//labels that have reached the vertex but have not yet been processed
@@ -350,6 +351,7 @@ public final class EVRPTW implements ModelInterface {
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
 			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
 			this.SRCIndices = new ArrayList<>();
+			this.neighbors = new HashSet<Integer>(C);
 		}
 
 
