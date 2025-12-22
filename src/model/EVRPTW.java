@@ -51,6 +51,8 @@ public final class EVRPTW implements ModelInterface {
 	public int[] f_inverse; 								//(inverse) recharging function
 
 	//Acceleration strategies and BPC
+	public final int Delta;
+	public final int DeltaMax;
 	public final double precision = 0.09; 					//precision for the column generation algorithm (it is scaled by 10)
 	public long exactPricingTime = 0; 						//time spent on the exact labeling algorithm
 	public long heuristicPricingTime = 0; 					//time spent on the heuristic labeling algorithm
@@ -74,6 +76,8 @@ public final class EVRPTW implements ModelInterface {
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}
+		this.Delta = (this.instanceName.substring(start_ix, end_ix).equals("R1") || this.instanceName.substring(start_ix, end_ix).equals("C1") || this.instanceName.substring(start_ix, end_ix+1).equals("RC1")) ? 7 : 12;
+		this.DeltaMax = Delta+5;
 		this.C = Integer.parseInt(this.instanceName.substring(Math.max(this.instanceName.length() - 2, 0))); // Number of customers must be the last two
 		this.V = C+2;
 		this.graph = new DirectedWeightedMultigraph<Integer, EVRPTW.Arc>(Arc.class);
