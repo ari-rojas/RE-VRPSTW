@@ -303,7 +303,26 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	 */
 	@Override
 	protected void setObjective() {
-        //Already done by the first heuristic pricing (must be invoked first)
+        pricingProblem.reducedCostThreshold = 0.0;
+		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
+		//Update the objective function with the new dual values
+		for (int a = 0; a < dataModel.numArcs; a++) {
+			Arc arc = dataModel.arcs[a];
+			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
+				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];
+			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
+			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
+			else arc.modifiedCost = 0;
+		}
+
+		//Check charging time branching decisions
+		int i=0;
+		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
+			if(branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
+			i++;
+		}
 	}
 
 	/**

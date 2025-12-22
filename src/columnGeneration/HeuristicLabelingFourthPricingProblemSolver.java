@@ -25,7 +25,7 @@ import branchAndPrice.RemoveArc;
  * This class provides a heuristic solver for the ng-SPPRC pricing problem
  * It uses a relaxed dominance rule (but an exact dominance rule)
  */
-public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
+public final class HeuristicLabelingFourthPricingProblemSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
 
 	public Vertex[] vertices = dataModel.vertices; 			//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
@@ -37,7 +37,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
-	public HeuristicLabelingThirdPricingProblemSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
+	public HeuristicLabelingFourthPricingProblemSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
 		this.name="ExactLabelingSolver"; //Set a name for the solver
 		this.infeasibleArcs = new int[dataModel.numArcs];
@@ -171,6 +171,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source>0) {
+            for(int i: vertices[source].unreachable) unreachable[i-1] = true;
 			
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
