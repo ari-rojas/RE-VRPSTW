@@ -2,6 +2,8 @@ package columnGeneration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -19,31 +21,44 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+	public int currentNode;
+
+	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
+	static {
+		solverCapabilities.put(HeuristicLabelingFourthPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, true);
+		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, true);
+		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, true);
+	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective) {
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		// TODO Auto-generated constructor stub
+		this.currentNode = nodeID;
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective) {
+			int cutoffValue, double boundOnMasterObjective, int nodeID) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue,
 				boundOnMasterObjective);
 		// TODO Auto-generated constructor stub
+		this.currentNode = nodeID;
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6) {
+			int arg5, double arg6, int arg7) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		// TODO Auto-generated constructor stub
+		this.currentNode = arg7;
 	}
 
 	@Override
