@@ -31,6 +31,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 
+	public double bestReducedCost;
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -47,6 +48,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	public void runLabeling() {
 
+		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(dataModel.C+1, dataModel.C+1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
@@ -226,7 +228,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int source = arc.tail;
 
 		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
-		if(source == dataModel.V && currentLabel.chargingTime>0) return null;
+		if(source == dataModel.V && currentLabel.chargingTime>0 ) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
@@ -234,6 +236,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if(source!=dataModel.V) {
 			chargingTime-=1;
 			if(chargingTime<0) return null;
+		}
+
+		if (source == dataModel.V){
+			double rc = currentLabel.reducedCost;
+			if (rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = rc;
+			if (rc > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
@@ -289,6 +297,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
+				
 			} else {
 				this.pricingProblemInfeasible=false;
 				for (Label label: vertices[dataModel.V].unprocessedLabels) {
@@ -336,6 +345,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				}
 			}
 		}
+
+		pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished exact pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
