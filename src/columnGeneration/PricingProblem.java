@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
+
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 
 import branchAndPrice.ChargingTimeInequality;
@@ -31,17 +32,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
 	// Information for Fixing by Reduced Costs procedure
-	public ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
+	public ArrayList<ArrayList<PartialSequence>> fwSequences = new ArrayList<>();
 	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasibleArcs;
 
 	// Charging pricing information
-	public double[] S;
-	public boolean[] negative_charging_duals;
 	public Map<Integer, Map<Integer, Double>> charging_bounds;
-	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
-	public int maxT;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -50,79 +47,60 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit){
 
+		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 		FixByReducedCostSolver FRC = new FixByReducedCostSolver(dataModel, timeLimit);
-		this.fwLabels = FRC.runForwardLabeling();
+		this.fwSequences = FRC.runForwardLabeling();
+		
+		this.compute_charging_bounds(); // Compute the charging bounds for ALL charging and departure times
+		for (int c = 0; c <= dataModel.C; c++){ this.fwSequences.get(c).sort( Comparator.comparing(l -> l.reducedCost)); }
+		
+		long startTime = System.currentTimeMillis();
+		int cont = 0;
+		for (int c = 1; c <= dataModel.C+1; c++){
+			ArrayList<Label> backwardLabels = this.bwLabels.get(c);
+			backwardLabels.sort( Comparator.comparing(l -> l.reducedCost));
 
-		Map<Integer, List<Integer>> mergedMap = new HashMap<>();
-		ArrayList<Label> mergedLabels = new ArrayList<>();
+			for (Arc arc: dataModel.graph.incomingEdgesOf(c)){
+				if (infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
 
-		long startTime = System.currentTimeMillis(); int cont = 0; int arcCont = 0;
-		for (Arc arc: dataModel.graph.edgeSet()){
-			
-			if (arc.minCostAlternative && infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
-				arcCont ++;
+					ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
-				ArrayList<Label> forwardLabels = this.fwLabels.get(arc.tail);
-				ArrayList<Label> backwardLabels = this.bwLabels.get(arc.head);
-
-				for (Label fwL: forwardLabels){ // Attempt to merge all the forward and backward labels that use this arc
-					for (Label bwL: backwardLabels){
-
-						Label newLabel = mergeLabel(FRC, fwL, bwL, arc);
-						if (newLabel != null){
-							newLabel.index = cont;
-							mergedLabels.add(newLabel);
-							mergedMap.computeIfAbsent(arc.id, k -> new ArrayList<Integer>()).add(cont);
-							cont ++;
-						}
-
-					}
+					double min_rc = findMinimumRCPath(backwardLabels, forwardSequences, arc);
+					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) { arcsToRemove.put(arc.id, min_rc); cont++; }//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
+					if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
+					
 				}
 			}
-			
+
+			backwardLabels.clear();
 		}
+
+		this.fwSequences.clear(); this.bwLabels.clear(); this.charging_bounds.clear();
 
 		////////////////////////////////////////////
 		/// DEBUG
 		///////////////////////////////////////////
 		
 		/* logger.debug("Total of arcs evaluated: " + arcCont);
-
 		logger.debug("Arcs with feasible merged labels:");
 		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
 			logger.debug("Arc "+ dataModel.arcs[entry.getKey()].toString() + " , with "+ entry.getValue().size() + " labels");
 		}
 
-		int debugArc = 78;
-		logger.debug("Arc {} with {} labels", new Object[]{dataModel.arcs[debugArc].toString(), mergedMap.get(debugArc).size()});
-		for (int labelIx: mergedMap.get(debugArc)) { logger.debug(mergedLabels.get(labelIx).toString()); } */
+		int maxMerged = 0; int arcMaxMerged = -1;
+		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()) { if (entry.getValue().size() > maxMerged) { maxMerged = entry.getValue().size(); arcMaxMerged = entry.getKey(); } }
+		logger.debug("Arc with the most merged labels: {} with {} labels", new Object[]{dataModel.arcs[arcMaxMerged].toString(), maxMerged});
+		for (int labelIx: mergedMap.get(arcMaxMerged)) { logger.debug(mergedLabels.get(labelIx).toString()); } */
 
 		////////////////////////////////////////////
 		/// END DEBUG
-		///////////////////////////////////////////
-
-		/// Just for the charging times bound computation
-		for (Label label: bwLabels.get(0)){ mergedLabels.add(label); }
+		////////////////////////////////////////////
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
 		if (dataModel.print_log) {
 			logger.debug("Time merging forward and backward labels: " + FRC.getTimeInSeconds(totalTime));
-			logger.debug("Found "+mergedLabels.size()+" merged labels");
-		}
-
-		startTime = System.currentTimeMillis();
-		this.compute_charging_bounds(mergedLabels);
-		totalTime = System.currentTimeMillis()-startTime;
-		if (dataModel.print_log) {
-			logger.debug("Time computing charging bounds: " + FRC.getTimeInSeconds(totalTime));
-		}
-
-		/// Computing the best reduced cost of the pricing problem
-		bestReducedCost = Double.MAX_VALUE;
-		for (Label label: bwLabels.get(0)) {
-			double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-			if (rc < bestReducedCost - dataModel.precision) bestReducedCost = rc; 
+			logger.debug("Found "+cont+" merged labels");
 		}
 
 		//////////////////////////////////////////////////////////////////////////////////////////
@@ -133,125 +111,158 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		} */
 		///////////////////////////////////////////////////////////////////////////////////////////
 
-		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
-		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
-
-			int arcID = entry.getKey(); List<Integer> labelIDs = entry.getValue();
-
-			double min_rc = Double.MAX_VALUE;
-			for (int labID: labelIDs){
-				Label label = mergedLabels.get(labID);
-				double rc = label.reducedCost + this.charging_bounds.get(label.chargingTime).get((int)(label.remainingTime/10));
-				if (rc < min_rc - dataModel.precision) min_rc = rc;
-			}
-
-			if (min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) arcsToRemove.put(arcID, min_rc);
-
-		}
+		
 
 		return arcsToRemove;
 
 	}
 
-	private Label mergeLabel(FixByReducedCostSolver FRC, Label fwL, Label bwL, Arc arc){
+	private double findMinimumRCPath(ArrayList<Label> bwLabels, ArrayList<PartialSequence> fwSequences, Arc arc) {
 
-		Label updatedLabel = bwL.clone();
-		
-		PartialSequence fwSequence = get_forward_sequence(fwL, arc);
-		boolean[] fwRoute = fwSequence.route;
-		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
+        int nFw = fwSequences.size();
+        int nBw = bwLabels.size();
 
-		for (int i=1; i<=dataModel.C; i++){ // Elementarity assessment
-			updatedLabel.unreachable[i-1] = updatedLabel.unreachable[i-1] || updatedLabel.ng_path[i-1];
-			if (fwRoute[i] && updatedLabel.unreachable[i-1]) return null;
-		}
-		
-		Arc currentArc = arc;
-		if (fwL.remainingLoad + bwL.remainingLoad - dataModel.Q < 0) return null; // Load feasibility
-		if (fwL.remainingTime + dataModel.arcs[currentArc.id].time > bwL.remainingTime) return null; // Time feasibility
-		
-		for (int arcID: arcExtensions){ // Worst-case energy feasibility
-			updatedLabel = FRC.extendBackwardLabel(updatedLabel, dataModel.arcs[arcID]);
-			if (updatedLabel==null) return null;
-		}
+        PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s2.rc, s1.rc) );
+        pq.add(new MergeState(0, 0, arc.modifiedCost + bwLabels.get(0).reducedCost + fwSequences.get(0).reducedCost));
 
-		int chargingTime = dataModel.f_inverse[dataModel.E-updatedLabel.remainingEnergy[dataModel.gamma]];
-		if (chargingTime > dataModel.f_inverse[dataModel.E] || chargingTime >= (int)(updatedLabel.remainingTime/10)) return null; // Charging interval feasibility
+        HashSet<Long> visited = new HashSet<>();
+        visited.add(key(0, 0));
 
-		// Reduced cost computing (SRCs missing from the label extensions)
-		double reducedCost = updatedLabel.reducedCost;
-		for (int arcID: arcExtensions){
-			
-			int source = dataModel.arcs[arcID].tail;
-			HashSet<Integer> srcIndices = new HashSet<Integer>(updatedLabel.srcIndices);
-			boolean[] eta = updatedLabel.eta.clone();
+		double bestReducedCost = Double.POSITIVE_INFINITY;
+        while (!pq.isEmpty()) {
+            MergeState current = pq.poll();
+            
+			int fw = current.f;
+            PartialSequence fwSeq = fwSequences.get(fw);
+            
+			int bw = current.b;
+            Label bwLab = bwLabels.get(bw);
 
-			for(int srcIndex: this.SRCIndices.get(source)) {
-				if (updatedLabel.eta[srcIndex]) {
-					eta[srcIndex] = false;
-					int dualIndex = dataModel.C+dataModel.last_charging_period+srcIndex;
-					reducedCost -= this.dualCosts[dualIndex];
-					srcIndices.remove(srcIndex);
-				} else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
+			if (!Double.isInfinite(bestReducedCost) && bestReducedCost <= current.rc - dataModel.precision){ return bestReducedCost; }
+			else {
+				Label newLabel = mergeLabel(fwSeq, bwLab, arc);
+				if (newLabel != null){
+					double chBound = this.charging_bounds.get(newLabel.chargingTime).get((int)(newLabel.remainingTime/10));
+					double complete_rc = newLabel.reducedCost + chBound;
+					
+					if (complete_rc < bestReducedCost - dataModel.precision){
+						bestReducedCost = complete_rc;
+						if (Math.abs(chBound) < dataModel.precision){ return bestReducedCost; } // if the charging bound of the new best label is 0, is optimal
+					}
+				}
 			}
 
-			updatedLabel.eta = eta; updatedLabel.srcIndices = srcIndices;
+            // neighbor: (i+1, j)
+            if (fw + 1 < nFw) {
+                long k = key(fw + 1, bw);
+                if (visited.add(k)) {
+                    pq.add(new MergeState(fw + 1, bw, arc.modifiedCost + fwSequences.get(fw+1).reducedCost + bwLab.reducedCost));
+                }
+            }
+
+            // neighbor: (i, j+1)
+            if (bw + 1 < nBw) {
+                long k = key(fw, bw + 1);
+                if (visited.add(k)) {
+                    pq.add(new MergeState(fw, bw + 1, arc.modifiedCost + fwSeq.reducedCost + bwLabels.get(bw + 1).reducedCost));
+                }
+            }
+        }
+
+        return bestReducedCost;
+    }
+
+	private long key(int fw, int bw) {
+		return (((long) fw) << 32) | (bw & 0xffffffffL);
+	}
+
+	private Label mergeLabel(PartialSequence fwSequence, Label bwL, Arc arc){
+		
+		/////////////////////////////////
+		/// MERGE FEASIBILITY ASSESSMENT
+		/////////////////////////////////
+		
+		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
+		
+		// Elementarity assessment
+		if (arc.tail > 0 && (bwL.unreachable[arc.tail - 1] || bwL.ng_path[arc.tail - 1])) return null;
+		for (int arcID: arcExtensions){
+			Arc arcExt = dataModel.arcs[arcID];
+			if (arcExt.tail > 0 && (bwL.unreachable[arcExt.tail-1] || bwL.ng_path[arcExt.tail-1])) return null;
 		}
+		
+		if (fwSequence.remainingLoad + bwL.remainingLoad - dataModel.Q < 0) return null; // Load feasibility
+		if (fwSequence.cumulativeTime + arc.time > bwL.remainingTime) return null; // Time feasibility
+		
+		// Worst-case energy feasibility
+		int[] remainingEnergy = new int[dataModel.gamma + 1];
+		remainingEnergy[0] = bwL.remainingEnergy[0] - arc.energy - fwSequence.nominalEnergy; if (remainingEnergy[0] < 0) return null; // Nominal energy consumption
+
+		ArrayList<Integer> energy_deviations = new ArrayList<>();
+		energy_deviations.add(arc.energy_deviation); energy_deviations.addAll(fwSequence.worstEnergyDevs);
+		for (int g=0; g<dataModel.gamma; g++){ energy_deviations.add(bwL.remainingEnergy[g] - bwL.remainingEnergy[g+1]); }
+		
+		energy_deviations.sort(Comparator.reverseOrder()); int cont = 0;
+		for (Integer e_dev: energy_deviations){ cont ++; remainingEnergy[cont] = remainingEnergy[cont-1]-e_dev; if (cont == dataModel.gamma) break; }
+		if (remainingEnergy[dataModel.gamma] < 0) return null; // Worst-case energy consumption
+
+		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
+		
+		/////////////////////////////////
+		/// RESOURCES UPDATE
+		/////////////////////////////////
+		
+		Label updatedLabel = new Label(0, arc.id, -1, 0, 0, 0, new int[dataModel.gamma + 1], 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[1], new HashSet<>() );
+
+		for (int g = 0; g<= dataModel.gamma; g++) updatedLabel.remainingEnergy[g] = remainingEnergy[g];
+		updatedLabel.chargingTime = chargingTime;
+		updatedLabel.remainingLoad = fwSequence.remainingLoad + bwL.remainingLoad - dataModel.Q;
+		
+		double reducedCost = fwSequence.reducedCost + bwL.reducedCost + arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000; updatedLabel.reducedCost = reducedCost;
+		
+		int remainingTime = bwL.remainingTime - arc.time;
+		if(remainingTime > dataModel.vertices[arc.tail].closing_tw) remainingTime = dataModel.vertices[arc.tail].closing_tw;
+		
+		for (int arcID: arcExtensions){
+			Arc extArc = dataModel.arcs[arcID];
+			int source = extArc.tail;
+			
+			remainingTime -= extArc.time;
+			if(remainingTime> dataModel.vertices[source].closing_tw) remainingTime = dataModel.vertices[source].closing_tw;
+		}
+		
+		if (chargingTime >= (int)(remainingTime/10)) return null; // Charging interval feasibility
+		updatedLabel.remainingTime = remainingTime;
+
+		updatedLabel.vertex = 0;
 
 		return updatedLabel;
 	}
 
-	private PartialSequence get_forward_sequence(Label fwL, Arc initialArc){
+	private void compute_charging_bounds(){
 
-		ArrayList<Integer> aSeq = new ArrayList<>(); aSeq.add(initialArc.id);
-		boolean[] route = new boolean[dataModel.C+1];
-		
-		Label currentLabel = fwL.clone();
-		int currentVertex = currentLabel.vertex;
-		while(currentVertex!=0) {
-			route[currentVertex] = true;
-
-			Arc currentArc = dataModel.arcs[currentLabel.nextArc];
-			int nextVertex = currentArc.tail;
-
-			currentLabel = this.fwLabels.get(nextVertex).get(currentLabel.nextLabelIndex);
-			if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) aSeq.add(currentArc.id);
-			currentVertex = nextVertex;
-		}
-
-		return new PartialSequence(aSeq, route);
-	}
-
-	public void compute_charging_bounds(ArrayList<Label> labels){
-
-		this.charging_reducedCosts = new HashMap<>();
 		this.charging_bounds = new HashMap<>();
 
-		// 1. Group labels by charging time b
+		// 1. Group by charging time b
 		Map<Integer, TreeSet<Integer>> charging_times = new HashMap<>();
-		for (Label label : labels) charging_times.computeIfAbsent(label.chargingTime, k -> new TreeSet<Integer>()).add((int)(label.remainingTime / 10));
-
-		// Precompute fixed sums of the charging dual variables
-		this.maxT = 0; for (TreeSet<Integer> set : charging_times.values()) this.maxT = Math.max(this.maxT, set.last()-1);
-		this.S = new double[dataModel.last_charging_period + 1]; this.S[0] = 0.0;
-		this.negative_charging_duals = new boolean[dataModel.last_charging_period + 1];
-		for (int t = 1; t <= this.maxT; t++) {
-			double dual = this.dualCosts[dataModel.C + t - 1];
-			this.negative_charging_duals[t] = dual < -dataModel.precision;
-			this.S[t] = this.S[t - 1] + dual;
+		int minT = (int) (dataModel.vertices[0].opening_tw/10);
+		int maxT = dataModel.last_charging_period + 1;
+		for (int b = 1; b <= dataModel.f_inverse[dataModel.E]; b++){
+			TreeSet<Integer> departures = new TreeSet<>();
+			for (int d = Math.max(b+1, minT); d <= maxT; d++) { departures.add(d); }
+			charging_times.put(b, departures);
 		}
 
-		/* logger.debug("Identifying time periods with negative dual");
-		for (int t = 1; t <= this.maxT; t++){
-			if (this.negative_charging_duals[t]) logger.debug("Period "+t+": Yes");
-		} */
+		// Precompute fixed sums of the charging dual variables
+		double[] S = new double[maxT]; S[0] = 0.0;
+		for (int t = 1; t < maxT; t++) { S[t] = S[t - 1] + this.dualCosts[dataModel.C + t - 1]; }
 
-		if (!charging_times.isEmpty()) process_charging_times_map(charging_times);
+		process_charging_times_map(charging_times, S);
 
 	}
 
-	public void process_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times){
+	private void process_charging_times_map(Map<Integer, TreeSet<Integer>> charging_times, double[] S){
 
 		for (Map.Entry<Integer, TreeSet<Integer>> e : charging_times.entrySet()){
 
@@ -259,38 +270,49 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
         	TreeSet<Integer> departures = e.getValue();
 
 			int initial_t = 1;
-			double rc = - (this.S[b]-this.S[0]); double min_rc = rc;
+			double rc = - (S[b]-S[0]); double min_rc = rc;
 
-			Map<Integer, Double> reducedCostsMap = new LinkedHashMap<>(); reducedCostsMap.put(b, rc);
 			Map<Integer, Double> boundsMap = new LinkedHashMap<>();
 			
 			for (int d: departures){
 				if (d <= b) continue; // skip if departure does not allow for sufficient charging
 
 				for (int t=initial_t; t<=d-b-1; t++){
-					rc = - (this.S[t+b] - this.S[t]);
-					reducedCostsMap.put(t+b, rc);
+					rc = - (S[t+b] - S[t]);
 					if (rc < min_rc - dataModel.precision) min_rc = rc;
 				}
 				boundsMap.put(d, min_rc);
 				initial_t = d-b;
 			}
-				
-			this.charging_reducedCosts.put(b, reducedCostsMap);
+			
 			this.charging_bounds.put(b, boundsMap);
 			
 		}
 
 	}
 
+	private static final class MergeState {
+        final int f, b;
+        final double rc;
+        MergeState(int f, int b, double rc) { this.f = f; this.b = b; this.rc = rc; }
+    }
+
 	private final class PartialSequence {
 
+		public double reducedCost;
 		public ArrayList<Integer> arcsSequence;
-		public boolean[] route;
+		public int nominalEnergy;
+		public ArrayList<Integer> worstEnergyDevs;
+		public int remainingLoad;
+		public int cumulativeTime;
 
-		private PartialSequence(ArrayList<Integer> aSeq, boolean[] route){
+		private PartialSequence(double rc, ArrayList<Integer> aSeq, int nomEnergy, ArrayList<Integer> devs, int remLoad, int cumTime){
+			this.reducedCost = rc;
 			this.arcsSequence = aSeq;
-			this.route = route;
+			this.nominalEnergy = nomEnergy;
+			this.worstEnergyDevs = devs;
+			this.remainingLoad = remLoad;
+			this.cumulativeTime = cumTime;
 		}
 	}
 
@@ -313,9 +335,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.timeLimit = timeLimit;
 		}
 
-		public ArrayList<ArrayList<Label>> runForwardLabeling() {
-
-			ArrayList<ArrayList<Label>> fwLabels = new ArrayList<>();
+		public ArrayList<ArrayList<PartialSequence>> runForwardLabeling() {
 
 			//Initialization
 			int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
@@ -333,7 +353,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					if(isDominated) continue;
 					else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 					for(Arc a: dataModel.graph.outgoingEdgesOf(currentLabel.vertex)) {
-						if(a.head<=dataModel.C+1 && !a.minCostAlternative) continue;
 						if(this.pricingProblem.infeasibleArcs[a.id] > 0) continue;
 						Label extendedLabel;
 						extendedLabel = extendForwardLabel(currentLabel, a);
@@ -344,13 +363,50 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				}
 			}
 
-			for (int i = 0; i <= dataModel.C+1; i++){ fwLabels.add(vertices[i].processedLabels); }// logger.debug("Forward labels at vertex {}: {}", new Object[]{i, fwLabels.get(i).size()}); }
+			ArrayList<ArrayList<PartialSequence>> fwSequences = new ArrayList<>();
+			for (int i = 0; i <= dataModel.C; i++){
+				ArrayList<PartialSequence> allSequences = new ArrayList<>();
+				for (Label label: vertices[i].processedLabels){ allSequences.add(get_forward_sequence(label)); }
+				fwSequences.add(allSequences);
+				//logger.debug("Forward Labels at vertex {}: {}. Forward Sequences: {}", new Object[]{i, this.fwLabels.get(i).size(), fwSequences.get(i).size()});
+			}
+
+			for (int i = 0; i <= dataModel.C+1; i++) {
+				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+			}
+			vertices[dataModel.C+1].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+			vertices[dataModel.C+1].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
 
 			long totalTime = System.currentTimeMillis()-startTime;
 			dataModel.exactPricingTime+=totalTime;
-			if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime)); 
+			if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
 
-			return fwLabels;
+			return fwSequences;
+		}
+
+		private PartialSequence get_forward_sequence(Label fwL){
+
+			ArrayList<Integer> aSeq = new ArrayList<>();
+			boolean[] route = new boolean[dataModel.C+1];
+			
+			Label currentLabel = fwL.clone();
+			int currentVertex = currentLabel.vertex;
+			while(currentVertex!=0) {
+				route[currentVertex] = true;
+
+				Arc currentArc = dataModel.arcs[currentLabel.nextArc];
+				int nextVertex = currentArc.tail;
+
+				currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
+				if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) aSeq.add(currentArc.id);
+				currentVertex = nextVertex;
+			}
+
+			ArrayList<Integer> worst_energy_deviations = new ArrayList<>();
+			for (int g=0; g<dataModel.gamma; g++){ worst_energy_deviations.add(fwL.remainingEnergy[g] - fwL.remainingEnergy[g+1]); }
+
+			return new PartialSequence(fwL.reducedCost, aSeq, dataModel.E - fwL.remainingEnergy[0], worst_energy_deviations, fwL.remainingLoad, fwL.remainingTime);
 		}
 
 		public Label extendBackwardLabel(Label currentLabel, Arc arc) {
@@ -389,34 +445,25 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
 			//Quick check
-			if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).minimumTime<vertices[0].opening_tw) return null;
-			if (source>0 && remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(0, source).minimumEnergy < 0) return null;
+			if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
 
 			//Check whether the extension is actually feasible
 			if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
 			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			boolean[] ng_path = new boolean[dataModel.C];
+			boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
 			if(source>0) ng_path[source-1] = true;
-			else ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
 
 			//Mark unreachable customers and ng-path cycling restrictions
 			if(source>0) {
 				
-				int lastTail = -1;
 				for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
-					if(c.tail==lastTail || c.tail==0 || unreachable[c.tail-1]) continue;
+					if(c.tail==0 || unreachable[c.tail-1]) continue;
 					//unreachable
-					if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.minimumTime<vertices[c.tail].opening_tw || 
-							remainingEnergy[dataModel.gamma]-c.minimumEnergy<0 || 
-							Math.min(remainingTime-c.minimumTime, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).minimumTime<vertices[0].opening_tw
-							|| remainingEnergy[dataModel.gamma]-c.minimumEnergy - dataModel.graph.getEdge(0, c.tail).minimumEnergy<0) {
+					if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
+						Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
 						unreachable[c.tail-1] = true;
 					}
-					//ng-path
-					if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
-					else ng_path[c.tail-1] = false;
-					lastTail = c.tail;
 				}
 			}
 			Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
@@ -459,32 +506,24 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			//Quick check
 			if (head < depot){
-				if(remainingTime+dataModel.graph.getEdge(head, depot).minimumTime > vertices[depot].closing_tw) return null;
-				if (remainingEnergy[dataModel.gamma] - dataModel.graph.getEdge(head, depot).minimumEnergy < 0) return null;
+				if(remainingTime+dataModel.graph.getEdge(head, depot).time > vertices[depot].closing_tw) return null;
 			}
 
 			//Check whether the extension is actually feasible
 			if(remainingTime>vertices[head].closing_tw || chargingTime > dataModel.f_inverse[dataModel.E]) return null;
 
 			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			boolean[] ng_path = new boolean[dataModel.C];
+			boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.unreachable.length);
 			if (head < depot) ng_path[head-1] = true;
 
 			//Mark unreachable customers and ng-path cycling restrictions
-			int lastHead = -1;
 			for (Arc c: dataModel.graph.outgoingEdgesOf(head)) {
-				if(c.head==lastHead || c.head==depot || unreachable[c.head-1]) continue;
+				if(c.head==depot || unreachable[c.head-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.minimumTime>vertices[c.head].closing_tw || 
-						remainingEnergy[dataModel.gamma]-c.minimumEnergy<0 || 
-						Math.max(remainingTime+c.minimumTime, vertices[c.head].opening_tw)+dataModel.graph.getEdge(c.head, depot).minimumTime>vertices[depot].closing_tw
-						|| remainingEnergy[dataModel.gamma]-c.minimumEnergy - dataModel.graph.getEdge(0, c.head).minimumEnergy<0) {
+				if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.time>vertices[c.head].closing_tw || 
+					Math.max(remainingTime+c.time, vertices[c.head].opening_tw)+dataModel.graph.getEdge(c.head, depot).time>vertices[depot].closing_tw ) {
 					unreachable[c.head-1] = true;
 				}
-				//ng-path
-				if (currentLabel.ng_path[c.head-1] && vertices[head].neighbors.contains(c.head)) ng_path[c.head-1] = true;
-				else ng_path[c.head-1] = false;
-				lastHead = c.head;
 			}
 			
 			Label extendedLabel = new Label(head, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
@@ -599,7 +638,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// Ng-paths and unreachable resources
 			Vertex currentVertex = vertices[L1.vertex];
 			if (currentVertex.id > 0) {
-				for(int i: currentVertex.neighbors) {
+				for(int i=1; i<=dataModel.C; i++) {
 					
 					//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
 					boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
