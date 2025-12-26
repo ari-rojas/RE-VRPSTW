@@ -25,9 +25,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
 	static {
-		solverCapabilities.put(HeuristicLabelingFourthPricingProblemSolver.class, false); //out
+		solverCapabilities.put(HeuristicLabelingFourthPricingProblemSolver.class, true); //out
 		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, true);
-		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, false); // out
+		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, true); // out
 		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, true);
 		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, true);
 	}
