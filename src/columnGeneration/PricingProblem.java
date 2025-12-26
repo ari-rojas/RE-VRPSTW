@@ -42,7 +42,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
-		
 	}
 
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit){
@@ -183,12 +182,28 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/////////////////////////////////
 		
 		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
-		
-		// Elementarity assessment
+		boolean[] current_ng_path = Arrays.copyOf(bwL.ng_path, bwL.ng_path.length);
+
 		if (arc.tail > 0 && (bwL.unreachable[arc.tail - 1] || bwL.ng_path[arc.tail - 1])) return null;
+		
+		// (ng-path) Elementarity assessment
 		for (int arcID: arcExtensions){
-			Arc arcExt = dataModel.arcs[arcID];
-			if (arcExt.tail > 0 && (bwL.unreachable[arcExt.tail-1] || bwL.ng_path[arcExt.tail-1])) return null;
+			Arc arcExt = dataModel.arcs[arcID]; int source = arcExt.tail;
+			if (source > 0 && (bwL.unreachable[source-1] || current_ng_path[source-1])) return null;
+			
+			boolean[] ng_path = new boolean[dataModel.C];
+			//Mark unreachable customers and ng-path cycling restrictions
+			if(source>0) {
+				ng_path[source-1] = true;
+				for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
+					if(c.tail==0 || bwL.unreachable[c.tail-1]) continue;
+					//ng-path
+					if (current_ng_path[c.tail-1] && dataModel.vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
+					else ng_path[c.tail-1] = false;
+				}
+			} else { ng_path = Arrays.copyOf(current_ng_path, current_ng_path.length); }
+
+			current_ng_path = Arrays.copyOf(ng_path, ng_path.length);
 		}
 		
 		if (fwSequence.remainingLoad + bwL.remainingLoad - dataModel.Q < 0) return null; // Load feasibility
@@ -212,7 +227,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// RESOURCES UPDATE
 		/////////////////////////////////
 		
-		Label updatedLabel = new Label(0, arc.id, -1, 0, 0, 0, new int[dataModel.gamma + 1], 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[1], new HashSet<>() );
+		Label updatedLabel = new Label(0, arc.id, -1, 0, 0, 0, new int[dataModel.gamma + 1], 0, new boolean[dataModel.C], current_ng_path, new boolean[1], new HashSet<>() );
 
 		for (int g = 0; g<= dataModel.gamma; g++) updatedLabel.remainingEnergy[g] = remainingEnergy[g];
 		updatedLabel.chargingTime = chargingTime;
