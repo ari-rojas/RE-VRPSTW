@@ -31,6 +31,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 
+	public double bestReducedCost;
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -46,6 +47,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 * Runs the labeling algorithm
 	 */
 	public void runLabeling() {
+
+		this.bestReducedCost = Double.MAX_VALUE;
 
 		//Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
@@ -236,6 +239,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			if(chargingTime<0) return null;
 		}
 
+		if (source == dataModel.V){
+			double rc = currentLabel.reducedCost;
+			if (rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = rc;
+			if (rc > -dataModel.precision) return null; // Only negative-reduced-cost labels will get to the source node
+		}
+
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
 	}
@@ -285,10 +294,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
 		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
 
-		double bestReducedCost = Double.MAX_VALUE;
+		
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			
-			bestReducedCost = Double.MAX_VALUE;
 			this.runLabeling();									//runs the labeling algorithm
 
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
@@ -298,8 +306,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				for (Label label: vertices[dataModel.V].unprocessedLabels) {
 					int departureTime = (int) (label.remainingTime/10);
 					int load = dataModel.Q - label.remainingLoad;
-
-					if(label.reducedCost < bestReducedCost - dataModel.precision) bestReducedCost = label.reducedCost;
 
 					if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
 						boolean isElementary = true;
@@ -342,7 +348,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}
 
-		pricingProblem.bestReducedCost = bestReducedCost;
+		pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished exact pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
