@@ -205,10 +205,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
-					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
+				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || remainingEnergy[dataModel.gamma]-c.min_energy < 0 || 
+					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ||
+					remainingEnergy[dataModel.gamma]-c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy<0) {
 					unreachable[c.tail-1] = true;
 				}
+
 
 				//ng-path
 				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
