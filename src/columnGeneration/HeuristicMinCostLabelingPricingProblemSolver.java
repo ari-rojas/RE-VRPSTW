@@ -255,18 +255,19 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	@Override
 	public void close() {
-		if(this.pricingProblemInfeasible) {
-			for (int i = 0; i < vertices.length; i++) {
-				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
-			}
-		}else {
-			for (int i = 0; i < vertices.length; i++) {
-				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
-				vertices[i].SRCIndices = new ArrayList<>(); 
-			}
+
+		pricingProblem.bwLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
+		for (int i = 0; i < vertices.length; i++) {
+			if (i <= dataModel.C+1) { pricingProblem.bwLabels.add(new ArrayList<>(vertices[i].processedLabels)); pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices)); }
+			vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+			vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
 		}
+		pricingProblem.infeasibleArcs = infeasibleArcs.clone();
+
+		if(!this.pricingProblemInfeasible) {
+			for (int i = 0; i < vertices.length; i++) { vertices[i].SRCIndices = new ArrayList<>();}
+		}
+
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 	}
 
