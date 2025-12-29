@@ -70,8 +70,6 @@ public final class EVRPTW implements ModelInterface {
 	public double UB_FRC;
 	public boolean isRootNode;
 
-	public boolean hasSetPricingObjective = false;
-
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.
@@ -263,9 +261,7 @@ public final class EVRPTW implements ModelInterface {
 			Element linkElement = (Element) link;
 			
 			Element customElements = (Element) linkElement.getElementsByTagName("custom").item(0);
-			boolean minCostAlternative = Boolean.parseBoolean(customElements.getElementsByTagName("is_min_cost").item(0).getTextContent());
 			
-			//if (minCostAlternative) {
 			//id, head and tail
 			int id = Integer.parseInt(linkElement.getAttribute("id"));
 			//int id = this.numArcs;
@@ -284,7 +280,6 @@ public final class EVRPTW implements ModelInterface {
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
-			//}
 			
 		}
 	}

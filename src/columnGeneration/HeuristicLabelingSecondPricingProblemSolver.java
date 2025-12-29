@@ -304,8 +304,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	 */
 	@Override
 	protected void setObjective() {
-		
-		dataModel.hasSetPricingObjective = false;
+		//Nanai
 	}
 
 	/**
