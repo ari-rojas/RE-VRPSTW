@@ -157,10 +157,12 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
-					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
+				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || remainingEnergy[dataModel.gamma]-c.min_energy < 0 || 
+					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ||
+					remainingEnergy[dataModel.gamma]-c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy<0) {
 					unreachable[c.tail-1] = true;
 				}
+
 			}
 		}
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime , unreachable, currentLabel.ng_path, eta, srcIndices);
@@ -306,26 +308,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	 */
 	@Override
 	protected void setObjective() {
-		pricingProblem.reducedCostThreshold = 0.0;
-		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
-		//Update the objective function with the new dual values
-		for (int a = 0; a < dataModel.numArcs; a++) {
-			Arc arc = dataModel.arcs[a];
-			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
-				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];
-			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
-			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
-			else arc.modifiedCost = 0;
-		}
-
-		//Check charging time branching decisions
-		int i=0;
-		for(ChargingTimeInequality branching: pricingProblem.branchesOnChargingTimes) {
-			if(branching.startCharging) dataModel.graph.getEdge(dataModel.V, dataModel.V+branching.timestep).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			else dataModel.graph.getEdge(dataModel.V+branching.timestep,0).modifiedCost-=pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			if(!branching.lessThanOrEqual) pricingProblem.reducedCostThreshold+= pricingProblem.dualCosts[dataModel.C+dataModel.last_charging_period+pricingProblem.subsetRowCuts.size()+i];
-			i++;
-		}
+		// Nanai
 	}
 
 	/**
