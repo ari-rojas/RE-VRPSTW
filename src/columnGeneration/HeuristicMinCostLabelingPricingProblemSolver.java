@@ -49,7 +49,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void runLabeling() {
 
 		this.bestReducedCost = Double.MAX_VALUE;
-
 		//Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(dataModel.C+1, dataModel.C+1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
@@ -206,8 +205,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
-					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
+				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || remainingEnergy[dataModel.gamma]-c.min_energy < 0 || 
+					Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ||
+					remainingEnergy[dataModel.gamma]-c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy<0) {
 					unreachable[c.tail-1] = true;
 				}
 
@@ -229,7 +229,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int source = arc.tail;
 
 		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
-		if(source == dataModel.V && currentLabel.chargingTime>0) return null;
+		if(source == dataModel.V && currentLabel.chargingTime>0 ) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
@@ -242,7 +242,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (source == dataModel.V){
 			double rc = currentLabel.reducedCost;
 			if (rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = rc;
-			if (rc > -dataModel.precision) return null; // Only negative-reduced-cost labels will get to the source node
+			if (rc > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
@@ -255,19 +255,18 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	@Override
 	public void close() {
-
-		pricingProblem.bwLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
-		for (int i = 0; i < vertices.length; i++) {
-			if (i <= dataModel.C+1) { pricingProblem.bwLabels.add(new ArrayList<>(vertices[i].processedLabels)); pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices)); }
-			vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+		if(this.pricingProblemInfeasible) {
+			for (int i = 0; i < vertices.length; i++) {
+				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+			}
+		}else {
+			for (int i = 0; i < vertices.length; i++) {
+				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+				vertices[i].SRCIndices = new ArrayList<>(); 
+			}
 		}
-		pricingProblem.infeasibleArcs = infeasibleArcs.clone();
-
-		if(!this.pricingProblemInfeasible) {
-			for (int i = 0; i < vertices.length; i++) { vertices[i].SRCIndices = new ArrayList<>();}
-		}
-
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 	}
 
@@ -294,19 +293,17 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
 		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
 
-		
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
-			
-			this.runLabeling();									//runs the labeling algorithm
+			this.runLabeling(); 										//runs the labeling algorithm
 
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
+				
 			} else {
 				this.pricingProblemInfeasible=false;
 				for (Label label: vertices[dataModel.V].unprocessedLabels) {
 					int departureTime = (int) (label.remainingTime/10);
 					int load = dataModel.Q - label.remainingLoad;
-
 					if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
 						boolean isElementary = true;
 						HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C); int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
@@ -342,7 +339,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				}
 				if (!existsElementaryRoute) {
 					maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes); 
-					if(!maxNeighborhoodSize) { nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>(); restart();} //restart //run again
+					if(!maxNeighborhoodSize) {
+						nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>();
+						restart();} //restart //run again
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
 			}
