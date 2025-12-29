@@ -54,7 +54,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (int c = 0; c <= dataModel.C; c++){ this.fwSequences.get(c).sort( Comparator.comparing(l -> l.reducedCost)); }
 		
 		long startTime = System.currentTimeMillis();
-		int cont = 0;
 		for (int c = 1; c <= dataModel.C+1; c++){
 			ArrayList<Label> backwardLabels = this.bwLabels.get(c);
 			backwardLabels.sort( Comparator.comparing(l -> l.reducedCost));
@@ -65,7 +64,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
 					double min_rc = findMinimumRCPath(backwardLabels, forwardSequences, arc);
-					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) { arcsToRemove.put(arc.id, min_rc); cont++; }//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
+					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) { arcsToRemove.put(arc.id, min_rc); }//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
 					if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 					
 				}
@@ -76,41 +75,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		this.fwSequences.clear(); this.bwLabels.clear(); this.charging_bounds.clear();
 
-		////////////////////////////////////////////
-		/// DEBUG
-		///////////////////////////////////////////
-		
-		/* logger.debug("Total of arcs evaluated: " + arcCont);
-		logger.debug("Arcs with feasible merged labels:");
-		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()){
-			logger.debug("Arc "+ dataModel.arcs[entry.getKey()].toString() + " , with "+ entry.getValue().size() + " labels");
-		}
-
-		int maxMerged = 0; int arcMaxMerged = -1;
-		for (Map.Entry<Integer, List<Integer>> entry: mergedMap.entrySet()) { if (entry.getValue().size() > maxMerged) { maxMerged = entry.getValue().size(); arcMaxMerged = entry.getKey(); } }
-		logger.debug("Arc with the most merged labels: {} with {} labels", new Object[]{dataModel.arcs[arcMaxMerged].toString(), maxMerged});
-		for (int labelIx: mergedMap.get(arcMaxMerged)) { logger.debug(mergedLabels.get(labelIx).toString()); } */
-
-		////////////////////////////////////////////
-		/// END DEBUG
-		////////////////////////////////////////////
-
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
 		if (dataModel.print_log) {
 			logger.debug("Time merging forward and backward labels: " + FRC.getTimeInSeconds(totalTime));
-			logger.debug("Found "+cont+" merged labels");
 		}
-
-		//////////////////////////////////////////////////////////////////////////////////////////
-		/* logger.debug("Printing the non-dominated backward labels at the depot (0):");
-		for (Label label: this.bwLabels.get(0)){
-			int departure = (int)(label.remainingTime/10);
-			logger.debug("Label: {}, Bound: {}",new Object[]{label.toString(), charging_bounds.get(label.chargingTime).get(departure)});
-		} */
-		///////////////////////////////////////////////////////////////////////////////////////////
-
-		
 
 		return arcsToRemove;
 
@@ -424,85 +393,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			return new PartialSequence(fwL.reducedCost, aSeq, dataModel.E - fwL.remainingEnergy[0], worst_energy_deviations, fwL.remainingLoad, fwL.remainingTime);
 		}
 
-		public Label extendBackwardLabel(Label currentLabel, Arc arc) {
-
-			int source = arc.tail;
-			if (source>=1 && source<=dataModel.C)
-				if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
-
-			double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-
-			boolean[] eta = currentLabel.eta.clone();
-			HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
-			for(int srcIndex: vertices[source].SRCIndices) {
-				if(currentLabel.eta[srcIndex]) {
-					eta[srcIndex] = false;
-					int dualIndex = dataModel.C+dataModel.last_charging_period+srcIndex;
-					reducedCost-=pricingProblem.dualCosts[dualIndex];
-					srcIndices.remove(srcIndex);
-				}
-				else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
-			}
-			reducedCost = Math.floor(reducedCost*10000)/10000;
-
-			int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
-			int remainingTime = currentLabel.remainingTime-arc.time;
-			if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-
-			int[] remainingEnergy = new int[dataModel.gamma + 1];
-			remainingEnergy[0] = currentLabel.remainingEnergy[0]-arc.energy; if (remainingEnergy[0] < 0) return null;
-			for (int gam = 1; gam <= dataModel.gamma; gam++){
-				if (currentLabel.remainingEnergy[gam-1] - arc.energy_deviation < currentLabel.remainingEnergy[gam]){ remainingEnergy[gam] = currentLabel.remainingEnergy[gam-1] - arc.energy - arc.energy_deviation; }
-				else { remainingEnergy[gam] = currentLabel.remainingEnergy[gam] - arc.energy; }
-				if (remainingEnergy[gam] < 0) return null;
-			}
-			
-			int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
-
-			//Quick check
-			if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
-
-			//Check whether the extension is actually feasible
-			if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
-
-			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
-			if(source>0) ng_path[source-1] = true;
-
-			//Mark unreachable customers and ng-path cycling restrictions
-			if(source>0) {
-				
-				for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
-					if(c.tail==0 || unreachable[c.tail-1]) continue;
-					//unreachable
-					if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.time<vertices[c.tail].opening_tw || 
-						Math.min(remainingTime-c.time, vertices[c.tail].closing_tw)-dataModel.graph.getEdge(0, c.tail).time<vertices[0].opening_tw ) {
-						unreachable[c.tail-1] = true;
-					}
-				}
-			}
-			Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
-			return extendedLabel;
-
-		}
-
 		public Label extendForwardLabel(Label currentLabel, Arc arc) {
 
 			int head = arc.head; int depot = dataModel.C+1;
 			if (head < depot && (currentLabel.unreachable[head-1] || currentLabel.ng_path[head-1])) return null;
 
 			double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-			boolean[] eta = currentLabel.eta.clone();
-			HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
-			for(int srcIndex: this.pricingProblem.SRCIndices.get(head)) {
-				if(currentLabel.eta[srcIndex]) {
-					eta[srcIndex] = false;
-					int dualIndex = dataModel.C+dataModel.last_charging_period+srcIndex;
-					reducedCost-=pricingProblem.dualCosts[dualIndex];
-					srcIndices.remove(srcIndex);
-				}
-				else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
-			}
 			reducedCost = Math.floor(reducedCost*10000)/10000;
 
 			int remainingLoad = currentLabel.remainingLoad-vertices[head].load;
@@ -528,20 +424,26 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			if(remainingTime>vertices[head].closing_tw || chargingTime > dataModel.f_inverse[dataModel.E]) return null;
 
 			boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			boolean[] ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.unreachable.length);
-			if (head < depot) ng_path[head-1] = true;
+			boolean[] ng_path = new boolean[dataModel.C];
+			if (head<depot) ng_path[head-1] = true;
+			else ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
 
 			//Mark unreachable customers and ng-path cycling restrictions
 			for (Arc c: dataModel.graph.outgoingEdgesOf(head)) {
 				if(c.head==depot || unreachable[c.head-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.time>vertices[c.head].closing_tw || 
-					Math.max(remainingTime+c.time, vertices[c.head].opening_tw)+dataModel.graph.getEdge(c.head, depot).time>vertices[depot].closing_tw ) {
+				if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.time>vertices[c.head].closing_tw || remainingEnergy[dataModel.gamma]-c.min_energy < 0 || 
+					Math.max(remainingTime+c.time, vertices[c.head].opening_tw)+dataModel.graph.getEdge(c.head, depot).time>vertices[depot].closing_tw ||
+					remainingEnergy[dataModel.gamma]-c.min_energy - dataModel.graph.getEdge(c.head, depot).min_energy<0) {
 					unreachable[c.head-1] = true;
 				}
+
+				//ng-path
+				if (currentLabel.ng_path[c.head-1] && vertices[head].neighbors.contains(c.head)) ng_path[c.head-1] = true;
+				else ng_path[c.head-1] = false;
 			}
 			
-			Label extendedLabel = new Label(head, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			Label extendedLabel = new Label(head, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, currentLabel.eta.clone(), new HashSet<Integer>(currentLabel.srcIndices));
 			return extendedLabel;
 
 		}
@@ -627,29 +529,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
 			int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
 
-			if (L1.vertex>0 && L2.remainingLoad<L1.remainingLoad) return false; 	//load
+			if (L1.vertex<dataModel.C+1 && L2.remainingLoad<L1.remainingLoad) return false; 	//load
 			if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
 			if (L1.remainingTime<L2.remainingTime) return false; 					//time
 			
 			for (int gam = 0; gam <= dataModel.gamma; gam ++){ if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false; } // energy
-			
-			//reducedCost
-			double reducedCostL2 = 0;
-			if (L1.vertex>0) {
-				for(int i: L2.srcIndices) {
-					if(!L1.eta[i]) {
-						SubsetRowInequality src = pricingProblem.subsetRowCuts.get(i);
-						if(!L2.unreachable[src.cutSet[0]-1] || !L2.unreachable[src.cutSet[1]-1] || !L2.unreachable[src.cutSet[2]-1]) {
-							int dualIndex = dataModel.C+dataModel.last_charging_period+i;
-							reducedCostL2+=pricingProblem.dualCosts[dualIndex];
-						}
-					}
-					if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
-				}
-			}
-			if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
 
-			
 			// Ng-paths and unreachable resources
 			Vertex currentVertex = vertices[L1.vertex];
 			if (currentVertex.id > 0) {
