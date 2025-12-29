@@ -54,6 +54,7 @@ import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
+import columnGeneration.HeuristicLabelingFourthPricingProblemSolver;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
@@ -92,8 +93,9 @@ public final class EVRPTWSolver {
 
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
+		solvers.add(HeuristicLabelingFourthPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
 		solvers.add(HeuristicLabelingThirdPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
-		//solvers.add(HeuristicLabelingPricingProblemSolver.class);
+		solvers.add(HeuristicLabelingPricingProblemSolver.class);
 		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 		
