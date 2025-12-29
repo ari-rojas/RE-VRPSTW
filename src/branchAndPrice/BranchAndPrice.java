@@ -218,7 +218,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound()); //Solve the node
+			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {
@@ -429,14 +429,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.upperBoundOnObjective = cgIncumbent.cgIncumbentObjective;
 							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
 						}
-
-						logger.debug("Bounds: UB = {} LB = {}", new Object[]{this.objectiveIncumbentSolution, bapNode.getBound()});
 						
 						this.updateNodeGeneratedColumns(bapNode);
-						logger.debug("Bounds: UB = {} LB = {}", new Object[]{this.objectiveIncumbentSolution, bapNode.getBound()});
-						logger.debug("Computed gap: {} {}", new Object[]{1-bapNode.getBound()/this.objectiveIncumbentSolution, bapNode.nodeID == 0 && 1-bapNode.getBound()/this.objectiveIncumbentSolution < 0.1 - dataModel.precision});
-						logger.debug("Node ID: {}", bapNode.nodeID);
-						logger.debug("Gap is smaller than 10%: {}", (1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4));
+						
 						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
 						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4)) && !hasPerformedFRC) {
 
@@ -471,7 +466,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
 						
-						// Look for Number of Vehicles or Customers Arc Flow branching
 						boolean foundBranches = process_branching(bapNode, newBranches, time);
 	
 						if (!foundBranches) { throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?"); }
