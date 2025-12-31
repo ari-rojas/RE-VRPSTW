@@ -210,7 +210,6 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
 
 		if (source == dataModel.V){
 			double rc = currentLabel.reducedCost;
-			if (rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = rc;
 			if (rc > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
@@ -304,8 +303,6 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
                 }
             }
         }
-
-		pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished heuristic pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
