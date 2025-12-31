@@ -458,6 +458,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							
 							// Fire the fake branching events for the listeners to update
 							this.graphManipulator.next(bapNode);
+							dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
 
 							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 							

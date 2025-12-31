@@ -85,9 +85,12 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		for(Route route : solution){
 			if(route.value<1) {
 				for(int arc : route.arcs){
-					Double arcValue=arcValues.get(arc);
-					if(arcValue == null) arcValues.put(arc,route.value);
-					else arcValues.put(arc,route.value+arcValue);
+					if (dataModel.infeasibleArcs[arc] > 0) { continue; }
+					else {
+						Double arcValue=arcValues.get(arc);
+						if(arcValue == null) arcValues.put(arc,route.value);
+						else arcValues.put(arc,route.value+arcValue);
+					}
 				}
 			}
 		}

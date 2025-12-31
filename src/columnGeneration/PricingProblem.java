@@ -60,12 +60,16 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			for (Arc arc: dataModel.graph.incomingEdgesOf(c)){
 				if (infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
-
+					
+					ArrayList<Label> filteredBwLabels = new ArrayList<Label>();
+					for (Label lab: backwardLabels) { if ((arc.tail == 0) || (arc.tail > 0 && !lab.unreachable[arc.tail-1] && !lab.ng_path[arc.tail-1])) { filteredBwLabels.add(lab);} }
 					ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
-					double min_rc = findMinimumRCPath(backwardLabels, forwardSequences, arc);
-					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) { arcsToRemove.put(arc.id, min_rc); }//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
-					if (min_rc < bestReducedCost - 1e-6) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
+					double min_rc = findMinimumRCPath(filteredBwLabels, forwardSequences, arc);
+					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) {
+						arcsToRemove.put(arc.id, min_rc); this.infeasibleArcs[arc.id] ++; 
+					}//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
+					if (min_rc < bestReducedCost - dataModel.precision) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 					
 				}
 			}
@@ -90,7 +94,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
         int nFw = fwSequences.size();
         int nBw = bwLabels.size();
 
-        PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s2.rc, s1.rc) );
+        PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s1.rc, s2.rc) );
         pq.add(new MergeState(0, 0, arc.modifiedCost + bwLabels.get(0).reducedCost + fwSequences.get(0).reducedCost));
 
         HashSet<Long> visited = new HashSet<>();
@@ -115,7 +119,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					
 					if (complete_rc < bestReducedCost - dataModel.precision){
 						bestReducedCost = complete_rc;
-						if (Math.abs(chBound) < dataModel.precision){ return bestReducedCost; } // if the charging bound of the new best label is 0, is optimal
+						if (chBound < dataModel.precision){ return bestReducedCost; } // if the charging bound of the new best label is 0, is optimal
 					}
 				}
 			}
@@ -152,8 +156,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 		ArrayList<Integer> arcExtensions = fwSequence.arcsSequence;
 		boolean[] current_ng_path = Arrays.copyOf(bwL.ng_path, bwL.ng_path.length);
-
-		if (arc.tail > 0 && (bwL.unreachable[arc.tail - 1] || bwL.ng_path[arc.tail - 1])) return null;
 		
 		// (ng-path) Elementarity assessment
 		for (int arcID: arcExtensions){
