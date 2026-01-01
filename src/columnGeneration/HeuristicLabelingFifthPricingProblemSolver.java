@@ -265,7 +265,7 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
             pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
             
         } else {
-            this.pricingProblemInfeasible=false;
+            
             for (Label label: vertices[dataModel.V].unprocessedLabels) {
                 int departureTime = (int) (label.remainingTime/10);
                 int load = dataModel.Q - label.remainingLoad;
@@ -302,6 +302,9 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
                     else {nonElementaryRoutes.add(column);}
                 }
             }
+
+			if (newRoutes.isEmpty()) this.pricingProblemInfeasible = true;
+			else this.pricingProblemInfeasible = false;
         }
 
 		if (dataModel.print_log) {
