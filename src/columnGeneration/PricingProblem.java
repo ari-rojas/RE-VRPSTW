@@ -65,7 +65,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					for (Label lab: backwardLabels) { if ((arc.tail == 0) || (arc.tail > 0 && !lab.unreachable[arc.tail-1] && !lab.ng_path[arc.tail-1])) { filteredBwLabels.add(lab);} }
 					ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
-					if (!backwardLabels.isEmpty()){
+					if (!filteredBwLabels.isEmpty()){
 						double min_rc = findMinimumRCPath(filteredBwLabels, forwardSequences, arc);
 						if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) {
 							arcsToRemove.put(arc.id, min_rc); this.infeasibleArcs[arc.id] ++; 
