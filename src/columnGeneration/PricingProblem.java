@@ -1,6 +1,5 @@
 package columnGeneration;
 
-import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -9,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.HashSet;
-import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
@@ -37,6 +35,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasibleArcs;
+	public Vertex[] vertices;
 
 	// Charging pricing information
 	public Map<Integer, Map<Integer, Double>> charging_bounds;
@@ -48,6 +47,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit){
 		
 		double FRC_gap = dataModel.UB_FRC - dataModel.LB_FRC;
+		this.vertices = dataModel.vertices;
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 		FixByReducedCostSolver FRC = new FixByReducedCostSolver(dataModel, timeLimit);
@@ -185,7 +185,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					if (tail == 0 || bwSeq.unreachable.get(tail - 1)) continue;
 
 					// ng-path rule
-					if (currentNg.get(tail - 1) && dataModel.vertices[source].neighbors.contains(tail)) nextNg.set(tail - 1);
+					if (currentNg.get(tail - 1) && vertices[source].neighbors.contains(tail)) nextNg.set(tail - 1);
 				}
 
 			} else nextNg.or(currentNg);
@@ -221,14 +221,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		
 		int remainingTime = bwSeq.remainingTime - arc.time;
-		if(remainingTime > dataModel.vertices[arc.tail].closing_tw) remainingTime = dataModel.vertices[arc.tail].closing_tw;
+		if(remainingTime > vertices[arc.tail].closing_tw) remainingTime = vertices[arc.tail].closing_tw;
 		
 		for (int arcID: arcExtensions){
 			Arc extArc = dataModel.arcs[arcID];
 			int source = extArc.tail;
 			
 			remainingTime -= extArc.time;
-			if(remainingTime > dataModel.vertices[source].closing_tw) remainingTime = dataModel.vertices[source].closing_tw;
+			if(remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 		}
 		
 		int departure = (int)(remainingTime/10);
