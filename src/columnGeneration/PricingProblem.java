@@ -68,7 +68,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					ArrayList<PartialForwardSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
 					if (!filteredBw.isEmpty()){
-						double max_rc = arc.modifiedCost + forwardSequences.get(forwardSequences.size()-1).reducedCost + filteredBw.get(filteredBw.size()-1).reducedCost;
+						//double max_rc = arc.modifiedCost + forwardSequences.get(forwardSequences.size()-1).reducedCost + filteredBw.get(filteredBw.size()-1).reducedCost;
+						double max_rc = Double.MAX_VALUE;
 
 						if (max_rc > FRC_gap + dataModel.precision){ // This is an optimistic bound of the worst reduced cost, missing the charging bound, not guaranteed to be the actual worst
 							double min_rc = findMinimumRCPath(filteredBw, forwardSequences, arc);
@@ -172,7 +173,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (int arcID : arcExtensions) {
 
 			Arc arcExt = dataModel.arcs[arcID]; int source = arcExt.tail;
-			if (source > 0 && bwSeq.unreachable.get(source - 1) || currentNg.get(source - 1)) return null;
+			if (source > 0 && (bwSeq.unreachable.get(source - 1) || currentNg.get(source - 1))) return null;
 
 			// Build next ng-path state
 			BitSet nextNg = new BitSet(dataModel.C);

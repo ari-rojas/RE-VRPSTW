@@ -243,7 +243,7 @@ public final class EVRPTWSolver {
 		int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC312", args[2]);
-		//EVRPTW evrptw = new EVRPTW("C204-50", 0, 0, true, "FRC312", "Debug");
+		//EVRPTW evrptw = new EVRPTW("C206-25", 10, 0, true, "FRC312", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
