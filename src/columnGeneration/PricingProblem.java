@@ -184,14 +184,16 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int[] remainingEnergy = new int[dataModel.gamma + 1];
 		remainingEnergy[0] = bwL.remainingEnergy[0] - arc.energy - fwSequence.nominalEnergy; if (remainingEnergy[0] < 0) return null; // Nominal energy consumption
 
-		ArrayList<Integer> energy_deviations = new ArrayList<>();
-		energy_deviations.add(arc.energy_deviation); energy_deviations.addAll(fwSequence.worstEnergyDevs);
-		for (int g=0; g<dataModel.gamma; g++){ energy_deviations.add(bwL.remainingEnergy[g] - bwL.remainingEnergy[g+1]); }
+		if (dataModel.gamma > 0){
+			ArrayList<Integer> energy_deviations = new ArrayList<>();
+			energy_deviations.add(arc.energy_deviation); energy_deviations.addAll(fwSequence.worstEnergyDevs);
+			for (int g=0; g<dataModel.gamma; g++){ energy_deviations.add(bwL.remainingEnergy[g] - bwL.remainingEnergy[g+1]); }
+			
+			energy_deviations.sort(Comparator.reverseOrder()); int cont = 0;
+			for (Integer e_dev: energy_deviations){ cont ++; remainingEnergy[cont] = remainingEnergy[cont-1]-e_dev; if (cont == dataModel.gamma) break; }
+			if (remainingEnergy[dataModel.gamma] < 0) return null; // Worst-case energy consumption
+		}
 		
-		energy_deviations.sort(Comparator.reverseOrder()); int cont = 0;
-		for (Integer e_dev: energy_deviations){ cont ++; remainingEnergy[cont] = remainingEnergy[cont-1]-e_dev; if (cont == dataModel.gamma) break; }
-		if (remainingEnergy[dataModel.gamma] < 0) return null; // Worst-case energy consumption
-
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 		
 		/////////////////////////////////
