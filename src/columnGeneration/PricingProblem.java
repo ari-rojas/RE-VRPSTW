@@ -45,13 +45,15 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	}
 
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit){
+		
+		double FRC_gap = dataModel.UB_FRC - dataModel.LB_FRC;
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 		FixByReducedCostSolver FRC = new FixByReducedCostSolver(dataModel, timeLimit);
 		this.fwSequences = FRC.runForwardLabeling();
 		
 		this.compute_charging_bounds(); // Compute the charging bounds for ALL charging and departure times
-		for (int c = 0; c <= dataModel.C; c++){ this.fwSequences.get(c).sort( Comparator.comparing(l -> l.reducedCost)); }
+		for (int c = 0; c <= dataModel.C; c++){ this.fwSequences.get(c).sort( Comparator.comparing(l -> l.reducedCost) ); }
 		
 		long startTime = System.currentTimeMillis();
 		for (int c = 1; c <= dataModel.C+1; c++){
@@ -66,11 +68,16 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					ArrayList<PartialSequence> forwardSequences = this.fwSequences.get(arc.tail);
 
 					if (!filteredBwLabels.isEmpty()){
-						double min_rc = findMinimumRCPath(filteredBwLabels, forwardSequences, arc);
-						if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > dataModel.UB_FRC - dataModel.LB_FRC + dataModel.precision) {
-							arcsToRemove.put(arc.id, min_rc); this.infeasibleArcs[arc.id] ++; 
-						}//logger.debug("Arc {} - {}", new Object[]{arc.toString(), min_rc}); }
-						if (min_rc < bestReducedCost - dataModel.precision) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
+						double max_rc = arc.modifiedCost + forwardSequences.get(forwardSequences.size()-1).reducedCost + filteredBwLabels.get(filteredBwLabels.size()-1).reducedCost;
+
+						if (max_rc > FRC_gap + dataModel.precision){ // This is an optimistic bound of the worst reduced cost, missing the charging bound, not guaranteed to be the actual worst
+							double min_rc = findMinimumRCPath(filteredBwLabels, forwardSequences, arc);
+							if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > FRC_gap + dataModel.precision) {
+								arcsToRemove.put(arc.id, min_rc); this.infeasibleArcs[arc.id] ++; 
+							}
+							if (min_rc < bestReducedCost - dataModel.precision) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
+						}
+
 					}
 				}
 			}
