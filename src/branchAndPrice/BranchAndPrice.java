@@ -392,8 +392,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		
 		// Fire the fake branching events for the listeners to update
 		this.graphManipulator.next(bapNode);
-		dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
-
 		extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 		
 		this.arcFlowNodes.add(0);
@@ -474,6 +472,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
 						
+						dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
 						boolean foundBranches = process_branching(bapNode, newBranches, time);
 	
 						if (!foundBranches) { throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?"); }
