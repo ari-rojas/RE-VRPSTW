@@ -36,9 +36,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public int[] infeasibleArcs;
 	public Vertex[] vertices;
 
-	// Charging pricing information
-	public Map<Integer, Map<Integer, Double>> charging_bounds;
-
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
 	}
@@ -66,14 +63,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > FRC_gap + dataModel.precision) {
 						arcsToRemove.put(arc.id, min_rc); this.infeasibleArcs[arc.id] ++; 
 					}
-					if (min_rc < bestReducedCost - dataModel.precision) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 					
 				}
 			}
 
 		}
 
-		bwSequences.clear(); this.charging_bounds.clear();
+		bwSequences.clear();
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
