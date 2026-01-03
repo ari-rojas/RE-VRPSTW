@@ -58,9 +58,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 		long startTime = System.currentTimeMillis();
 		for (int c = 1; c <= dataModel.C+1; c++){
+
+			if (System.currentTimeMillis()>timeLimit) break;
 			ArrayList<PartialBackwardSequence> backwardSequences = bwSequences.get(c);
 
 			for (Arc arc: dataModel.graph.incomingEdgesOf(c)){
+
+				if (System.currentTimeMillis()>timeLimit) break;
 				if (infeasibleArcs[arc.id] == 0 && arc.tail <= dataModel.C+1 && arc.head <= dataModel.C+1){ // only routing arcs
 					
 					ArrayList<PartialBackwardSequence> filteredBw = new ArrayList<PartialBackwardSequence>();
@@ -81,11 +85,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 					}
 				}
-
-				if (System.currentTimeMillis()>timeLimit) break;
+				
 			}
-
-			if (System.currentTimeMillis()>timeLimit) break;
 
 			backwardSequences.clear();
 		}
