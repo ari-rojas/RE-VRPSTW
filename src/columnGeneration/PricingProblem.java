@@ -81,7 +81,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 					}
 				}
+
+				if (System.currentTimeMillis()>timeLimit) break;
 			}
+
+			if (System.currentTimeMillis()>timeLimit) break;
 
 			backwardSequences.clear();
 		}

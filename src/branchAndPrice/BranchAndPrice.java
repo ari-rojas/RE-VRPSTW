@@ -364,6 +364,42 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		return false;
 	}
 
+
+	protected void perform_fixing_by_reduced_cost(BAPNode bapNode, long timeLimit){
+
+		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
+
+		dataModel.UB_FRC = this.objectiveIncumbentSolution; dataModel.LB_FRC = bapNode.getBound();
+		extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
+
+		Map<Integer, Double> arcsToRemove = ((PricingProblem)pricingProblems.get(0)).fixByReducedCosts(timeLimit);
+		
+		List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
+		for(Route route: (List<Route>) bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
+		
+		// Deleting columns containing the eliminated arcs
+		List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
+		columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
+		columns.removeIf(col -> col.isArtificialColumn);
+		
+		// Removing the arcs via fake branching decisions
+		List<BranchingDecision> removals = new ArrayList();
+		for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel, bapNode.getInequalities(),0));}
+		
+		// Destroy and re-create the rootNode
+		bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), removals);
+		bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
+		
+		// Fire the fake branching events for the listeners to update
+		this.graphManipulator.next(bapNode);
+		dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
+
+		extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
+		
+		this.arcFlowNodes.add(0);
+		
+	}
+
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
@@ -432,37 +468,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						
 						this.updateNodeGeneratedColumns(bapNode);
 						
-						//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
 						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4)) && !hasPerformedFRC) {
-
-							dataModel.UB_FRC = this.objectiveIncumbentSolution; dataModel.LB_FRC = bapNode.getBound();
-							extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
-
-							Map<Integer, Double> arcsToRemove = ((PricingProblem)pricingProblems.get(0)).fixByReducedCosts(timeLimit);
-							
-							List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
-							for(Route route: bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
-							
-							// Deleting columns containing the eliminated arcs
-							List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
-							columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
-							columns.removeIf(col -> col.isArtificialColumn);
-							
-							// Removing the arcs via fake branching decisions
-							List<BranchingDecision> removals = new ArrayList();
-							for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel, bapNode.getInequalities(),0));}
-							
-							// Destroy and re-create the rootNode
-							bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), removals);
-							bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
-							
-							// Fire the fake branching events for the listeners to update
-							this.graphManipulator.next(bapNode);
-							dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
-
-							extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
-							
-							this.arcFlowNodes.add(0);
+							this.perform_fixing_by_reduced_cost(bapNode, timeLimit);
 						}
 						
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
