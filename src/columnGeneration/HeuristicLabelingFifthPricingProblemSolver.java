@@ -263,7 +263,6 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
 
         if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
             pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
-            
         } else {
             
             for (Label label: vertices[dataModel.V].unprocessedLabels) {

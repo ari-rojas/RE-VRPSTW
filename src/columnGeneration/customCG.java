@@ -33,6 +33,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, true);
 		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, true); // out
 		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, true);
+		solverCapabilities.put(HeuristicLabelingFifthPricingProblemSolver.class, true);
 		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, true);
 	}
 
