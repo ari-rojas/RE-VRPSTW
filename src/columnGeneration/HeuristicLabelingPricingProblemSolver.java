@@ -212,7 +212,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		else {pricingProblemInfeasible=false;}
 
 		if (dataModel.print_log) {
-				logger.debug("Finished heuristic pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
+				logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
 				logger.debug("Found " + newRoutes.size() + " columns");
 		}
 

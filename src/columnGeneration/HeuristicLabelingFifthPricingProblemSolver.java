@@ -138,6 +138,9 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
+		//only negative reduced cost labels
+		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
+
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
@@ -240,7 +243,7 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
 		else {pricingProblemInfeasible=false;}
 
 		if (dataModel.print_log) {
-				logger.debug("Finished heuristic pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
+				logger.debug("Finished heuristic pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
 				logger.debug("Found " + newRoutes.size() + " columns");
 		}
 

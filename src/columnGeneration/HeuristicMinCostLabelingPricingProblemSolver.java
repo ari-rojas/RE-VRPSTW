@@ -170,6 +170,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
+		//only negative reduced cost labels
+		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
+
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
@@ -257,8 +260,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
-		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
-		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
+		List<Route> newRoutes=new ArrayList<>();  			//list of routes
+		List<Route> nonElementaryRoutes=new ArrayList<>();  //list of nonelementary routes
 
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			long startTime = System.currentTimeMillis();
@@ -291,7 +294,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
-				logger.debug("Finished exact pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
+				logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
 				logger.debug("Found " + newRoutes.size() + " columns");
 		}
 		
