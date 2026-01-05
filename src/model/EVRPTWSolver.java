@@ -241,10 +241,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		//int gamma = Integer.parseInt(args[1]);
+		int gamma = Integer.parseInt(args[1]);
 
-		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRCMono325", args[2]);
-		EVRPTW evrptw = new EVRPTW("R211-25", 10, 0, true, "FRC312", "Debug");
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRCMono325", args[2]);
+		//EVRPTW evrptw = new EVRPTW("R211-25", 10, 0, true, "FRC312", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
