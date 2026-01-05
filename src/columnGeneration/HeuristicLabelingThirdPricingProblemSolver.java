@@ -66,7 +66,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 				if (currentLabel.vertex == 0) continue; // Extensions beyond the outbound depot are not allowed
 				else {
 					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-						if(a.modifiedCost >= -dataModel.precision) continue;
+						if(a.tail > 0 && a.head <= dataModel.C && a.modifiedCost >= -dataModel.precision) continue;
 						if(infeasibleArcs[a.id] > 0) continue;
 
 						Label extendedLabel = extendLabel(currentLabel, a);
