@@ -53,6 +53,11 @@ import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
 import columnGeneration.HeuristicLabelingFifthPricingProblemSolver;
+import columnGeneration.CBMinCostSolver;
+import columnGeneration.CBHeuristicSolver;
+import columnGeneration.CBHeuristicSecondSolver;
+import columnGeneration.CBHeuristicThirdSolver;
+import columnGeneration.CBHeuristicFifthSolver;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
@@ -97,6 +102,12 @@ public final class EVRPTWSolver {
 		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		solvers.add(HeuristicLabelingFifthPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
+
+		solvers.add(CBHeuristicThirdSolver.class);
+		solvers.add(CBHeuristicSolver.class);
+		solvers.add(CBHeuristicSecondSolver.class);
+		solvers.add(CBHeuristicFifthSolver.class);
+		solvers.add(CBMinCostSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution=this.getInitialSolution(pricingProblem);
