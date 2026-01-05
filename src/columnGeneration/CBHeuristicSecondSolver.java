@@ -21,7 +21,7 @@ import model.EVRPTW.Vertex;
  * This class provides a heuristic solver for the ng-SPPRC pricing problem
  * It considers only the min-cost arcs and uses a relaxed dominance rule
  */
-public final class HeuristicLabelingPricingProblemSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
+public final class CBHeuristicSecondSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
 
 	public Vertex[] vertices = dataModel.vertices; 						//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 						//labels that need be processed
@@ -31,7 +31,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 
 	/** Heuristic Labeling algorithm to solve the ng-SPPRC. */
-	public HeuristicLabelingPricingProblemSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
+	public CBHeuristicSecondSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
 		this.name="HeuristicLabelingSolver"; //Set a name for the solver
 		this.infeasibleArcs = new int[dataModel.numArcs];
@@ -46,7 +46,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		this.nodesToProcess.add(vertices[dataModel.C+1]);
 		initialLabel.index = 0;
 		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
-		dataModel.infeasibleArcs = this.infeasibleArcs;
 
 		//Labeling algorithm 
 		long startTime = System.currentTimeMillis();
@@ -152,8 +151,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source>0) {
-			for(int i: vertices[source].unreachable) unreachable[i-1] = true;
-			
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
@@ -270,71 +267,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		return newRoutes;
 	}
 
-	public ArrayList<Route> charging_pricing(ArrayList<Label> labels){
-
-		ArrayList<Route> newRoutes = new ArrayList<>();
-
-		for (Label label: labels){
-
-			int departureTime = (int) (label.remainingTime/10);
-			int chargingTime = label.chargingTime;
-			double reducedCost = label.reducedCost;
-
-			if (chargingTime<departureTime){ // Only performs pricing for the routes that will have at least one column with reduced cost
-
-				int load = dataModel.Q - label.remainingLoad;
-				int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
-				
-				// Retrieve route information
-				boolean isElementary = true;
-				HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
-				ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-				
-				int currentVertex = label.vertex; Label currentLabel = label.clone();
-				int cost = 0;
-
-				while(currentVertex!=dataModel.C+1) {
-					Arc currentArc = dataModel.arcs[currentLabel.nextArc];
-					cost+=currentArc.cost; int nextVertex = currentArc.head;
-					if (currentVertex>=1 && currentVertex<=dataModel.C) {
-						if(route.containsKey(currentVertex)) { route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false;}
-						else route.put(currentVertex, 1);
-					}
-
-					currentLabel = vertices[nextVertex].processedLabels.get(currentLabel.nextLabelIndex);
-					currentVertex = nextVertex; arcs.add(currentArc.id);
-				}
-
-				//Gets the route sequence (of customers)
-				int[] routeSequence = new int[arcs.size()-1];
-				int counter = 0;
-				for(Integer arc: arcs) {
-					if(counter>=routeSequence.length) break;
-					routeSequence[counter] = dataModel.arcs[arc].head; counter++;
-				}
-				
-				// Generate all the non-dominated columns
-				for (int t: pricingProblem.last_charging_periods.get(label.index)){
-
-					double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
-					if (rc < -dataModel.precision){
-						int initial = t-chargingTime+1;
-
-						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, rc, arcs, initial, chargingTime);
-						newRoutes.add(column);
-					}
-
-				}
-			
-			}
-			
-		}
-
-		return newRoutes;
-
-	}
-
-
 	/**
 	 * Finds disjoint block of routes (to diversify)
 	 */
@@ -373,7 +305,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	 */
 	@Override
 	protected void setObjective() {
-		// Nanai
+        // Nanai
 	}
 
 	/**

@@ -31,6 +31,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
 	public Map<Integer, Integer> nonDominatedT;
+	public Map<Integer, ArrayList<Integer>> last_charging_periods;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -101,20 +102,33 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		Map<Integer, List<Label>> labelsByB = new HashMap<>();
 		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
 
-		// 2. Dominance filtering per charging time b
+		// 2. Dominance filtering by charging time b
+		labels = new ArrayList<>(); this.last_charging_periods = new HashMap<>();
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
-			filter_labels_same_chargingTime(entry); // returns the departures with non-fully-dominated labels
+			filter_labels_same_chargingTime(entry, last_charging_periods); // returns the departures with non-fully-dominated labels
+			labels.addAll(entry.getValue());
 		}
+
+		// 3. Remove the labels that won't have any negative reduced cost column
+		List<Label> labels_to_remove = new ArrayList<>();
+		for (Label l: labels) {
+			if (l.reducedCost + this.charging_bounds.get(l.chargingTime).get(l.vertex) > -dataModel.precision) labels_to_remove.add(l);
+		}
+		labels.removeAll(labels_to_remove);
 
 	}
 
-	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry){
+	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry, Map<Integer, ArrayList<Integer>> nonDom_last_charg_periods){
 
 		int b = entry.getKey();
 		List<Label> labels_group = entry.getValue();
 		List<Label> labels_to_remove = new ArrayList<>();
 
-		// (a) group by departure time d and keep only the labels with minimum reduced cost
+		//////////////////////////////////////////////////////////////////////////////
+		///  1. Dominance between labels of same chargingTime and same departureTime
+		//////////////////////////////////////////////////////////////////////////////
+
+		// For every unique departure time d keep only the label with minimum reduced cost
 		Map<Integer, Label> bestPerDeparture = new HashMap<>();
 		for (Label l : labels_group) { // detects dominated labels of same departure time
 			int d = l.vertex; double rc = l.reducedCost;
@@ -129,34 +143,59 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
 		}
 
-		// (b) sort in descending order of departure time
+		//////////////////////////////////////////////////////////////////////////////
+		///  2. Dominance between labels of same chargingTime but diff departureTime
+		//////////////////////////////////////////////////////////////////////////////
+
+		// 2.a. Sort in descending order of departure time
 		List<Label> sorted = new ArrayList<>(bestPerDeparture.values());
 		sorted.sort(Comparator.comparingInt((Label l) -> l.vertex).reversed());
 
-		// (c) sweep to detect dominance in time periods
-
+		// 2.b. Sweep to detect dominance in time periods
 		Label bestLabel = sorted.get(0);
 		double bestRC = bestLabel.reducedCost;
 		
 		int ix = 1;
 		while (ix < sorted.size()) {
-
-			Label l = sorted.get(ix);
-			double rc = l.reducedCost;
-
+			Label l = sorted.get(ix); double rc = l.reducedCost;
 			if (rc < bestRC - dataModel.precision) { // the current best label is partially dominated on t = 1 ... d
-				
 				int d = l.vertex;
 				this.nonDominatedT.put(bestLabel.index, d);
-				
-				// update sweep front
-				bestLabel = l; bestRC = rc;
+				bestLabel = l; bestRC = rc; // update sweep front
 			}  else  { labels_to_remove.add(l); }
 
 			ix ++;
 		}
 		this.nonDominatedT.put(bestLabel.index, b);
 
+		// Remove all the fully dominated labels
 		labels_group.removeAll(labels_to_remove);
+
+		//////////////////////////////////////////////////////////////////////////////
+		///  3. Dominance between columns of the same label
+		//////////////////////////////////////////////////////////////////////////////
+
+		// For each non-fully dominated label, find all the last charging time periods for which they have a non-dominated column
+		for (Label label: labels_group){
+			ArrayList<Integer> nonDom_last_ts = new ArrayList<>();
+
+			int t = label.vertex-1; // Starting at departureTime - 1
+			while (t >= this.nonDominatedT.get(label.index)){
+
+				nonDom_last_ts.add(t);
+
+				int next_t = t-b; // find the next non-dominated time period
+				for (int tt = t; tt >= t-b+1; tt--){
+					if (this.negative_charging_duals.get(tt)){
+						next_t = tt - 1;
+						break;
+					}
+				}
+
+				t = next_t;
+			}
+
+			nonDom_last_charg_periods.put(label.index, nonDom_last_ts);
+		}
 	}
 }

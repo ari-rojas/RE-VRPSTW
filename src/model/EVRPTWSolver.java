@@ -52,7 +52,6 @@ import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
-import columnGeneration.HeuristicLabelingFourthPricingProblemSolver;
 import columnGeneration.HeuristicLabelingFifthPricingProblemSolver;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
