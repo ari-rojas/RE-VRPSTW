@@ -58,7 +58,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Labeling algorithm
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() <= numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
@@ -190,6 +190,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Quick check
 		if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
+		if(source == 0 && reducedCost > -pricingProblem.reducedCostThreshold) return null;
 
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
@@ -347,7 +348,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}
 
-		pricingProblem.bestReducedCost = this.bestReducedCost;
+		if (vertices[dataModel.V].unprocessedLabels.size() < numCols) pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished exact pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
@@ -355,7 +356,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		
 		close();
-		return newRoutes;
+		return disjointBlocks(newRoutes);
 	}
 
 	/**

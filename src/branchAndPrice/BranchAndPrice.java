@@ -330,14 +330,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					if (this.isIntegerNode(bapNode)) { // If is integer, update incumbent
 						this.processIntegerNode(bapNode);
 					} else {
-						
-						// Update of the global Primal Bound in case the local Primal Bound of the node is better
-						if (this.isIntegerSolution(cgIncumbent.cgIncumbentSolution) && (int) cgIncumbent.cgIncumbentObjective < objectiveIncumbentSolution) {
-							int integerObjective = MathProgrammingUtil.doubleToInt(cgIncumbent.cgIncumbentObjective);
-							this.objectiveIncumbentSolution = integerObjective;
-							this.upperBoundOnObjective = cgIncumbent.cgIncumbentObjective;
-							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
-						}
 
 						this.updateNodeGeneratedColumns(bapNode);
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
