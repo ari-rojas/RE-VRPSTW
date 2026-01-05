@@ -174,6 +174,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 
+		if (source==0 && reducedCost>= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
+
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 		int remainingTime = currentLabel.remainingTime-arc.time;
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
@@ -190,7 +192,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Quick check
 		if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
-		if(source == 0 && reducedCost > -pricingProblem.reducedCostThreshold) return null;
 
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
