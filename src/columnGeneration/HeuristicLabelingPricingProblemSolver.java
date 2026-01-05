@@ -56,13 +56,17 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
-				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
-					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
-					else extendedLabel = extendLabelChargingTime(currentLabel, a);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						updateNodesToProcess(extendedLabel);
+					
+				if (currentLabel.vertex == 0) continue;
+				else {
+					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
+						if(infeasibleArcs[a.id] > 0) continue;
+						Label extendedLabel;
+						if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
+						else extendedLabel = extendLabelChargingTime(currentLabel, a);
+						if (extendedLabel!=null) { //verifies if the extension is feasible
+							updateNodesToProcess(extendedLabel);
+						}
 					}
 				}
 			}
