@@ -22,6 +22,20 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
 	public int currentNode;
+	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
+	static {
+		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingFifthPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, false);
+
+		solverCapabilities.put(CBHeuristicThirdSolver.class, true);
+		solverCapabilities.put(CBHeuristicSolver.class, true);
+		solverCapabilities.put(CBHeuristicSecondSolver.class, true);
+		solverCapabilities.put(CBHeuristicFifthSolver.class, true);
+		solverCapabilities.put(CBMinCostSolver.class, true);
+	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
