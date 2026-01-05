@@ -242,41 +242,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
-	protected List<int[]> retrieve_unique_customer_routes(List<Route> solution){
-
-		List<int[]> unique_routes = new ArrayList<>();
-		Set<List<Integer>> seen = new HashSet<>();
-
-		for (Route column: solution) {
-			int[] arr = column.routeSequence;
-			List<Integer> asList = Arrays.stream(arr).boxed().collect(Collectors.toList());
-			if (seen.add(asList)) {
-				unique_routes.add(arr);
-			}
-		}
-		//logger.debug("Found "+unique_routes.size()+" unique customer routes");
-
-		return unique_routes;
-	}
-
-	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
-		// Solve Lexicographic Master Problem
-		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
-
-		long time=System.currentTimeMillis(); double new_cost = 0;
-
-		Master new_Master = ((Master)this.master).copy();
-		//logger.debug("MP Objective: "+this.master.getObjective());
-		new_cost = new_Master.minimizeBatteryDepletion(timeLimit, new ArrayList<Route>(this.master.getColumns(this.pricingProblem)), bapNode.getInequalities(), ((Master)this.master).getMasterData().getBranchingNumberOfVehicles(), ((Master)this.master).getMasterData().getBranchingChargingTimes(), this.master.getObjective());
-		bapNode.storeSolution(new_cost, bapNode.getBound(), new_Master.getSolution(), new_Master.getCuts());
-
-		Double obj = new_Master.getObjective();
-		this.timeSolvingMaster += (System.currentTimeMillis()-time);
-		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj, new_cost);
-
-		return new_cost;
-	}
-
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
