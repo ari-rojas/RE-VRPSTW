@@ -49,7 +49,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		dataModel.infeasibleArcs = this.infeasibleArcs;
 
 		//Labeling algorithm 
-		long startTime = System.currentTimeMillis();
+		
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
@@ -57,13 +57,12 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 					
-				if (currentLabel.vertex == 0) continue;
+				if (currentLabel.vertex == 0) continue; // Extensions beyond the outbound depot are not allowed
 				else {
 					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 						if(infeasibleArcs[a.id] > 0) continue;
-						Label extendedLabel;
-						if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
-						else extendedLabel = extendLabelChargingTime(currentLabel, a);
+
+						Label extendedLabel = extendLabel(currentLabel, a);
 						if (extendedLabel!=null) { //verifies if the extension is feasible
 							updateNodesToProcess(extendedLabel);
 						}
@@ -71,9 +70,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				}
 			}
 		}
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
 
 
@@ -174,28 +170,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	}
 
 	/**
-	 * Label extension procedure
-	 */
-	public Label extendLabelChargingTime(Label currentLabel, Arc arc) {
-
-		int source = arc.tail;
-
-		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime/10)) return null;
-		if(source == dataModel.V && (currentLabel.chargingTime>0 || currentLabel.reducedCost>-dataModel.precision)) return null;
-
-		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
-		reducedCost = Math.floor(reducedCost*10000)/10000;
-		int chargingTime = currentLabel.chargingTime;
-		if(source!=dataModel.V) {
-			chargingTime-=1;
-			if(chargingTime<0) return null;
-		}
-
-		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
-		return extendedLabel;
-	}
-
-	/**
 	 * When the CG procedure terminates, the close function is invoked. 
 	 */
 	@Override
@@ -223,47 +197,19 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	protected List<Route> generateNewColumns() {
 
 		//Solve the problem and check the solution
+
+		long startTime = System.currentTimeMillis();
+
 		this.runLabeling(); 									//runs the labeling algorithm
-		List<Route> newRoutes=new ArrayList<>(this.numCols);  	//list of routes
+		pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+		ArrayList<Route> newRoutes = this.charging_pricing();
 
-		if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;}
-		else {
-			this.pricingProblemInfeasible=false;
-			for (Label label: vertices[dataModel.V].unprocessedLabels) {
-				int departureTime = (int) (label.remainingTime/10);
-				int load = dataModel.Q - label.remainingLoad;
-				if (label.reducedCost<=-dataModel.precision) {	//generate new column if it has negative reduced cost
-					HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C); int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
-					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
-					int currentVertex = label.vertex;
-					while(currentVertex!=dataModel.C+1) {
-						Arc currentArc = dataModel.arcs[label.nextArc];
-						cost+=currentArc.cost;
-						int nextVertex = currentArc.head;
-						if (currentVertex>=1 && currentVertex<=dataModel.C) {
-							if(route.containsKey(currentVertex)) route.replace(currentVertex, route.get(currentVertex)+1); 
-							else route.put(currentVertex, 1);
-						}else if(currentVertex!=dataModel.V && currentVertex!=0) chargingTime++;
+		long totalTime = System.currentTimeMillis()-startTime;
+		dataModel.heuristicPricingTime+=totalTime;
+		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 
-						label = vertices[nextVertex].processedLabels.get(label.nextLabelIndex);
-						if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) arcs.add(currentArc.id);
-						currentVertex = nextVertex;
-					}
-
-					//Gets the route sequence (of customers)
-					int[] routeSequence = new int[arcs.size()-1];
-					int counter = 0;
-					for(Integer arc: arcs) {
-						if(counter>=routeSequence.length) break;
-						routeSequence[counter] = dataModel.arcs[arc].head;
-						counter++;
-					}
-					Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
-					newRoutes.add(column);
-				}
-			}
-		}
+		if (newRoutes.isEmpty()) { pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE; }
+		else {pricingProblemInfeasible=false;}
 
 		if (dataModel.print_log) {
 				logger.debug("Finished heuristic pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
@@ -274,11 +220,11 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		return newRoutes;
 	}
 
-	public ArrayList<Route> charging_pricing(ArrayList<Label> labels){
+	public ArrayList<Route> charging_pricing(){
 
 		ArrayList<Route> newRoutes = new ArrayList<>();
 
-		for (Label label: labels){
+		for (Label label: vertices[0].processedLabels){
 
 			int departureTime = (int) (label.remainingTime/10);
 			int chargingTime = label.chargingTime;
