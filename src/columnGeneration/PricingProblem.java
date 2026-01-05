@@ -26,8 +26,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
 	//Charging pricing information
-	public BitSet negative_charging_duals;
-	public Map<Integer, Map<Integer, Double>> charging_bounds;
+	private BitSet negative_charging_duals;
+	private Map<Integer, Map<Integer, Double>> charging_bounds;
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
 	public Map<Integer, Integer> nonDominatedT;
@@ -94,6 +94,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public void charging_pricing_filtering(ArrayList<Label> labels){
 
 		this.nonDominatedT = new HashMap<>();
+		this.last_charging_periods = new HashMap<>();
 
 		// To avoid constantly recomputing the departure times of the labels, we save them in the vertex field
 		for (Label label: labels) label.vertex = (int)(label.remainingTime/10);
@@ -103,7 +104,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
 
 		// 2. Dominance filtering by charging time b
-		labels = new ArrayList<>(); this.last_charging_periods = new HashMap<>();
+		labels = new ArrayList<>();
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
 			filter_labels_same_chargingTime(entry, last_charging_periods); // returns the departures with non-fully-dominated labels
 			labels.addAll(entry.getValue());

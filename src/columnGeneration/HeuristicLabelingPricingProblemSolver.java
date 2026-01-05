@@ -240,7 +240,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
 				ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
 				
-				int currentVertex = label.vertex; Label currentLabel = label.clone();
+				int currentVertex = 0; Label currentLabel = label.clone();
 				int cost = 0;
 
 				while(currentVertex!=dataModel.C+1) {
