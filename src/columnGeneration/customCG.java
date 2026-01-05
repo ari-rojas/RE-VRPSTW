@@ -23,16 +23,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
 	public int currentNode;
 
-	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
-	static {
-		solverCapabilities.put(HeuristicLabelingFourthPricingProblemSolver.class, true); //out
-		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, true);
-		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, true); // out
-		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, true);
-		solverCapabilities.put(HeuristicLabelingFifthPricingProblemSolver.class, true);
-		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, true);
-	}
-
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
@@ -206,11 +196,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			
-			if (currentNode == 0){
-				newColumns = pricingProblemManager.solvePricingProblems(solver);
-			} else if (solverCapabilities.get(solver)) {
-				newColumns = pricingProblemManager.solvePricingProblems(solver);
-			}
+			newColumns = pricingProblemManager.solvePricingProblems(solver);
 
 			//Stop when we found new columns
 			if(!newColumns.isEmpty()){
