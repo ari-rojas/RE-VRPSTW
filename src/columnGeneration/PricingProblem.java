@@ -31,7 +31,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
 	public Map<Integer, Integer> nonDominatedT;
-	public Map<Integer, ArrayList<Integer>> last_charging_periods;
+	public Map<Integer, BitSet> last_charging_periods;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -121,7 +121,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return filtered_labels;
 	}
 
-	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry, Map<Integer, ArrayList<Integer>> nonDom_last_charg_periods){
+	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry, Map<Integer, BitSet> nonDom_last_charg_periods){
 
 		int b = entry.getKey();
 		List<Label> labels_group = entry.getValue();
@@ -180,12 +180,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		// For each non-fully dominated label, find all the last charging time periods for which they have a non-dominated column
 		for (Label label: labels_group){
-			ArrayList<Integer> nonDom_last_ts = new ArrayList<>();
+			BitSet nonDom_last_ts = new BitSet();
 
 			int t = label.vertex-1; // Starting at departureTime - 1
 			while (t >= this.nonDominatedT.get(label.index)){
 
-				nonDom_last_ts.add(t);
+				nonDom_last_ts.set(t);
 
 				int next_t = t-b; // find the next non-dominated time period
 				for (int tt = t; tt >= t-b+1; tt--){
