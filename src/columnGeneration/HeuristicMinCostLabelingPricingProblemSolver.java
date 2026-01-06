@@ -262,13 +262,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		boolean maxNeighborhoodSize=false;
 		List<Route> newRoutes=new ArrayList<>();  			//list of routes
 		List<Route> nonElementaryRoutes=new ArrayList<>();  //list of nonelementary routes
+		ArrayList<Label> filtered_labels = new ArrayList<>();
 
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			long startTime = System.currentTimeMillis();
 
 			this.runLabeling(); 									//runs the labeling algorithm
-			pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
-			ExactSolution exactSolution = this.charging_pricing();
+			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+			ExactSolution exactSolution = this.charging_pricing(filtered_labels);
 
 			newRoutes = exactSolution.newRoutes; existsElementaryRoute = !newRoutes.isEmpty();
 			nonElementaryRoutes = exactSolution.nonElementaryRoutes;
@@ -302,14 +303,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		return newRoutes;
 	}
 
-	public ExactSolution charging_pricing(){
+	public ExactSolution charging_pricing(ArrayList<Label> labels){
 
 		ArrayList<Route> newRoutes = new ArrayList<>();
 		ArrayList<Route> nonElementaryRoutes = new ArrayList<>();
 
 		this.bestReducedCost = Double.POSITIVE_INFINITY;
 
-		for (Label label: vertices[0].processedLabels){
+		for (Label label: labels){
 
 			int departureTime = (int) (label.remainingTime/10);
 			int chargingTime = label.chargingTime;

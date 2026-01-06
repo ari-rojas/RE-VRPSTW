@@ -91,10 +91,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	public void charging_pricing_filtering(ArrayList<Label> labels){
+	public ArrayList<Label> charging_pricing_filtering(ArrayList<Label> labels){
 
 		this.nonDominatedT = new HashMap<>();
 		this.last_charging_periods = new HashMap<>();
+
+		ArrayList<Label> filtered_labels = new ArrayList<>();
 
 		// To avoid constantly recomputing the departure times of the labels, we save them in the vertex field
 		for (Label label: labels) label.vertex = (int)(label.remainingTime/10);
@@ -104,19 +106,19 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (Label label : labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
 
 		// 2. Dominance filtering by charging time b
-		labels = new ArrayList<>();
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
 			filter_labels_same_chargingTime(entry, last_charging_periods); // returns the departures with non-fully-dominated labels
-			labels.addAll(entry.getValue());
+			filtered_labels.addAll(entry.getValue());
 		}
 
 		// 3. Remove the labels that won't have any negative reduced cost column
 		List<Label> labels_to_remove = new ArrayList<>();
-		for (Label l: labels) {
+		for (Label l: filtered_labels) {
 			if (l.reducedCost + this.charging_bounds.get(l.chargingTime).get(l.vertex) > -dataModel.precision) labels_to_remove.add(l);
 		}
 		labels.removeAll(labels_to_remove);
 
+		return filtered_labels;
 	}
 
 	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry, Map<Integer, ArrayList<Integer>> nonDom_last_charg_periods){

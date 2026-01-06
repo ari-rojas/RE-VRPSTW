@@ -201,8 +201,8 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		long startTime = System.currentTimeMillis();
 
 		this.runLabeling(); 									//runs the labeling algorithm
-		pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
-		ArrayList<Route> newRoutes = this.charging_pricing();
+		ArrayList<Label> filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+		ArrayList<Route> newRoutes = this.charging_pricing(filtered_labels);
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.heuristicPricingTime+=totalTime;
@@ -220,11 +220,11 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		return newRoutes;
 	}
 
-	public ArrayList<Route> charging_pricing(){
+	public ArrayList<Route> charging_pricing(ArrayList<Label> labels){
 
 		ArrayList<Route> newRoutes = new ArrayList<>();
 
-		for (Label label: vertices[0].processedLabels){
+		for (Label label: labels){
 
 			int departureTime = (int) (label.remainingTime/10);
 			int chargingTime = label.chargingTime;
