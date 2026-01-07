@@ -5,6 +5,7 @@ import model.EVRPTW.Arc;
 import model.EVRPTW.Vertex;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -279,8 +280,8 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 					routeSequence[counter] = dataModel.arcs[arc].head; counter++;
 				}
 				
-				// Generate all the non-dominated columns
-				for (int t: pricingProblem.last_charging_periods.get(label.index)){
+				BitSet last_charging_ts = pricingProblem.last_charging_periods.get(label.index);
+				for (int t = last_charging_ts.nextSetBit(0); t >= 0; t = last_charging_ts.nextSetBit(t + 1)){
 
 					double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
 					if (rc < -dataModel.precision){
