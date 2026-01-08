@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import branchAndPrice.ChargingTimeInequality;
 import model.EVRPTW;
+import model.EVRPTW.Vertex;
 
 /**
  * This class defines the pricing problem. 
@@ -296,6 +297,44 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
 		}
 
+	}
+
+	/**
+	 * Verifies if L1 is (strongly) dominated by L2
+	 * @param L1, L2 labels
+	 */
+	public boolean isDominated(Label L1, Label L2) {
+
+		if(L1.vertex>dataModel.C) { //charging time vertices
+			if (L2.chargingTime>L1.chargingTime) return false;
+			if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false;
+			return true;
+
+		}else { //customer vertices
+
+			if (L1.vertex>0 && L2.remainingLoad<L1.remainingLoad) return false; 	//load
+			if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
+			if (L2.remainingTime<L1.remainingTime) return false; 					//time
+			
+			for (int gam = 0; gam <= dataModel.gamma; gam ++){
+				if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false;				 //energy
+			}
+
+			// Ng-paths and unreachable resources
+			Vertex currentVertex = dataModel.vertices[L1.vertex];
+			if (currentVertex.id > 0) {
+				for(int i: dataModel.vertices[currentVertex.id].neighbors) {
+					
+					//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
+					boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
+					if (other_way) {
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}
 	}
 
 	static long pack(int b, int t) {
