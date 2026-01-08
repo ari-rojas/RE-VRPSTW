@@ -119,9 +119,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		Map<Long, Label> columnsMap = new HashMap<>(); BitSet t_set = new BitSet();
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) { filter_labels_same_chargingTime(entry, t_set, columnsMap, columnsIndicator); }
 		
+		Map<Integer, BitSet> fullColumnsIndicator = new HashMap<>();
+		for (Map.Entry<Integer, BitSet> entry: columnsIndicator.entrySet()){
+
+			BitSet newBS = new BitSet(); newBS.or(entry.getValue());
+			fullColumnsIndicator.put(entry.getKey(), newBS);
+		}
+
 		// 3. Dominance between labels of different chargingTime b
 		for (int t = t_set.previousSetBit(t_set.length()-1); t >= 1; t = t_set.previousSetBit(t - 1)){
-			BitSet colsIndicator = columnsIndicator.get(t);
+			// We get the FULL BitSet, to evaluate the dominance of each column, even if it has already been deemed dominated
+			BitSet colsIndicator = fullColumnsIndicator.get(t);
 
 			for (int b = colsIndicator.previousSetBit(colsIndicator.length() - 1); b >= 1; b = colsIndicator.previousSetBit(b - 1)){
 
@@ -138,6 +146,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						bestDiagRC -= dual; current_rc -= dual;
 					}
 
+					// We are only going to assess if the column dominates other columns that haven't been deemed dominated
 					BitSet colsIndicator_t2 = columnsIndicator.get(t2);
 					
 					// The colums in the upper left diagonal from currentLabel have the same b as currentLabel when it is extended to their corresponding ts, so
@@ -145,10 +154,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					for (int bDiag = colsIndicator_t2.previousSetBit(b - (t-t2)); bDiag >= b - (t-t2); bDiag = colsIndicator_t2.previousSetBit(bDiag-1)){
 						Label otherLabel = columnsMap.get(pack(bDiag, t2));
 						if (bestDiagRC < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
-							columnsMap.remove(pack(bDiag, t2));
+							//columnsMap.remove(pack(bDiag, t2));
 							colsIndicator_t2.clear(bDiag);
 						} else { // bestDiag is dominated
-							columnsMap.remove(pack(bestDiagB,bestDiagT));
+							//columnsMap.remove(pack(bestDiagB,bestDiagT));
 							columnsIndicator.get(bestDiagT).clear(bestDiagB);
 
 							bestDiagRC = otherLabel.reducedCost;
@@ -164,7 +173,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						if (b2 != b){
 							Label otherLabel = columnsMap.get(pack(b2,t2));
 							if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
-								columnsMap.remove(pack(b2,t2));
+								//columnsMap.remove(pack(b2,t2));
 								colsIndicator_t2.clear(b2);
 							}
 						}
@@ -176,6 +185,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				}
 
 			}
+		
+			colsIndicator.clear();
 		}
 
 		// Retrieve the resulting non-dominated columns
