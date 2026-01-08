@@ -154,6 +154,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 							bestDiagRC = otherLabel.reducedCost;
 							bestDiagB = bDiag; bestDiagT = t2;
 						}
+
+						//if (bDiag != b-(t-t2)) logger.debug("ERROR AT DIAGONAL");
 					}
 					
 					// For the columns below the diagonal, currentLabel will have a b strictly less than their corresponding b, thus
@@ -166,6 +168,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 								colsIndicator_t2.clear(b2);
 							}
 						}
+
+						//if (b-(t-t2) >= b2) logger.debug("ERROR AT BELOW DIAGONAL: b-(t-t2) = " + (b-(t-t2)) + " b2 = " + b2);
 					}
 
 					previous_t = t2;
