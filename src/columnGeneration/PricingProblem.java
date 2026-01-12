@@ -132,11 +132,20 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// We get the FULL BitSet, to evaluate the dominance of each column, even if it has already been deemed dominated
 			BitSet colsIndicator = fullColumnsIndicator.get(t);
 
-			for (int b = colsIndicator.previousSetBit(colsIndicator.length() - 1); b >= 1; b = colsIndicator.previousSetBit(b - 1)){
+			for (int b = colsIndicator.nextSetBit(0); b >= 1; b = colsIndicator.nextSetBit(b + 1)){
 
 				Label currentLabel = columnsMap.get(pack(b,t));
 				double bestDiagRC = currentLabel.reducedCost; int bestDiagB = b; int bestDiagT = t;
 				double current_rc = currentLabel.reducedCost;
+
+				// The column with last charging time period t and chargingTime b can dominate columns with same t and b2 > b
+				for (int b2 = colsIndicator.nextSetBit(b + 1); b2 >= 1; b2 = colsIndicator.nextSetBit(b2 + 1)){
+					Label otherLabel = columnsMap.get(pack(b2, t));
+					if (current_rc < otherLabel.reducedCost - dataModel.precision){
+						colsIndicator.clear(b2);
+						columnsIndicator.get(t).clear(b2);
+					}
+				}
 
 				int previous_t = t;
 				for (int t2 = t_set.previousSetBit(t - 1); t2 >= t-b+1 ; t2 = t_set.previousSetBit(t2 - 1)){
@@ -155,10 +164,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					for (int bDiag = colsIndicator_t2.previousSetBit(b - (t-t2)); bDiag >= b - (t-t2); bDiag = colsIndicator_t2.previousSetBit(bDiag-1)){
 						Label otherLabel = columnsMap.get(pack(bDiag, t2));
 						if (bestDiagRC < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
-							//columnsMap.remove(pack(bDiag, t2));
 							colsIndicator_t2.clear(bDiag);
 						} else { // bestDiag is dominated
-							//columnsMap.remove(pack(bestDiagB,bestDiagT));
 							columnsIndicator.get(bestDiagT).clear(bestDiagB);
 
 							bestDiagRC = otherLabel.reducedCost;
@@ -174,7 +181,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						if (b2 != b){
 							Label otherLabel = columnsMap.get(pack(b2,t2));
 							if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
-								//columnsMap.remove(pack(b2,t2));
 								colsIndicator_t2.clear(b2);
 							}
 						}
