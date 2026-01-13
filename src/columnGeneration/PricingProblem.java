@@ -119,33 +119,28 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		Map<Integer, BitSet> columnsIndicator = new HashMap<>();
 		Map<Long, Label> columnsMap = new HashMap<>(); BitSet t_set = new BitSet();
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) { filter_labels_same_chargingTime(entry, t_set, columnsMap, columnsIndicator); }
-		
-		Map<Integer, BitSet> fullColumnsIndicator = new HashMap<>();
-		for (Map.Entry<Integer, BitSet> entry: columnsIndicator.entrySet()){
-
-			BitSet newBS = new BitSet(); newBS.or(entry.getValue());
-			fullColumnsIndicator.put(entry.getKey(), newBS);
-		}
 
 		// 3. Dominance between labels of different chargingTime b
 		for (int t = t_set.previousSetBit(t_set.length()-1); t >= 1; t = t_set.previousSetBit(t - 1)){
 			// We get the FULL BitSet, to evaluate the dominance of each column, even if it has already been deemed dominated
-			BitSet colsIndicator = fullColumnsIndicator.get(t);
+			BitSet colsIndicator = columnsIndicator.get(t);
 
-			for (int b = colsIndicator.nextSetBit(0); b >= 1; b = colsIndicator.nextSetBit(b + 1)){
+			for (int b = colsIndicator.previousSetBit(colsIndicator.length() - 1); b >= 1; b = colsIndicator.previousSetBit(b - 1)){
 
 				Label currentLabel = columnsMap.get(pack(b,t));
-				double bestDiagRC = currentLabel.reducedCost; int bestDiagB = b; int bestDiagT = t;
 				double current_rc = currentLabel.reducedCost;
 
-				// The column with last charging time period t and chargingTime b can dominate columns with same t and b2 > b
-				for (int b2 = colsIndicator.nextSetBit(b + 1); b2 >= 1; b2 = colsIndicator.nextSetBit(b2 + 1)){
+				// At t, currentLabel can be dominated by columns with b2 < b
+				boolean dominated = false;
+				for (int b2 = colsIndicator.previousSetBit(b - 1); b2 >= 1; b2 = colsIndicator.previousSetBit(b2 - 1)){
 					Label otherLabel = columnsMap.get(pack(b2, t));
-					if (current_rc < otherLabel.reducedCost - dataModel.precision){
-						colsIndicator.clear(b2);
-						columnsIndicator.get(t).clear(b2);
+					if (otherLabel.reducedCost < current_rc - dataModel.precision){ // currentLabel is dominated
+						colsIndicator.clear(b);
+						dominated = true; break;
 					}
 				}
+
+				if (dominated) continue;
 
 				int previous_t = t;
 				for (int t2 = t_set.previousSetBit(t - 1); t2 >= t-b+1 ; t2 = t_set.previousSetBit(t2 - 1)){
@@ -153,47 +148,39 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					// Update the reduced costs (as the labels are "extended")
 					for (int tt = previous_t; tt > t2; tt--){
 						double dual = this.dualCosts[dataModel.C + tt - 1];
-						bestDiagRC -= dual; current_rc -= dual;
+						current_rc -= dual;
 					}
 
-					// We are only going to assess if the column dominates other columns that haven't been deemed dominated
 					BitSet colsIndicator_t2 = columnsIndicator.get(t2);
-					
-					// The colums in the upper left diagonal from currentLabel have the same b as currentLabel when it is extended to their corresponding ts, so
-					// the dominance can be evaluated both ways, and only one column in the diagonal will be non-dominated
-					for (int bDiag = colsIndicator_t2.previousSetBit(b - (t-t2)); bDiag >= b - (t-t2); bDiag = colsIndicator_t2.previousSetBit(bDiag-1)){
-						Label otherLabel = columnsMap.get(pack(bDiag, t2));
-						if (bestDiagRC < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
-							colsIndicator_t2.clear(bDiag);
-						} else { // bestDiag is dominated
-							columnsIndicator.get(bestDiagT).clear(bestDiagB);
 
-							bestDiagRC = otherLabel.reducedCost;
-							bestDiagB = bDiag; bestDiagT = t2;
+					// For the columns above the diagonal, currentLabel has a b strictly greater than their corresponding b2, thus
+					// currentLabel can be dominated by them.
+					for (int b2 = colsIndicator_t2.previousSetBit(b - (t-t2)); b2 >= 1; b2 = colsIndicator_t2.previousSetBit(b2 - 1)){
+						Label otherLabel = columnsMap.get(pack(b2, t2));
+						if (otherLabel.reducedCost < current_rc - dataModel.precision){ // currentLabel is dominated
+							colsIndicator.clear(b);
+							dominated = true; break;
 						}
-
-						//if (bDiag != b-(t-t2)) logger.debug("ERROR AT DIAGONAL");
 					}
 					
-					// For the columns below the diagonal, currentLabel will have a b strictly less than their corresponding b, thus
-					// only currentLabel can dominate them, not the other way around
-					for (int b2 = colsIndicator_t2.previousSetBit(colsIndicator_t2.length()-1); b2 > b - (t-t2); b2 = colsIndicator_t2.previousSetBit(b2-1)){
+					// For the columns below the diagonal, currentLabel has a b strictly lower than their corresponding b2, thus
+					// currentLabel can dominate them. For the column in the diagonal, currentLabel and otherLabel have the same b.
+					for (int b2 = colsIndicator_t2.previousSetBit(colsIndicator_t2.length()-1); b2 >= b - (t-t2); b2 = colsIndicator_t2.previousSetBit(b2-1)){
 						if (b2 != b){
 							Label otherLabel = columnsMap.get(pack(b2,t2));
 							if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
 								colsIndicator_t2.clear(b2);
 							}
 						}
-
-						//if (b-(t-t2) >= b2) logger.debug("ERROR AT BELOW DIAGONAL: b-(t-t2) = " + (b-(t-t2)) + " b2 = " + b2);
 					}
 
+					// If the currentLabel is dominated, it won't be extended to previous time periods.
+					if (dominated) break;
 					previous_t = t2;
 				}
 
 			}
 		
-			colsIndicator.clear();
 		}
 
 		// Retrieve the resulting non-dominated columns
