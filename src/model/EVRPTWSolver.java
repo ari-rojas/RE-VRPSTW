@@ -254,7 +254,7 @@ public final class EVRPTWSolver {
 		int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "NewPricing312", args[2]);
-		//EVRPTW evrptw = new EVRPTW("C103-50", 0, 0, true, "Bounding2", "Debug");
+		//EVRPTW evrptw = new EVRPTW("R103-25", 0, 0, true, "NewPricing312", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}

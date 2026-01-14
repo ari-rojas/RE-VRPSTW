@@ -162,7 +162,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				if (dominated) continue;
 
-				int previous_t = t;
+				int previous_t = t; boolean canDominateSame = !this.negative_charging_duals.get(t);
 				for (int t2 = t_set.previousSetBit(t - 1); t2 >= t-b+1 ; t2 = t_set.previousSetBit(t2 - 1)){
 
 					// Update the reduced costs (as the labels are "extended")
@@ -193,9 +193,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						}
 					}
 					
-					if (t2 >= this.nonDominatedT.get(currentLabel.index) && !this.negative_charging_duals.get(t)){
-						colsIndicator_t2.clear(b);
-					}
+					if (t2 >= this.nonDominatedT.get(currentLabel.index) && canDominateSame){ colsIndicator_t2.clear(b); } 
+					if (canDominateSame) { canDominateSame = !this.negative_charging_duals.get(t2); }
 
 					for (int b2 = colsIndicator_t2.nextSetBit(b + 1); b2 >= 1; b2 = colsIndicator_t2.nextSetBit(b2 + 1)){
 						Label otherLabel = columnsMap.get(pack(b2,t2));
