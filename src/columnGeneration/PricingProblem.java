@@ -111,7 +111,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 		// From the routing labeling algorithm, we know that a label of index i is NOT dominated by labels of
 		// index {1, ..., i-1}, but we haven't evaluated whether it is dominated by the labels of index {i+1, ... I}
-		BitSet labels_to_remove = new BitSet();
+		/* BitSet labels_to_remove = new BitSet();
 		for (int i = 0; i<filtered_labels.size(); i++){
 			Label l = filtered_labels.get(i);
 			for (int j = i+1; j<filtered_labels.size(); j++){
@@ -121,7 +121,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 
 		for (int ix = labels_to_remove.previousSetBit(labels_to_remove.length() - 1); ix >= 0; ix = labels_to_remove.previousSetBit(ix - 1)){ filtered_labels.remove(ix); }
-		
+		 */
 		//////////////////////////////////////////////////////////
 		/// 2. Labels dominance
 		//////////////////////////////////////////////////////////
