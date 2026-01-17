@@ -379,11 +379,11 @@ public class Experiments {
             /// Decision Variables
             ///////////////////////////////////////////////////////////////////////
             
-            IloNumVar[][] x = new IloNumVar[nR][nT]; // 1 if route r is assigned to start charging at time t using charger b, 0 otherwise
-            IloNumVar[][] y = new IloNumVar[nR][nT]; // 1 if roure r is scheduled to charge at time t using charger b, 0 otherwise
+            IloNumVar[][] x = new IloNumVar[nR][nT+1]; // 1 if route r is assigned to start charging at time t using charger b, 0 otherwise
+            IloNumVar[][] y = new IloNumVar[nR][nT+1]; // 1 if roure r is scheduled to charge at time t using charger b, 0 otherwise
 
             for (int r = 0; r < nR; r++) {
-                for (int t = 0; t < nT; t++) {
+                for (int t = 1; t <= nT; t++) {
                     x[r][t] = cplex.boolVar("x_" + r + "_" + t);
                     y[r][t] = cplex.boolVar("y_" + r + "_" + t);
                 }
@@ -397,7 +397,7 @@ public class Experiments {
                 IloLinearNumExpr assignedChargers = cplex.linearNumExpr();
                 IloLinearNumExpr chargingDuration = cplex.linearNumExpr();
 
-                for (int t = 0; t < nT; t++) {
+                for (int t = 1; t <= nT; t++) {
                     assignedChargers.addTerm(1.0, x[r][t]);
                     chargingDuration.addTerm(1.0, y[r][t]);
                 }
@@ -406,7 +406,7 @@ public class Experiments {
                 cplex.addEq(chargingDuration, (double) chargingTimes[r], "charge_amount_r_"+r);         // (2) Each route charges for exactly chargingTimes[r] time periods
             }
             
-            for (int t = 0; t < nT; t++) {
+            for (int t = 1; t <= nT; t++) {
                 IloLinearNumExpr chargerUtilization = cplex.linearNumExpr();
                 for (int r = 0; r < nR; r++) chargerUtilization.addTerm(1.0, y[r][t]);
                 
@@ -417,7 +417,7 @@ public class Experiments {
                 int c = chargingTimes[r];
                 int d = departureTimes[r];
 
-                for (int t = 0; t < nT; t++) {
+                for (int t = 1; t <= nT; t++) {
 
                     // If the route has enough time periods ahead of t to complete its charging
                     if (t + c - 1 < d) { 
@@ -448,7 +448,7 @@ public class Experiments {
             for (int r = 0; r < nR; r++) {
                 int init_t = 0;
 
-                for (int t = 0; t < nT; t++) { if (cplex.getValue(x[r][t]) > 0.5) { init_t = t; break; } }
+                for (int t = 1; t <= nT; t++) { if (cplex.getValue(x[r][t]) > 0.5) { init_t = t; break; } }
                 startingTimes[r] = init_t;
             }
 
