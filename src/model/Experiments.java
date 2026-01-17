@@ -379,15 +379,13 @@ public class Experiments {
             /// Decision Variables
             ///////////////////////////////////////////////////////////////////////
             
-            IloNumVar[][][] x = new IloNumVar[nR][nB][nT]; // 1 if route r is assigned to start charging at time t using charger b, 0 otherwise
-            IloNumVar[][][] y = new IloNumVar[nR][nB][nT]; // 1 if roure r is scheduled to charge at time t using charger b, 0 otherwise
+            IloNumVar[][] x = new IloNumVar[nR][nT]; // 1 if route r is assigned to start charging at time t using charger b, 0 otherwise
+            IloNumVar[][] y = new IloNumVar[nR][nT]; // 1 if roure r is scheduled to charge at time t using charger b, 0 otherwise
 
             for (int r = 0; r < nR; r++) {
-                for (int b = 0; b < nB; b++) {
-                    for (int t = 0; t < nT; t++) {
-                        x[r][b][t] = cplex.boolVar("x_" + r + "_" + b + "_" + t);
-                        y[r][b][t] = cplex.boolVar("y_" + r + "_" + b + "_" + t);
-                    }
+                for (int t = 0; t < nT; t++) {
+                    x[r][t] = cplex.boolVar("x_" + r + "_" + t);
+                    y[r][t] = cplex.boolVar("y_" + r + "_" + t);
                 }
             }
 
@@ -399,48 +397,43 @@ public class Experiments {
                 IloLinearNumExpr assignedChargers = cplex.linearNumExpr();
                 IloLinearNumExpr chargingDuration = cplex.linearNumExpr();
 
-                for (int b = 0; b < nB; b++) {
-                    for (int t = 0; t < nT; t++) {
-                        assignedChargers.addTerm(1.0, x[r][b][t]);
-                        chargingDuration.addTerm(1.0, y[r][b][t]);
-                    }
+                for (int t = 0; t < nT; t++) {
+                    assignedChargers.addTerm(1.0, x[r][t]);
+                    chargingDuration.addTerm(1.0, y[r][t]);
                 }
 
-                cplex.addEq(assignedChargers, 1.0, "one_start_r_"+r);                                   // (1) Each route uses only one charger, exactly one time
+                cplex.addEq(assignedChargers, 1.0, "one_start_r_"+r);                                   // (1) Each route most recharge exactly one time
                 cplex.addEq(chargingDuration, (double) chargingTimes[r], "charge_amount_r_"+r);         // (2) Each route charges for exactly chargingTimes[r] time periods
             }
             
-            for (int b = 0; b < nB; b++) {
-                for (int t = 0; t < nT; t++) {
-                    IloLinearNumExpr chargerUtilization = cplex.linearNumExpr();
-                    for (int r = 0; r < nR; r++) chargerUtilization.addTerm(1.0, y[r][b][t]);
-                    
-                    cplex.addLe(chargerUtilization, 1.0, "cap_b_"+b+"_t_"+t);                           // (3) Each charger can be used by at most one route each time period
-                }
+            for (int t = 0; t < nT; t++) {
+                IloLinearNumExpr chargerUtilization = cplex.linearNumExpr();
+                for (int r = 0; r < nR; r++) chargerUtilization.addTerm(1.0, y[r][t]);
+                
+                cplex.addLe(chargerUtilization, nB, "cap_t_"+t);                                        // (3) At most B routes recharging at the same time in each time period
             }
 
             for (int r = 0; r < nR; r++) {
                 int c = chargingTimes[r];
                 int d = departureTimes[r];
 
-                for (int b = 0; b < nB; b++) {
-                    for (int t = 0; t < nT; t++) {
+                for (int t = 0; t < nT; t++) {
 
-                        // If the route has enough time periods ahead of t to complete its charging
-                        if (t + c - 1 < d) { 
-                            
-                            IloLinearNumExpr consecutiveCharging = cplex.linearNumExpr();
-                            for (int j = t; j < t + c; j++) { consecutiveCharging.addTerm(1.0, y[r][b][j]); }
+                    // If the route has enough time periods ahead of t to complete its charging
+                    if (t + c - 1 < d) { 
+                        
+                        IloLinearNumExpr consecutiveCharging = cplex.linearNumExpr();
+                        for (int j = t; j < t + c; j++) { consecutiveCharging.addTerm(1.0, y[r][j]); }
 
-                            IloNumExpr rhs = cplex.prod((double) c, x[r][b][t]);
-                            cplex.addGe(consecutiveCharging, rhs, "consecutive_r_"+r+"_b_"+b+"_t_"+t);  // (4.a) The route must charge for chargingTimes[r] consecutive time periods if it is scheduled to start at time t   
+                        IloNumExpr rhs = cplex.prod((double) c, x[r][t]);
+                        cplex.addGe(consecutiveCharging, rhs, "consecutive_r_"+r+"_t_"+t);  // (4.a) The route must charge for chargingTimes[r] consecutive time periods if it is scheduled to start at time t   
 
-                        } else {
-                            
-                            cplex.addEq(x[r][b][t], 0.0, "forbidstart_r_"+r+"_b_"+b +"_t_"+t);          // (4.b) The route is forbidden to start charging at t
-                        }
+                    } else {
+                        
+                        cplex.addEq(x[r][t], 0.0, "forbidstart_r_"+r+"_t_"+t);          // (4.b) The route is forbidden from starting to charge at t
                     }
                 }
+                
             }
 
             // Objective: 0 (feasibility)
@@ -456,9 +449,9 @@ public class Experiments {
                 int init_t = 0;
 
                 for (int t = 0; t < nT; t++) {
-                    for (int b = 0; b < nB; b++) {
-                        if (cplex.getValue(x[r][b][t]) > 0.5) { init_t = t; break; }
-                    }
+                    
+                    if (cplex.getValue(x[r][t]) > 0.5) { init_t = t; break; }
+                    
                     if (init_t != 0) break;
                 }
 
