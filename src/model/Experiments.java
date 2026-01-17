@@ -349,7 +349,7 @@ public class Experiments {
             System.setOut(fileOut);
 
             System.out.println("================ SOLUTION BPC - " + instance +" ================");
-            System.out.println("BAP terminated with objective: "+getScaledObjective(obj));
+            System.out.println("BAP terminated with objective: "+obj);
             System.out.println("Total Number of iterations: "+0);
             System.out.println("Total Number of processed nodes: "+0);
             System.out.println("Total Time spent on master problems (s): "+0+" Total time spent on pricing problems (s): "+0);
