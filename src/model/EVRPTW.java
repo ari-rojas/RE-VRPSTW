@@ -30,6 +30,7 @@ import columnGeneration.Label;
 public final class EVRPTW implements ModelInterface {
 
 	public final String instanceName;						//instance name
+	public PrintStream fileOut;
 
 	//Basic information
 	public int C; 											//number of customers
@@ -90,8 +91,8 @@ public final class EVRPTW implements ModelInterface {
 
 		//create a new file output stream.
 		if (this.print_log){
-			PrintStream fileOut = new PrintStream("./results/log/"+this.algorithm+"/"+this.experiment+"/"+this.getName()+".log");
-			System.setOut(fileOut);
+			this.fileOut = new PrintStream("./results/log/"+this.algorithm+"/"+this.experiment+"/"+this.getName()+".log");
+			System.setOut(this.fileOut);
 		}
 
 		//read the instance

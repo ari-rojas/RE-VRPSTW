@@ -1,9 +1,10 @@
 package model;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.PriorityQueue;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -15,6 +16,15 @@ import org.w3c.dom.Element;
 import java.io.File;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
+
+import model.EVRPTW.Arc;
+
+import columnGeneration.Route;
+import ilog.concert.IloException;
+import ilog.concert.IloLinearNumExpr;
+import ilog.concert.IloNumExpr;
+import ilog.concert.IloNumVar;
+import ilog.cplex.IloCplex;
 
 public class Experiments {
 
@@ -75,7 +85,7 @@ public class Experiments {
                 while (!same_obj){
         
                     EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW","tuning");
-                    EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
+                    EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
         
                     Double obj = Solver.upperBound;
                     if (obj.doubleValue() == last_obj.doubleValue() && obj.doubleValue() < 100000) same_obj = true;
@@ -116,7 +126,7 @@ public class Experiments {
             int B = Integer.parseInt(unb_B.getElementsByTagName("K").item(0).getTextContent());
 
             EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning");
-            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
+            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
 
             deleteStaticObject(Configuration.class, "instance");
 
@@ -156,7 +166,7 @@ public class Experiments {
                         Double last_obj = 10000.;
                         for (int B=max_chargers; B >= min_chargers; B--){
                             EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning");
-                            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
+                            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
 
                             Double obj = Solver.upperBound;
                             if (obj.doubleValue() > last_obj.doubleValue()){
@@ -194,7 +204,7 @@ public class Experiments {
                     if (!name.equals("")) {
                         
                         EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "RE-VRSPTW", experiment);
-                        EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
+                        EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
             
                         deleteStaticObject(Configuration.class, "instance");
                     }
@@ -211,6 +221,271 @@ public class Experiments {
 
     }
 
+    public static void run_robustness_experiments(String instance){
+
+        String alg = "Priority312-Long";
+        if (instance != "C204-50"){
+            try {
+
+                int gamma = 0;
+                if (instance == "R211-50") gamma = 1;
+
+                while (gamma <= 10){
+                    
+                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma);
+                    EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
+
+                    Solver.solve(32400000L); evrptw.fileOut.close();
+                    ArrayList<Route> solution = Solver.close();
+
+                    double obj = Solver.upperBound;
+                    boolean isOptimal = Solver.isOptimal;
+
+                    int next_gamma = gamma + 1;
+                    if (obj > 1e7 && isOptimal){ // the experiment and all the ones that follow it are infeasible
+
+                        for (int g = gamma+1; g <= 10; g++) printSolutionToLogFile(alg, "Gamma"+g, instance, obj, solution, 0);
+                        break;
+
+                    } else if (gamma <= 10) {
+
+                        // Retrieve the solution
+                        int nR = solution.size(); int[] departureTimes = new int[nR]; int maxT = 0;
+
+                        int[] nominalEnergy = new int[nR];
+                        PriorityQueue<Integer>[] energyDeviations = new PriorityQueue[nR];
+                        int[] worstCaseEnergy = new int[nR];
+                        for (int r = 0; r < nR; r++){
+
+                            Route route = solution.get(r);
+
+                            int d = route.departureTime; departureTimes[r] = d;
+                            if (d > maxT) maxT = d;
+                            
+                            int nomEnergy = 0;
+                            PriorityQueue<Integer> energyDevs = new PriorityQueue<>(Comparator.reverseOrder());
+                            for (Integer arcID: route.arcs){
+                                Arc arc = evrptw.arcs[arcID];
+                                nomEnergy += arc.energy;
+                                energyDevs.add(arc.energy_deviation);
+                            }
+
+                            nominalEnergy[r] = nomEnergy;
+
+                            int worstEnergy = nomEnergy;
+                            for (int g = 1; g <= gamma; g++) {
+                                Integer dev = energyDevs.poll();
+                                if (dev != null) worstEnergy += dev;
+                                else break;
+                            }
+
+                            energyDeviations[r] = energyDevs; worstCaseEnergy[r] = worstEnergy;
+
+                        }
+
+                        boolean isRobust = true; 
+                        // Assess the robustness of the current solution
+                        for (int g = gamma+1; g <= 10; g++){
+
+                            long startTime = System.currentTimeMillis();
+                            int[] chargingTimes = new int[nR];
+                            
+                            for (int r = 0; r < nR; r++){
+
+                                int worstEnergy = worstCaseEnergy[r];
+                                Integer nextWorseDev = energyDeviations[r].poll();
+                                if (nextWorseDev != null) worstEnergy += nextWorseDev;
+
+                                if (worstEnergy > evrptw.E) { isRobust = false; break; }
+                                worstCaseEnergy[r] = worstEnergy;
+
+                                chargingTimes[r] = evrptw.f_inverse[worstEnergy];
+
+                            }
+
+                            if (!isRobust) break;
+
+                            // Solving the Charging Scheduling Model
+                            SchedulingResult result = findFeasibleChargingSchedule(nR, evrptw.B, maxT, departureTimes, chargingTimes);
+
+                            if (!result.feasible) break;
+
+                            // Retrieving the robust solution
+                            int[] startingTimes = result.startingTimes;
+                            ArrayList<Route> robust_solution = new ArrayList<>();
+                            for (int r = 0; r < nR; r++){
+
+                                Route route = solution.get(r);
+                                Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), startingTimes[r], chargingTimes[r]);
+                                new_route.value = 1;
+
+                                robust_solution.add(new_route);
+                            }
+
+                            long totalTime = System.currentTimeMillis()-startTime;
+                            printSolutionToLogFile(alg, "Gamma"+g, instance, obj, robust_solution, totalTime);
+
+                            next_gamma ++;
+
+                        }
+
+                    }
+
+                    gamma = next_gamma;
+                    deleteStaticObject(Configuration.class, "instance");
+
+                }
+
+            } catch (Exception ex) { ex.printStackTrace(); }
+        
+        }
+
+    }
+
+    public static void printSolutionToLogFile(String algorithm, String experiment, String instance, double obj, List<Route> solution, long time) {
+
+        try {
+            PrintStream fileOut = new PrintStream("./results/log/"+algorithm+"/"+experiment+"/"+instance+".log");
+            System.setOut(fileOut);
+
+            System.out.println("================ SOLUTION BPC - " + instance +" ================");
+            System.out.println("BAP terminated with objective: "+getScaledObjective(obj));
+            System.out.println("Total Number of iterations: "+0);
+            System.out.println("Total Number of processed nodes: "+0);
+            System.out.println("Total Time spent on master problems (s): "+0+" Total time spent on pricing problems (s): "+0);
+            System.out.println("Total running time (s): "+ getTimeInSeconds(time));
+            
+            System.out.println("Solution is optimal: "+true);
+            System.out.println("Columns (only non-zero columns are returned):");
+
+            for (Route column : solution){
+                System.out.println(column.toString());
+            }
+
+            fileOut.close();
+
+        } catch (Exception e) { e.printStackTrace();}
+	}
+
+    public static SchedulingResult findFeasibleChargingSchedule( int nR, int nB, int nT, int[] departureTimes, int[] chargingTimes) throws IloException {
+
+        try {
+
+            IloCplex cplex = new IloCplex();
+            cplex.setOut(null);
+            cplex.setParam(IloCplex.Param.Threads, 1);
+
+            ///////////////////////////////////////////////////////////////////////
+            /// Decision Variables
+            ///////////////////////////////////////////////////////////////////////
+            
+            IloNumVar[][][] x = new IloNumVar[nR][nB][nT]; // 1 if route r is assigned to start charging at time t using charger b, 0 otherwise
+            IloNumVar[][][] y = new IloNumVar[nR][nB][nT]; // 1 if roure r is scheduled to charge at time t using charger b, 0 otherwise
+
+            for (int r = 0; r < nR; r++) {
+                for (int b = 0; b < nB; b++) {
+                    for (int t = 0; t < nT; t++) {
+                        x[r][b][t] = cplex.boolVar("x_" + r + "_" + b + "_" + t);
+                        y[r][b][t] = cplex.boolVar("y_" + r + "_" + b + "_" + t);
+                    }
+                }
+            }
+
+            ///////////////////////////////////////////////////////////////////////
+            /// Constraints
+            ///////////////////////////////////////////////////////////////////////
+            
+            for (int r = 0; r < nR; r++) {
+                IloLinearNumExpr assignedChargers = cplex.linearNumExpr();
+                IloLinearNumExpr chargingDuration = cplex.linearNumExpr();
+
+                for (int b = 0; b < nB; b++) {
+                    for (int t = 0; t < nT; t++) {
+                        assignedChargers.addTerm(1.0, x[r][b][t]);
+                        chargingDuration.addTerm(1.0, y[r][b][t]);
+                    }
+                }
+
+                cplex.addEq(assignedChargers, 1.0, "one_start_r_"+r);                                   // (1) Each route uses only one charger, exactly one time
+                cplex.addEq(chargingDuration, (double) chargingTimes[r], "charge_amount_r_"+r);         // (2) Each route charges for exactly chargingTimes[r] time periods
+            }
+            
+            for (int b = 0; b < nB; b++) {
+                for (int t = 0; t < nT; t++) {
+                    IloLinearNumExpr chargerUtilization = cplex.linearNumExpr();
+                    for (int r = 0; r < nR; r++) chargerUtilization.addTerm(1.0, y[r][b][t]);
+                    
+                    cplex.addLe(chargerUtilization, 1.0, "cap_b_"+b+"_t_"+t);                           // (3) Each charger can be used by at most one route each time period
+                }
+            }
+
+            for (int r = 0; r < nR; r++) {
+                int c = chargingTimes[r];
+                int d = departureTimes[r];
+
+                for (int b = 0; b < nB; b++) {
+                    for (int t = 0; t < nT; t++) {
+
+                        // If the route has enough time periods ahead of t to complete its charging
+                        if (t + c - 1 < d) { 
+                            
+                            IloLinearNumExpr consecutiveCharging = cplex.linearNumExpr();
+                            for (int j = t; j < t + c; j++) { consecutiveCharging.addTerm(1.0, y[r][b][j]); }
+
+                            IloNumExpr rhs = cplex.prod((double) c, x[r][b][t]);
+                            cplex.addGe(consecutiveCharging, rhs, "consecutive_r_"+r+"_b_"+b+"_t_"+t);  // (4.a) The route must charge for chargingTimes[r] consecutive time periods if it is scheduled to start at time t   
+
+                        } else {
+                            
+                            cplex.addEq(x[r][b][t], 0.0, "forbidstart_r_"+r+"_b_"+b +"_t_"+t);          // (4.b) The route is forbidden to start charging at t
+                        }
+                    }
+                }
+            }
+
+            // Objective: 0 (feasibility)
+            cplex.addMinimize(cplex.constant(0.0));
+            boolean feasible = cplex.solve();
+
+            if (!feasible) return new SchedulingResult(false,null);
+
+            // Extract solution
+            int[] startingTimes = new int[nR];
+
+            for (int r = 0; r < nR; r++) {
+                int init_t = 0;
+
+                for (int t = 0; t < nT; t++) {
+                    for (int b = 0; b < nB; b++) {
+                        if (cplex.getValue(x[r][b][t]) > 0.5) { init_t = t; break; }
+                    }
+                    if (init_t != 0) break;
+                }
+
+                startingTimes[r] = init_t;
+            }
+
+            cplex.end();
+            return new SchedulingResult(true, startingTimes);
+
+        } catch (IloException e) { e.printStackTrace(); return new SchedulingResult(false, null); }
+
+    }
+
+    /** Returns the real (double) objective (divided by 10). */
+	public static double getScaledObjective(double objective) {
+		double realCost = objective;
+		realCost = realCost*0.1+0.05;
+		return Math.floor(realCost*10)/10;
+	}
+
+	/** Returns the time in seconds (and considering two decimals). */
+	public static double getTimeInSeconds(double time) {
+		double realTime = time*0.001;
+		realTime = Math.floor(realTime*100)/100; //two decimals
+		return realTime;
+	}
+
     public static void run_experiments(int gamma, String experiment){
 
         run_experiments("", gamma, experiment);
@@ -219,7 +494,19 @@ public class Experiments {
 
     public static void main(String[] args){
 
-        run_experiments(args[0], Integer.parseInt(args[1]), args[2]);
+        run_robustness_experiments(args[0]);
     
+    }
+
+    public static class SchedulingResult {
+
+        public final boolean feasible;
+        // Optional: store solutions (only if feasible)
+        public final int[] startingTimes;
+
+        public SchedulingResult(boolean feasible, int[] starts) {
+            this.feasible = feasible;
+            this.startingTimes = starts;
+        }
     }
 }
