@@ -448,13 +448,7 @@ public class Experiments {
             for (int r = 0; r < nR; r++) {
                 int init_t = 0;
 
-                for (int t = 0; t < nT; t++) {
-                    
-                    if (cplex.getValue(x[r][t]) > 0.5) { init_t = t; break; }
-                    
-                    if (init_t != 0) break;
-                }
-
+                for (int t = 0; t < nT; t++) { if (cplex.getValue(x[r][t]) > 0.5) { init_t = t; break; } }
                 startingTimes[r] = init_t;
             }
 
