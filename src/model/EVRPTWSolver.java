@@ -250,11 +250,14 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		/* int gamma = Integer.parseInt(args[1]);
+		int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Priority312", args[2]);
-		//EVRPTW evrptw = new EVRPTW("R103-25", 0, 0, true, "Bounding2", "Debug");
-		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null); */
+		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "Priority312", "Debug");
+		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
+
+		Solver.solve(10800000L); evrptw.fileOut.close();
+		Solver.close();
 
 	}
 
