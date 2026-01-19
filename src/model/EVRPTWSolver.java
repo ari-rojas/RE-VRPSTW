@@ -102,14 +102,14 @@ public final class EVRPTWSolver {
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
 		//solvers.add(HeuristicLabelingFourthPricingProblemSolver.class);
-		solvers.add(HeuristicLabelingThirdPricingProblemSolver.class);
-		solvers.add(HeuristicLabelingPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
+		//solvers.add(HeuristicLabelingThirdPricingProblemSolver.class);
+		//solvers.add(HeuristicLabelingPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
 		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		//solvers.add(HeuristicLabelingFifthPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 
-		solvers.add(CBHeuristicThirdSolver.class);
-		solvers.add(CBHeuristicSolver.class);
+		//solvers.add(CBHeuristicThirdSolver.class);
+		//solvers.add(CBHeuristicSolver.class);
 		solvers.add(CBHeuristicSecondSolver.class);
 		//solvers.add(CBHeuristicFifthSolver.class);
 		solvers.add(CBMinCostSolver.class);
@@ -252,7 +252,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Priority312", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Priority2", args[2]);
 		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "Priority312", "Debug");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
 
