@@ -30,7 +30,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	//Charging pricing information
 	private BitSet negative_charging_duals;
-	private Map<Integer, Map<Integer, Double>> charging_bounds;
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
 	private HashMap<Integer, Integer> nonDominatedT;
@@ -43,7 +42,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public void compute_charging_bounds(){
 
 		this.charging_reducedCosts = new HashMap<>();
-		this.charging_bounds = new HashMap<>();
 		this.negative_charging_duals = new BitSet();
 
 		// 1. Group by charging time b
@@ -70,10 +68,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
         	TreeSet<Integer> departures = e.getValue();
 
 			int initial_t = 1;
-			double rc = - (S[b]-S[0]); double min_rc = rc;
+			double rc = - (S[b]-S[0]);
 
 			Map<Integer, Double> reducedCostsMap = new LinkedHashMap<>(); reducedCostsMap.put(b, rc);
-			Map<Integer, Double> boundsMap = new LinkedHashMap<>();
 			
 			for (int d: departures){
 				if (d <= b) continue; // skip if departure does not allow for sufficient charging
@@ -81,14 +78,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				for (int t=initial_t; t<=d-b-1; t++){
 					rc = - (S[t+b] - S[t]);
 					reducedCostsMap.put(t+b, rc);
-					if (rc < min_rc - dataModel.precision) min_rc = rc;
 				}
-				boundsMap.put(d, min_rc);
 				initial_t = d-b;
 			}
 				
 			this.charging_reducedCosts.put(b, reducedCostsMap);
-			this.charging_bounds.put(b, boundsMap);
 			
 		}
 
