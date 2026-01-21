@@ -107,7 +107,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		// Only labels that will generate at least one column with negative reduced cost are accounted for
 		ArrayList<Label> filtered_labels = new ArrayList<>();
-		for (Label l: labels){ if (l.reducedCost + this.charging_bounds.get(l.chargingTime).get(l.vertex) < -dataModel.precision) filtered_labels.add(l); }
+		for (Label l: labels){ if (l.reducedCost < -dataModel.precision) filtered_labels.add(l); }
 		
 		// From the routing labeling algorithm, we know that a label of index i is NOT dominated by labels of
 		// index {1, ..., i-1}, but we haven't evaluated whether it is dominated by the labels of index {i+1, ... I}
@@ -142,7 +142,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Long, Label> columnsMap = new HashMap<>();
 		this.last_charging_periods = new HashMap<>();
-		for (Label l: filtered_labels) l.vertex = (int)(l.reducedCost + this.charging_bounds.get(l.chargingTime).get(l.vertex));
+		for (Label l: filtered_labels) l.vertex = (int)(l.reducedCost);
 		filtered_labels.sort( Comparator.comparingInt( l -> l.vertex) );
 		
 		// 3. Dominance between labels of different chargingTime b and different last_t t
