@@ -71,7 +71,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	public void runChargingLabeling() {
 		
 		//initialization
-		this.nodesToProcess.add(vertices[0]);
+		if (!vertices[0].unprocessedLabels.isEmpty()) this.nodesToProcess.add(vertices[0]);
 
 		//Labeling algorithm 
 		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() <= numCols && System.currentTimeMillis()<timeLimit) {
