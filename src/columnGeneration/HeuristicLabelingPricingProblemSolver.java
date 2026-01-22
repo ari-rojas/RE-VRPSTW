@@ -117,16 +117,17 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	public void updateRoutingNodesToProcess(Label extendedLabel) {
 		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
 		currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
+		
 	}
 
 	/** Given a new (non-dominated) label, updates the nodes to be processed. */
 	public void updateChargingNodesToProcess(Label extendedLabel) {
 		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id != dataModel.V && currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
 		currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != dataModel.V && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 	}
 
 	/** Label extension procedure. */
