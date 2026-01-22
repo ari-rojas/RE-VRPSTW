@@ -56,14 +56,12 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				
 				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
-					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
-					else extendedLabel = extendLabelChargingTime(currentLabel, a);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						updateNodesToProcess(extendedLabel);
-					}
+
+					Label extendedLabel = extendLabel(currentLabel, a);
+					if (extendedLabel!=null) updateRoutingNodesToProcess(extendedLabel);
 				}
 			}
 		}
@@ -82,14 +80,12 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				
 				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
-					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
-					else extendedLabel = extendLabelChargingTime(currentLabel, a);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						updateNodesToProcess(extendedLabel);
-					}
+					
+					Label extendedLabel = extendLabelChargingTime(currentLabel, a);
+					if (extendedLabel!=null)  updateChargingNodesToProcess(extendedLabel);
 				}
 			}
 		}
@@ -118,11 +114,19 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	}
 
 	/** Given a new (non-dominated) label, updates the nodes to be processed. */
-	public void updateNodesToProcess(Label extendedLabel) {
+	public void updateRoutingNodesToProcess(Label extendedLabel) {
+		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id == dataModel.V) vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
-		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
-		else currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
+		currentVertex.unprocessedLabels.add(extendedLabel);
+	}
+
+	/** Given a new (non-dominated) label, updates the nodes to be processed. */
+	public void updateChargingNodesToProcess(Label extendedLabel) {
+		
+		Vertex currentVertex = vertices[extendedLabel.vertex];
+		if(currentVertex.id != dataModel.V && currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
+		currentVertex.unprocessedLabels.add(extendedLabel);
 	}
 
 	/** Label extension procedure. */
