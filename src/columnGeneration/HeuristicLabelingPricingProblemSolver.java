@@ -211,6 +211,10 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			if(chargingTime<0) return null;
 		}
 
+		if (source == dataModel.V){
+			if (currentLabel.reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
+		}
+
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
 	}
