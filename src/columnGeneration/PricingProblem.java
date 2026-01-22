@@ -28,6 +28,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
+	public int maxCols = 400;
+
 	//Charging pricing information
 	private BitSet negative_charging_duals;
 	private Map<Integer, Map<Integer, Double>> charging_bounds;
@@ -146,7 +148,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		filtered_labels.sort( Comparator.comparingInt( l -> l.vertex) );
 		
 		// 3. Dominance between labels of different chargingTime b and different last_t t
-		ArrayList<Label> to_remove = new ArrayList<>();
 		for (Label currentLabel: filtered_labels){
 			
 			int b = currentLabel.chargingTime;
@@ -241,9 +242,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				t = next_t;
 			}
 
-			if (!last_charging_periods.containsKey(index)) to_remove.add(currentLabel);
+			if (columnsMap.size() > this.maxCols) break;
 		}
-
+		
+		ArrayList<Label> to_remove = new ArrayList<>();
+		for (Label l: filtered_labels)	if (!last_charging_periods.containsKey(l.index)) to_remove.add(l);
 		filtered_labels.removeAll(to_remove);
 
 		return filtered_labels;
