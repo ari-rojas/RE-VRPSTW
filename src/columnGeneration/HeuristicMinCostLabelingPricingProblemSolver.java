@@ -384,7 +384,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		
 		close();
-		return disjointBlocks(newRoutes);
+		return newRoutes;
 	}
 
 	/**
