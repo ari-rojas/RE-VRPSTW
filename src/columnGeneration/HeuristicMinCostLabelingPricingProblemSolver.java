@@ -43,44 +43,58 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		this.nodesToProcess = new PriorityQueue<Vertex>(dataModel.V, new SortVertices());
 	}
 
-	/**
-	 * Runs the labeling algorithm
-	 */
-	public void runLabeling() {
-
-		this.bestReducedCost = Double.MAX_VALUE;
-		//Initialization
+	/** Runs the labeling algorithm. */
+	public void runRoutingLabeling() {
+		
+		//initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
-		Label initialLabel = new Label(dataModel.C+1, dataModel.C+1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
+		Label initialLabel = new Label(dataModel.C+1, -1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
 		this.nodesToProcess.add(vertices[dataModel.C+1]);
 		initialLabel.index = 0;
 		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
+		dataModel.infeasibleArcs = this.infeasibleArcs;
 
-		//Labeling algorithm
-		long startTime = System.currentTimeMillis();
+		//Labeling algorithm 
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
+			for(Label currentLabel: labelsToProcessNext) {
+				boolean isDominated = checkDominance(currentLabel);
+				if(isDominated) continue;
+				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				
+				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
+					if(infeasibleArcs[a.id] > 0) continue;
+
+					Label extendedLabel = extendLabel(currentLabel, a);
+					if (extendedLabel!=null) updateRoutingNodesToProcess(extendedLabel);
+				}
+			}
+		}
+	}
+
+	/** Runs the labeling algorithm. */
+	public void runChargingLabeling() {
+		
+		//initialization
+		this.nodesToProcess.add(vertices[0]);
+
+		//Labeling algorithm 
 		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() <= numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				
 				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
-					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
-					else extendedLabel = extendLabelChargingTime(currentLabel, a);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						updateNodesToProcess(extendedLabel);
-					}
+					
+					Label extendedLabel = extendLabelChargingTime(currentLabel, a);
+					if (extendedLabel!=null)  updateChargingNodesToProcess(extendedLabel);
 				}
 			}
 		}
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
-
 
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
@@ -108,14 +122,20 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	}
 
 
-	/**
-	 * Given a new (non-dominated) label, updates the nodes to be processed
-	 */
-	public void updateNodesToProcess(Label extendedLabel) {
+	/** Given a new (non-dominated) label, updates the nodes to be processed. */
+	public void updateRoutingNodesToProcess(Label extendedLabel) {
+		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id == dataModel.V) vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
-		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
-		else currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
+		currentVertex.unprocessedLabels.add(extendedLabel);
+	}
+
+	/** Given a new (non-dominated) label, updates the nodes to be processed. */
+	public void updateChargingNodesToProcess(Label extendedLabel) {
+		
+		Vertex currentVertex = vertices[extendedLabel.vertex];
+		if(currentVertex.id != dataModel.V && currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
+		currentVertex.unprocessedLabels.add(extendedLabel);
 	}
 
 	/**
@@ -294,7 +314,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
 
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
-			this.runLabeling(); 										//runs the labeling algorithm
+			//Solve the problem and check the solution
+			long startTime = System.currentTimeMillis();
+			this.runRoutingLabeling(); 									//runs the routing labeling algorithm
+			this.runChargingLabeling();									//runs the charging labeling algorithm
+			long totalTime = System.currentTimeMillis()-startTime;
+			dataModel.exactPricingTime+=totalTime;
+			if (dataModel.print_log) logger.debug("Time solving (exact) the pricing problem (s): " + getTimeInSeconds(totalTime));
 
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
