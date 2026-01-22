@@ -268,7 +268,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		}
 
 		close(); //restart
-		return disjointBlocks(newRoutes);
+		return newRoutes;
 	}
 
 	/**
