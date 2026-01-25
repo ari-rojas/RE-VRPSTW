@@ -293,7 +293,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}
 
-		pricingProblem.bestReducedCost = this.bestReducedCost;
+		if (pricingProblem.isExact) pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");

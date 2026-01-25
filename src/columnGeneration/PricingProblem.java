@@ -29,6 +29,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
 	public int maxCols = 400;
+	public boolean isExact;
 
 	//Charging pricing information
 	private BitSet negative_charging_duals;
@@ -93,6 +94,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<Label> charging_pricing_filtering(ArrayList<Label> labels){
 
 		this.nonDominatedT = new HashMap<>();
+		this.isExact = true;
 
 		//////////////////////////////////////////////////////////
 		/// 1. Bounding Procedure and Preprocessing
@@ -216,13 +218,15 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				// If the column with last_t t of currentLabel is NOT dominated, map the column
 				// and find the next non-dominated time period
-				columnsMap.put(pack(b,t), currentLabel);
-				columnsIndicator.get(b).set(t);
+				if (currentLabel.reducedCost + this.charging_reducedCosts.get(b).get(t) < - dataModel.precision){
+					columnsMap.put(pack(b,t), currentLabel);
+					columnsIndicator.get(b).set(t);
 
-				if (this.last_charging_periods.containsKey(index)) this.last_charging_periods.get(index).set(t);
-				else {
-					BitSet newBit = new BitSet(); newBit.set(t);
-					this.last_charging_periods.put(index, newBit);
+					if (this.last_charging_periods.containsKey(index)) this.last_charging_periods.get(index).set(t);
+					else {
+						BitSet newBit = new BitSet(); newBit.set(t);
+						this.last_charging_periods.put(index, newBit);
+					}
 				}
 				
 				int next_t = t-b; 
@@ -236,7 +240,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				t = next_t;
 			}
 
-			if (columnsMap.size() > this.maxCols) break;
+			if (columnsMap.size() > this.maxCols) { this.isExact = false; break;}
 		}
 		
 		ArrayList<Label> to_remove = new ArrayList<>();
