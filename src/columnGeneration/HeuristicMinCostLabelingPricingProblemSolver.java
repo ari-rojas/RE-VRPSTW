@@ -27,7 +27,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 	public Vertex[] vertices = dataModel.vertices; 			//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
-	public final int numCols = 400; 						//maximum number of routes (columns) allowed
+	public final int numCols = 600; 						//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 
