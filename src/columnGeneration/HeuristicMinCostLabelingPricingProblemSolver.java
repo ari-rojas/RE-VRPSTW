@@ -73,6 +73,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							updateNodesToProcess(extendedLabel);
 						}
 					}
+				} else { // The currentVertex is 0, the label corresponds to a complete route.
+					
+					List<Label> labels_to_remove = new ArrayList<>();
+					for (Label processedLabel: vertices[0].processedLabels){ if (isDominated(processedLabel, currentLabel)) labels_to_remove.add(processedLabel); }
+					vertices[0].processedLabels.removeAll(labels_to_remove);
+
+					vertices[0].processedLabels.add(currentLabel);
+
 				}
 			}
 		}
