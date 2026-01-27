@@ -55,13 +55,26 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
-				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
-				
-				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-					if(infeasibleArcs[a.id] > 0) continue;
+				else if (currentLabel.vertex > 0) { // The non-dominated label is marked as processed and extended along its incoming arcs.
+					currentLabel.index = vertices[currentLabel.vertex].processedLabels.size();
+					vertices[currentLabel.vertex].processedLabels.add(currentLabel);
+					
+					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
+						if(infeasibleArcs[a.id] > 0) continue;
 
-					Label extendedLabel = extendLabel(currentLabel, a);
-					if (extendedLabel!=null) updateRoutingNodesToProcess(extendedLabel);
+						Label extendedLabel = extendLabel(currentLabel, a);
+						if (extendedLabel!=null) { //verifies if the extension is feasible
+							updateRoutingNodesToProcess(extendedLabel);
+						}
+					}
+				} else { // The currentVertex is 0, the label corresponds to a complete route.
+					
+					List<Label> labels_to_remove = new ArrayList<>();
+					for (Label processedLabel: vertices[0].processedLabels){ if (isDominated(processedLabel, currentLabel)) labels_to_remove.add(processedLabel); }
+					vertices[0].processedLabels.removeAll(labels_to_remove);
+
+					vertices[0].processedLabels.add(currentLabel);
+
 				}
 			}
 		}
@@ -71,13 +84,20 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	public void runChargingLabeling() {
 		
 		//initialization
-		if (!vertices[0].unprocessedLabels.isEmpty()) this.nodesToProcess.add(vertices[0]);
+		if (!vertices[0].processedLabels.isEmpty()){
+			vertices[0].unprocessedLabels.addAll(vertices[0].processedLabels);
+			vertices[0].processedLabels.clear();
+			this.nodesToProcess.add(vertices[0]);
+		}
 
-		//Labeling algorithm 
+		//Labeling algorithm
 		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() < numCols && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
-				boolean isDominated = checkDominance(currentLabel);
+				
+				boolean isDominated = false;
+				if (currentLabel.vertex != 0) isDominated = checkDominance(currentLabel);
+
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 				
@@ -85,7 +105,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					if(infeasibleArcs[a.id] > 0) continue;
 					
 					Label extendedLabel = extendLabelChargingTime(currentLabel, a);
-					if (extendedLabel!=null)  updateChargingNodesToProcess(extendedLabel);
+					if (extendedLabel!=null) updateChargingNodesToProcess(extendedLabel);
 				}
 			}
 		}
@@ -118,7 +138,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
 		currentVertex.unprocessedLabels.add(extendedLabel);
-		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
+		if(currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 		
 	}
 
