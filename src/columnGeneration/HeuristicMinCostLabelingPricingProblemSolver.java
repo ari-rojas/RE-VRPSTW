@@ -95,7 +95,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		//Labeling algorithm 
-		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() < numCols && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				
