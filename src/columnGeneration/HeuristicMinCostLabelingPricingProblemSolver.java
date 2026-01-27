@@ -61,10 +61,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
-				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				else if (currentLabel.vertex > 0) { // The non-dominated label is marked as processed and extended along its incoming arcs.
+					currentLabel.index = vertices[currentLabel.vertex].processedLabels.size();
+					vertices[currentLabel.vertex].processedLabels.add(currentLabel);
 					
-				if (currentLabel.vertex == 0) continue; // Extensions beyond the outbound depot are not allowed
-				else {
 					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
 						if(infeasibleArcs[a.id] > 0) continue;
 
@@ -73,6 +73,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							updateNodesToProcess(extendedLabel);
 						}
 					}
+				} else { // The currentVertex is 0, the label corresponds to a complete route.
+					
+					List<Label> labels_to_remove = new ArrayList<>();
+					for (Label processedLabel: vertices[0].processedLabels){ if (isDominated(processedLabel, currentLabel)) labels_to_remove.add(processedLabel); }
+					vertices[0].processedLabels.removeAll(labels_to_remove);
+
+					vertices[0].processedLabels.add(currentLabel);
+
 				}
 			}
 		}

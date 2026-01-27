@@ -28,7 +28,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
-	public int maxCols = 400;
+	public int maxCols = 800;
 	public boolean isExact;
 
 	//Charging pricing information
@@ -101,25 +101,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		//////////////////////////////////////////////////////////
 
 		// To avoid constantly recomputing the departure times of the labels, we save them in the vertex field
-		for (Label label: labels) label.vertex = (int)(label.remainingTime/10);
+		int ix = 0;
+		for (Label label: labels) { label.index = ix; label.vertex = (int)(label.remainingTime/10); ix ++; }
 
 		// Only labels that will generate at least one column with negative reduced cost are accounted for
 		ArrayList<Label> filtered_labels = new ArrayList<>();
 		for (Label l: labels){ if (l.reducedCost < -dataModel.precision) filtered_labels.add(l); }
-		
-		// From the routing labeling algorithm, we know that a label of index i is NOT dominated by labels of
-		// index {1, ..., i-1}, but we haven't evaluated whether it is dominated by the labels of index {i+1, ... I}
-		/* BitSet labels_to_remove = new BitSet();
-		for (int i = 0; i<filtered_labels.size(); i++){
-			Label l = filtered_labels.get(i);
-			for (int j = i+1; j<filtered_labels.size(); j++){
-				Label l2 = filtered_labels.get(j);
-				if (isDominated(l, l2)) { labels_to_remove.set(i); break; }
-			}
-		}
 
-		for (int ix = labels_to_remove.previousSetBit(labels_to_remove.length() - 1); ix >= 0; ix = labels_to_remove.previousSetBit(ix - 1)){ filtered_labels.remove(ix); }
-		 */
 		//////////////////////////////////////////////////////////
 		/// 2. Labels dominance
 		//////////////////////////////////////////////////////////
@@ -140,8 +128,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Long, Label> columnsMap = new HashMap<>();
 		this.last_charging_periods = new HashMap<>();
-		for (Label l: filtered_labels) l.vertex = (int)(l.reducedCost);
-		filtered_labels.sort( Comparator.comparingInt( l -> l.vertex) );
+		filtered_labels.sort( Comparator.comparingDouble( l -> l.reducedCost) );
 		
 		// 3. Dominance between labels of different chargingTime b and different last_t t
 		for (Label currentLabel: filtered_labels){
@@ -240,7 +227,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				t = next_t;
 			}
 
-			if (columnsMap.size() > this.maxCols) { this.isExact = false; break;}
+			//if (columnsMap.size() > this.maxCols) { this.isExact = false; break;}
 		}
 		
 		ArrayList<Label> to_remove = new ArrayList<>();
