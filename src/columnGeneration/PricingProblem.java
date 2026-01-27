@@ -91,7 +91,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	public ArrayList<Label> charging_pricing_filtering(ArrayList<Label> labels){
+	public ArrayList<Label> charging_pricing_filtering(PriorityQueue<Label> labels){
 
 		this.nonDominatedT = new HashMap<>();
 		this.isExact = true;
@@ -107,7 +107,20 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		// Only labels that will generate at least one column with negative reduced cost are accounted for
 		ArrayList<Label> filtered_labels = new ArrayList<>();
 		for (Label l: labels){ if (l.reducedCost < -dataModel.precision) filtered_labels.add(l); }
+		
+		// From the routing labeling algorithm, we know that a label of index i is NOT dominated by labels of
+		// index {1, ..., i-1}, but we haven't evaluated whether it is dominated by the labels of index {i+1, ... I}
+		/* BitSet labels_to_remove = new BitSet();
+		for (int i = 0; i<filtered_labels.size(); i++){
+			Label l = filtered_labels.get(i);
+			for (int j = i+1; j<filtered_labels.size(); j++){
+				Label l2 = filtered_labels.get(j);
+				if (isDominated(l, l2)) { labels_to_remove.set(i); break; }
+			}
+		}
 
+		for (int ix = labels_to_remove.previousSetBit(labels_to_remove.length() - 1); ix >= 0; ix = labels_to_remove.previousSetBit(ix - 1)){ filtered_labels.remove(ix); }
+		 */
 		//////////////////////////////////////////////////////////
 		/// 2. Labels dominance
 		//////////////////////////////////////////////////////////
@@ -128,7 +141,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Long, Label> columnsMap = new HashMap<>();
 		this.last_charging_periods = new HashMap<>();
-		filtered_labels.sort( Comparator.comparingDouble( l -> l.reducedCost) );
+		for (Label l: filtered_labels) l.vertex = (int)(l.reducedCost);
+		filtered_labels.sort( Comparator.comparingInt( l -> l.vertex) );
 		
 		// 3. Dominance between labels of different chargingTime b and different last_t t
 		for (Label currentLabel: filtered_labels){

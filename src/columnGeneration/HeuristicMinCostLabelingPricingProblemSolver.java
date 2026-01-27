@@ -73,14 +73,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							updateNodesToProcess(extendedLabel);
 						}
 					}
-				} else { // The currentVertex is 0, the label corresponds to a complete route.
-					
-					List<Label> labels_to_remove = new ArrayList<>();
-					for (Label processedLabel: vertices[0].processedLabels){ if (isDominated(processedLabel, currentLabel)) labels_to_remove.add(processedLabel); }
-					vertices[0].processedLabels.removeAll(labels_to_remove);
-
-					vertices[0].processedLabels.add(currentLabel);
-
 				}
 			}
 		}
@@ -113,14 +105,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	}
 
 
-	/**
-	 * Given a new (non-dominated) label, updates the nodes to be processed
-	 */
+	/** Given a new (non-dominated) label, updates the nodes to be processed. */
 	public void updateNodesToProcess(Label extendedLabel) {
+		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id == dataModel.V) vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
-		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
-		else currentVertex.unprocessedLabels.add(extendedLabel);
+		currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 	}
 
 	/**
@@ -277,7 +267,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			long startTime = System.currentTimeMillis();
 
 			this.runLabeling(); 									//runs the labeling algorithm
-			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].unprocessedLabels);
 			ExactSolution exactSolution = this.charging_pricing(filtered_labels);
 
 			newRoutes = exactSolution.newRoutes; existsElementaryRoute = !newRoutes.isEmpty();
