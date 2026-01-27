@@ -105,14 +105,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	}
 
 
-	/**
-	 * Given a new (non-dominated) label, updates the nodes to be processed
-	 */
+	/** Given a new (non-dominated) label, updates the nodes to be processed. */
 	public void updateNodesToProcess(Label extendedLabel) {
+		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id == dataModel.V) vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
-		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
-		else currentVertex.unprocessedLabels.add(extendedLabel);
+		currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 	}
 
 	/**
