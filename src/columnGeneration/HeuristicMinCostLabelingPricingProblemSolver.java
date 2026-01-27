@@ -59,8 +59,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
-				boolean isDominated = checkDominance(currentLabel);
+				
+				boolean isDominated;
+				if (currentLabel.vertex == 0) isDominated = checkDominanceAtDepot(currentLabel);
+				else isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
+				
 				else if (currentLabel.vertex > 0) { // The non-dominated label is marked as processed and extended along its incoming arcs.
 					currentLabel.index = vertices[currentLabel.vertex].processedLabels.size();
 					vertices[currentLabel.vertex].processedLabels.add(currentLabel);
@@ -76,7 +80,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				} else { // The currentVertex is 0, the label corresponds to a complete route.
 					
 					List<Label> labels_to_remove = new ArrayList<>();
-					for (Label processedLabel: vertices[0].processedLabels){ if (isDominated(processedLabel, currentLabel)) labels_to_remove.add(processedLabel); }
+					for (Label processedLabel: vertices[0].processedLabels){ if (isDominatedAtDepot(processedLabel, currentLabel)) labels_to_remove.add(processedLabel); }
 					vertices[0].processedLabels.removeAll(labels_to_remove);
 
 					vertices[0].processedLabels.add(currentLabel);
@@ -100,7 +104,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			else {
 				boolean isDominated = false;
 				for(Label L2: labelsToProcessNext) {
-					isDominated = isDominated(currentLabel, L2);
+					if (currentVertex.id == 0) isDominated = isDominatedAtDepot(currentLabel, L2);
+					else isDominated = isDominated(currentLabel, L2);
 					if(isDominated) break;
 				}
 				if(!isDominated) labelsToProcessNext.add(currentLabel);
@@ -471,6 +476,30 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		return false;
 	}
 
+	/**
+	 * Verifies if a label is dominated. Returns true if it is, false otherwise.
+	 * If the label is dominated it is discarded
+	 * If the label is not dominated, the existing labels dominated by the label is discarded
+	 * @param label to which check dominance
+	 */
+	public boolean checkDominanceAtDepot(Label newLabel) {
+		Vertex currentVertex = vertices[newLabel.vertex];
+
+		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
+		for(Label existingLabel: currentVertex.unprocessedLabels) {
+			if(isDominatedAtDepot(existingLabel, newLabel)) labelsToDelete.add(existingLabel);
+		}
+
+		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
+		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
+
+		for(Label existingLabel: currentVertex.processedLabels) {
+			if(isDominatedAtDepot(newLabel, existingLabel))
+				return true;
+		}
+		return false;
+	}
+
 
 	/**
 	 * Verifies if L1 is (strongly) dominated by L2
@@ -528,6 +557,20 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 			return true;
 		}
+	}
+
+	/**
+	 * Verifies if L1 is (strongly) dominated by L2 (Heuristic rule)
+	 * @param L1, L2 labels
+	 */
+	public boolean isDominatedAtDepot(Label L1, Label L2) {
+
+		if (L1.vertex>0 && L1.remainingLoad > L2.remainingLoad) return false; 		// Load
+		if ((int)(L1.remainingTime/10) > (int)(L2.remainingTime/10)) return false; 	// Departure Time
+		if (L1.chargingTime < L2.chargingTime) return false;						// Charging Time
+		if (L2.reducedCost > L1.reducedCost + dataModel.precision) return false;	// Reduced Cost
+		
+		return true;
 	}
 
 
