@@ -63,19 +63,17 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
-					
-				if (currentLabel.vertex == 0) continue; // Extensions beyond the outbound depot are not allowed
-				else {
-					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-						if(a.tail > 0 && a.head <= dataModel.C && a.modifiedCost >= -dataModel.precision) continue;
-						if(infeasibleArcs[a.id] > 0) continue;
+				
+				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
+					if(a.tail > 0 && a.head <= dataModel.C && a.modifiedCost >= -dataModel.precision) continue;
+					if(infeasibleArcs[a.id] > 0) continue;
 
-						Label extendedLabel = extendLabel(currentLabel, a);
-						if (extendedLabel!=null) { //verifies if the extension is feasible
-							updateNodesToProcess(extendedLabel);
-						}
+					Label extendedLabel = extendLabel(currentLabel, a);
+					if (extendedLabel!=null) { //verifies if the extension is feasible
+						updateNodesToProcess(extendedLabel);
 					}
 				}
+				
 			}
 		}
 	}
@@ -107,14 +105,12 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 	}
 
 
-	/**
-	 * Given a new (non-dominated) label, updates the nodes to be processed
-	 */
+	/** Given a new (non-dominated) label, updates the nodes to be processed. */
 	public void updateNodesToProcess(Label extendedLabel) {
+		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
-		if(currentVertex.id == dataModel.V) vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
-		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
-		else currentVertex.unprocessedLabels.add(extendedLabel);
+		currentVertex.unprocessedLabels.add(extendedLabel);
+		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 	}
 
 	/**
@@ -218,7 +214,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		long startTime = System.currentTimeMillis();
 
 		this.runLabeling(); 									//runs the labeling algorithm
-		ArrayList<Label> filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+		ArrayList<Label> filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].unprocessedLabels);
 		ArrayList<Route> newRoutes = this.charging_pricing(filtered_labels);
 
 		long totalTime = System.currentTimeMillis()-startTime;

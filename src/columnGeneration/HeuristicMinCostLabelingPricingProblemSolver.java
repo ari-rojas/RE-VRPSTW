@@ -62,18 +62,16 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
-					
-				if (currentLabel.vertex == 0) continue; // Extensions beyond the outbound depot are not allowed
-				else {
-					for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-						if(infeasibleArcs[a.id] > 0) continue;
+				
+				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
+					if(infeasibleArcs[a.id] > 0) continue;
 
-						Label extendedLabel = extendLabel(currentLabel, a);
-						if (extendedLabel!=null) { //verifies if the extension is feasible
-							updateNodesToProcess(extendedLabel);
-						}
+					Label extendedLabel = extendLabel(currentLabel, a);
+					if (extendedLabel!=null) { //verifies if the extension is feasible
+						updateNodesToProcess(extendedLabel);
 					}
 				}
+				
 			}
 		}
 	}
@@ -267,7 +265,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			long startTime = System.currentTimeMillis();
 
 			this.runLabeling(); 									//runs the labeling algorithm
-			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].unprocessedLabels);
 			ExactSolution exactSolution = this.charging_pricing(filtered_labels);
 
 			newRoutes = exactSolution.newRoutes; existsElementaryRoute = !newRoutes.isEmpty();
