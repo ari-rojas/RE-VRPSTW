@@ -120,7 +120,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		
 		Vertex currentVertex = vertices[extendedLabel.vertex];
 		currentVertex.unprocessedLabels.add(extendedLabel);
-		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
+		if (currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 	}
 
 	/**
@@ -224,7 +224,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		long startTime = System.currentTimeMillis();
 
 		this.runLabeling(); 									//runs the labeling algorithm
-		ArrayList<Label> filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].unprocessedLabels);
+		ArrayList<Label> filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
 		ArrayList<Route> newRoutes = this.charging_pricing(filtered_labels);
 
 		long totalTime = System.currentTimeMillis()-startTime;

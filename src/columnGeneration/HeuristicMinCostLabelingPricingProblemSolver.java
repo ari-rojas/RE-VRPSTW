@@ -113,12 +113,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	}
 
 
-	/** Given a new (non-dominated) label, updates the nodes to be processed. */
+	/**
+	 * Given a new (non-dominated) label, updates the nodes to be processed
+	 */
 	public void updateNodesToProcess(Label extendedLabel) {
-		
+
 		Vertex currentVertex = vertices[extendedLabel.vertex];
 		currentVertex.unprocessedLabels.add(extendedLabel);
-		if(currentVertex.id != 0 && currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
+		if (currentVertex.unprocessedLabels.size() == 1) nodesToProcess.add(currentVertex);
 	}
 
 	/**
@@ -275,7 +277,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			long startTime = System.currentTimeMillis();
 
 			this.runLabeling(); 									//runs the labeling algorithm
-			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].unprocessedLabels);
+			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
 			ExactSolution exactSolution = this.charging_pricing(filtered_labels);
 
 			newRoutes = exactSolution.newRoutes; existsElementaryRoute = !newRoutes.isEmpty();
