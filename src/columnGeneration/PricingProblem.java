@@ -44,7 +44,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		// Include the charging branching information for the bounds
 		int i=0;
 		for(ChargingTimeInequality branching: this.branchesOnChargingTimes) {
-			this.dualCosts[dataModel.C + branching.timestep - 1] -= this.dualCosts[dataModel.C+dataModel.last_charging_period+this.subsetRowCuts.size()+i]; i++;
+			this.dualCosts[dataModel.C + branching.timestep - 1] += this.dualCosts[dataModel.C+dataModel.last_charging_period+this.subsetRowCuts.size()+i]; i++;
 		}
 
 		// Precompute fixed sums of the charging dual variables
