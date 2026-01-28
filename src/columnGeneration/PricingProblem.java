@@ -214,11 +214,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				if (dominated){ t = t - 1; continue; }
 
 				// If the column with last_t t of currentLabel is NOT dominated, map the column
-				// and find the next non-dominated time period
+				
 				if (currentLabel.reducedCost + this.charging_reducedCosts.get(b).get(t) < - dataModel.precision){
 					columnsMap.put(pack(b,t), currentLabel);
 					columnsIndicator.get(b).set(t);
-
 					if (this.last_charging_periods.containsKey(index)) this.last_charging_periods.get(index).set(t);
 					else {
 						BitSet newBit = new BitSet(); newBit.set(t);
@@ -226,9 +225,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					}
 				}
 				
-
+				// and find the next non-dominated time period
 				int next_t = t-b; double current_rc = currentLabel.reducedCost;
-				for (int tt = t; tt >= t-b+1; tt--){
+				for (int tt = t; tt >= t-b+2; tt--){
 					current_rc -= this.dualCosts[dataModel.C + tt - 1];
 					if (currentLabel.reducedCost < current_rc - dataModel.precision){
 						next_t = tt - 1;
