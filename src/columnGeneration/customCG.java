@@ -25,19 +25,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public boolean needsChargingBranchingPricing;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
-	static {
-		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, false);
-		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, false);
-		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, false);
-		solverCapabilities.put(HeuristicLabelingFifthPricingProblemSolver.class, false);
-		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, false);
-
-		solverCapabilities.put(CBHeuristicThirdSolver.class, true);
-		solverCapabilities.put(CBHeuristicSolver.class, true);
-		solverCapabilities.put(CBHeuristicSecondSolver.class, true);
-		solverCapabilities.put(CBHeuristicFifthSolver.class, true);
-		solverCapabilities.put(CBMinCostSolver.class, true);
-	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
@@ -216,9 +203,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			
-			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
-				newColumns = pricingProblemManager.solvePricingProblems(solver);
-			}
+			newColumns = pricingProblemManager.solvePricingProblems(solver);
 
 			//Stop when we found new columns
 			if(!newColumns.isEmpty()){
