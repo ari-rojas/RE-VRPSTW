@@ -123,7 +123,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
 			int b = entry.getKey(); b_set.set(b);
 			columnsIndicator.put(b, new BitSet());
-			filter_labels_same_chargingTime(entry, filtered_labels);
+			filter_labels_same_chargingTime(entry);
 		}
 
 		Map<Long, Label> columnsMap = new HashMap<>();
@@ -237,58 +237,31 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return filtered_labels;
 	}
 
-	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry, ArrayList<Label> all_labels){
+	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry){
 
 		int b = entry.getKey();
 		List<Label> labels_group = entry.getValue();
-		List<Label> labels_to_remove = new ArrayList<>();
 
 		//////////////////////////////////////////////////////////////////////////////
-		///  1. Dominance between labels of same chargingTime and same departureTime
+		///  1. Dominance between labels of same chargingTime but diff departureTime
 		//////////////////////////////////////////////////////////////////////////////
 
-		// For every unique departure time d keep only the label with minimum reduced cost
-		Map<Integer, Label> bestPerDeparture = new HashMap<>();
-		for (Label l : labels_group) { // detects dominated labels of same departure time
-			int d = l.vertex; double rc = l.reducedCost;
+		// 1.a. Sort in descending order of departure time
+		PriorityQueue<Label> sorted = new PriorityQueue<>((l1, l2) -> Integer.compare(l2.vertex, l1.vertex)); // sort the labels by descending departure time
+		sorted.addAll(labels_group);
 
-			if (!bestPerDeparture.containsKey(d)) bestPerDeparture.put(d, l);
-			else {
-				Label best = bestPerDeparture.get(d);
-				if (rc < best.reducedCost - dataModel.precision) {
-					labels_to_remove.add(best); // new best, old fully dominated
-					bestPerDeparture.put(d, l);
-				} else { labels_to_remove.add(l); } // the new one is fully dominates
-			}
-		}
+		// 1.b. Sweep to detect dominance in time periods
+		Label bestLabel = sorted.poll();
+		while (!sorted.isEmpty()) {
 
-		//////////////////////////////////////////////////////////////////////////////
-		///  2. Dominance between labels of same chargingTime but diff departureTime
-		//////////////////////////////////////////////////////////////////////////////
+			// the current bestLabel is partially dominated on t = 1 ... d by l
+			Label l = sorted.poll();
+			int d = l.vertex;
+			this.nonDominatedT.put(bestLabel.index, d);
 
-		// 2.a. Sort in descending order of departure time
-		List<Label> sorted = new ArrayList<>(bestPerDeparture.values());
-		sorted.sort(Comparator.comparingInt((Label l) -> l.vertex).reversed());
-
-		// 2.b. Sweep to detect dominance in time periods
-		Label bestLabel = sorted.get(0);
-		double bestRC = bestLabel.reducedCost;
-		
-		int ix = 1;
-		while (ix < sorted.size()) {
-			Label l = sorted.get(ix); double rc = l.reducedCost;
-			if (rc < bestRC - dataModel.precision) { // the current best label is partially dominated on t = 1 ... d
-				int d = l.vertex;
-				this.nonDominatedT.put(bestLabel.index, d);
-				bestLabel = l; bestRC = rc; // update sweep front
-			}  else  { labels_to_remove.add(l); }
-
-			ix ++;
+			bestLabel = l; // update sweep front
 		}
 		this.nonDominatedT.put(bestLabel.index, b);
-
-		// Remove all the fully dominated labels
-		all_labels.removeAll(labels_to_remove);
 
 	}
 
