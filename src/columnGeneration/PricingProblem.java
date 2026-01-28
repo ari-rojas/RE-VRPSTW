@@ -2,7 +2,6 @@ package columnGeneration;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -15,7 +14,6 @@ import java.util.TreeSet;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import branchAndPrice.ChargingTimeInequality;
 import model.EVRPTW;
-import model.EVRPTW.Vertex;
 
 /**
  * This class defines the pricing problem. 
