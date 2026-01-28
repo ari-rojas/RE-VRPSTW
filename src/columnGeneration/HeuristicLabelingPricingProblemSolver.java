@@ -49,8 +49,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
 		dataModel.infeasibleArcs = this.infeasibleArcs;
 
-		//Labeling algorithm 
-		
+		//Labeling algorithm
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
