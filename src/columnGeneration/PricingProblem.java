@@ -220,9 +220,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					}
 				}
 				
-				int next_t = t-b; 
+
+				int next_t = t-b; double current_rc = currentLabel.reducedCost;
 				for (int tt = t; tt >= t-b+1; tt--){
-					if (this.negative_charging_duals.get(tt)){
+					current_rc -= this.dualCosts[dataModel.C + tt - 1];
+					if (currentLabel.reducedCost < current_rc - dataModel.precision){
 						next_t = tt - 1;
 						break;
 					}
