@@ -35,7 +35,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	private BitSet negative_charging_duals;
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
-	public HashMap<Integer, HashMap<Integer,Double>> charging_bounds;
+	public Map<Integer, Map<Integer,Double>> charging_bounds;
 	private HashMap<Integer, Integer> nonDominatedT;
 	public Map<Integer, BitSet> last_charging_periods;
 
