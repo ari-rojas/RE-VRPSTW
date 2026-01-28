@@ -227,7 +227,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				t = next_t;
 			}
 
-			if (columnsMap.size() > this.maxCols) { this.isExact = false; break;}
+			//if (columnsMap.size() > this.maxCols) { this.isExact = false; break;}
 		}
 		
 		ArrayList<Label> to_remove = new ArrayList<>();
