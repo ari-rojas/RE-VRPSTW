@@ -65,8 +65,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (int b = 1; b <= dataModel.f_inverse[dataModel.E]; b++){
 
 			double min_rc = Double.MAX_VALUE;
-			Map<Integer, Double> boundsMap = new LinkedHashMap<>();
-			for (int d = Math.max(b+1, minT); d <= maxT; d++){
+			int first_departure = Math.max(b+1, minT);
+			for (int last_t = b; last_t < first_departure-1; last_t ++){
+				double rc = - (S[last_t] - S[last_t-b]) - this.last_charging_branch_duals[last_t] - this.initial_charging_branch_duals[last_t-b+1];
+				if (rc < min_rc - dataModel.precision) min_rc = rc;
+			}
+
+			Map<Integer, Double> boundsMap = new HashMap<>();
+			for (int d = first_departure; d <= maxT; d++){
 				
 				double rc = - (S[d-1] - S[d-b-1]) - this.last_charging_branch_duals[d-1] - this.initial_charging_branch_duals[d-b];
 				if (rc < min_rc - dataModel.precision) min_rc = rc;
