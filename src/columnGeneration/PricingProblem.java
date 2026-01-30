@@ -37,33 +37,26 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	private HashMap<Integer, Integer> nonDominatedT;
 	public Map<Integer, BitSet> last_charging_periods;
 
+	public double[] last_charging_branch_duals;
+	public double[] initial_charging_branch_duals;
+
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
 	}
 
 	public void compute_charging_bounds(){
 
-		this.charging_reducedCosts = new HashMap<>();
-		this.charging_bounds = new HashMap<>();
 		this.negative_charging_duals = new BitSet();
 
-		// 1. Group by charging time b
-		Map<Integer, TreeSet<Integer>> charging_times = new HashMap<>();
+		// 1. Get the minimum and maximum possible departure times
 		int minT = (int) (dataModel.vertices[0].opening_tw/10);
 		int maxT = dataModel.last_charging_period + 1;
-		for (int b = 1; b <= dataModel.f_inverse[dataModel.E]; b++){
-			TreeSet<Integer> departures = new TreeSet<>();
-			for (int d = Math.max(b+1, minT); d <= maxT; d++) { departures.add(d); }
-			charging_times.put(b, departures);
-		}
 
-		// Include the charging branching information for the bounds
-		int i=0;
-		for(ChargingTimeInequality branching: this.branchesOnChargingTimes) {
-			this.dualCosts[dataModel.C + branching.timestep - 1] += this.dualCosts[dataModel.C+dataModel.last_charging_period+this.subsetRowCuts.size()+i]; i++;
-		}
+		///////////////////////////////////////////////////////////////////////////
+		/// Preprocess the dual information
+		///////////////////////////////////////////////////////////////////////////
 
-		// Precompute fixed sums of the charging dual variables
+		// Precompute fixed sums of the charging capacity dual variables
 		double[] S = new double[maxT]; S[0] = 0.0;
 		for (int t = 1; t < maxT; t++) {
 			double dual = this.dualCosts[dataModel.C + t - 1];
@@ -71,29 +64,44 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			S[t] = S[t - 1] + dual;
 		}
 
-		for (Map.Entry<Integer, TreeSet<Integer>> e : charging_times.entrySet()){
+		// Include the charging branching dual information
+		this.last_charging_branch_duals = new double[maxT];
+		this.initial_charging_branch_duals = new double[maxT];
+		int i=0;
+		for(ChargingTimeInequality branching: this.branchesOnChargingTimes) {
+			double dual = this.dualCosts[dataModel.C+dataModel.last_charging_period+this.subsetRowCuts.size()+i];
+			if (branching.startCharging) this.initial_charging_branch_duals[branching.timestep] = dual;
+			else this.last_charging_branch_duals[branching.timestep] = dual;
+			i++;
+		}
 
-			int b = e.getKey();
-        	TreeSet<Integer> departures = e.getValue();
+		///////////////////////////////////////////////////////////////////////////////////
+		/// Compute the bounds for every combination of chargingTime b and departureTime d
+		///////////////////////////////////////////////////////////////////////////////////
 
-			int initial_t = 1;
-			double rc = - (S[b]-S[0]); double min_rc = rc;
+		this.charging_bounds = new HashMap<>();
+		this.charging_reducedCosts = new HashMap<>();
+		for (int b = 1; b <= dataModel.f_inverse[dataModel.E]; b++){
 
-			Map<Integer, Double> reducedCostsMap = new LinkedHashMap<>(); reducedCostsMap.put(b, rc);
-			Map<Integer, Double> boundsMap = new LinkedHashMap<>();
-			
-			for (int d: departures){
-				if (d <= b) continue; // skip if departure does not allow for sufficient charging
-
-				for (int t=initial_t; t<=d-b-1; t++){
-					rc = - (S[t+b] - S[t]);
-					reducedCostsMap.put(t+b, rc);
-					if (rc < min_rc - dataModel.precision) min_rc = rc;
-				}
-				boundsMap.put(d, min_rc);
-				initial_t = d-b;
+			Map<Integer, Double> reducedCostsMap = new HashMap<>();
+			double min_rc = Double.MAX_VALUE;
+			int first_departure = Math.max(b+1, minT);
+			for (int last_t = b; last_t < first_departure-1; last_t ++){
+				double rc = - (S[last_t] - S[last_t-b]) - this.last_charging_branch_duals[last_t] - this.initial_charging_branch_duals[last_t-b+1];
+				reducedCostsMap.put(last_t, rc);
+				if (rc < min_rc - dataModel.precision) min_rc = rc;
 			}
+			
+			Map<Integer, Double> boundsMap = new HashMap<>();
+			for (int d = first_departure; d <= maxT; d++){
 				
+				double rc = - (S[d-1] - S[d-b-1]) - this.last_charging_branch_duals[d-1] - this.initial_charging_branch_duals[d-b];
+				reducedCostsMap.put(d-1, rc);
+				if (rc < min_rc - dataModel.precision) min_rc = rc;
+				
+				boundsMap.put(d, min_rc);
+			}
+			
 			this.charging_reducedCosts.put(b, reducedCostsMap);
 			this.charging_bounds.put(b, boundsMap);
 			
@@ -146,7 +154,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			int b = currentLabel.chargingTime;
 			int index = currentLabel.index;
 
-			int t = (int)(currentLabel.remainingTime/10) - 1; // starting at departureTime - 1
+			int t = (int)(currentLabel.remainingTime/10) - 1; // last_t t, starting at departureTime - 1
 			while (t >= this.nonDominatedT.get(index)){
 
 				boolean dominated = false;
