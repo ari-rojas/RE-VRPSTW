@@ -36,7 +36,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		solverCapabilities.put(CBMinCostPricingProblemSolver.class, true);
 	}
 
-
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
