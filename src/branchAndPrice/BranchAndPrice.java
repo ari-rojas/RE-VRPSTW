@@ -44,6 +44,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private final ExtendBAPNotifier extendedNotifier;
 
 	private List<Integer> chargingNodes = new ArrayList<Integer>();
+	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
 	private long timeChargingBranching = 0;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
