@@ -49,10 +49,9 @@ import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
-import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
-import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
-import columnGeneration.HeuristicLabelingFifthPricingProblemSolver;
+import columnGeneration.CBMinCostPricingProblemSolver;
+import columnGeneration.CBHeuristicSecondPricingProblemSolver;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
@@ -96,12 +95,12 @@ public final class EVRPTWSolver {
 
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
-		//solvers.add(HeuristicLabelingFourthPricingProblemSolver.class);
-		//solvers.add(HeuristicLabelingThirdPricingProblemSolver.class);
-		//solvers.add(HeuristicLabelingPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
+	
 		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
-		//solvers.add(HeuristicLabelingFifthPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
+
+		solvers.add(CBHeuristicSecondPricingProblemSolver.class);
+		solvers.add(CBMinCostPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution = this.getInitialSolution(pricingProblem);
