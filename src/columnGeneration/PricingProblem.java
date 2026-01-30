@@ -376,6 +376,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (int t = 1; t <= dataModel.last_charging_period; t++){
 
 			BitSet colsIndicator = columnsIndicator[t];
+			if (colsIndicator.isEmpty()) continue;
 
 			for (int b = colsIndicator.nextSetBit(1); b >= 0; b = colsIndicator.nextSetBit(b + 1)){
 
