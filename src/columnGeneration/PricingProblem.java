@@ -254,6 +254,132 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return filtered_labels;
 	}
 
+	public ArrayList<Label> exhaustive_charging_pricing_filtering(ArrayList<Label> labels){
+
+		this.nonDominatedT = new HashMap<>();
+		this.isExact = true;
+
+		//////////////////////////////////////////////////////////
+		/// 1. Bounding Procedure and Preprocessing
+		//////////////////////////////////////////////////////////
+
+		// To avoid constantly recomputing the departure times of the labels, we save them in the vertex field
+		int ix = 0;
+		for (Label label: labels) { label.index = ix; label.vertex = (int)(label.remainingTime/10); ix ++; }
+
+		// Only labels that will generate at least one column with negative reduced cost are accounted for
+		ArrayList<Label> filtered_labels = new ArrayList<>();
+		for (Label l: labels){ if (l.reducedCost < -dataModel.precision) filtered_labels.add(l); }
+
+		//////////////////////////////////////////////////////////
+		/// 2. Labels dominance
+		//////////////////////////////////////////////////////////
+
+		// 1. Group labels by charging time b
+		Map<Integer, List<Label>> labelsByB = new HashMap<>();
+		for (Label label : filtered_labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
+
+		// 2. Dominance between labels of same chargingTime b
+		// For each chargingTime b, get the last-charging-time-periods that have a non-dominated column, and their corresponding label
+		Map<Integer, BitSet> columnsIndicator = new HashMap<>();
+		Map<Long, Label> columnsMap = new HashMap<>(); BitSet t_set = new BitSet();
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) { filter_labels_same_chargingTime(entry, t_set, columnsMap, columnsIndicator); }
+
+		// 4. Dominance between labels of different lastChargingTimePeriod t and chargingTime b
+		for (int t = t_set.previousSetBit(t_set.length()-1); t >= 1; t = t_set.previousSetBit(t - 1)){
+			// We get the FULL BitSet, to evaluate the dominance of each column, even if it has already been deemed dominated
+			BitSet colsIndicator = columnsIndicator.get(t);
+
+			for (int b = colsIndicator.previousSetBit(colsIndicator.length() - 1); b >= 1; b = colsIndicator.previousSetBit(b - 1)){
+
+				Label currentLabel = columnsMap.get(pack(b,t));
+				double current_rc = currentLabel.reducedCost;
+
+				// At t, currentLabel can be dominated by columns with b2 < b
+				boolean dominated = false;
+				for (int b2 = colsIndicator.previousSetBit(b - 1); b2 >= 1; b2 = colsIndicator.previousSetBit(b2 - 1)){
+					Label otherLabel = columnsMap.get(pack(b2, t));
+					if (otherLabel.reducedCost < current_rc - dataModel.precision){ // currentLabel is dominated
+						colsIndicator.clear(b);
+						dominated = true; break;
+					}
+				}
+
+				if (dominated) continue;
+
+				int previous_t = t; boolean canDominateSame = !this.negative_charging_duals.get(t);
+				for (int t2 = t_set.previousSetBit(t - 1); t2 >= t-b+1 ; t2 = t_set.previousSetBit(t2 - 1)){
+
+					// Update the reduced costs (as the labels are "extended")
+					for (int tt = previous_t; tt > t2; tt--){
+						double dual = this.dualCosts[dataModel.C + tt - 1];
+						current_rc -= dual;
+					}
+
+					BitSet colsIndicator_t2 = columnsIndicator.get(t2);
+
+					// For the columns above the diagonal, currentLabel has a b strictly greater than their corresponding b2, thus
+					// currentLabel can be dominated by them.
+					for (int b2 = colsIndicator_t2.previousSetBit(b - (t-t2)); b2 >= 1; b2 = colsIndicator_t2.previousSetBit(b2 - 1)){
+						Label otherLabel = columnsMap.get(pack(b2, t2));
+						if (otherLabel.reducedCost < current_rc - dataModel.precision){ // currentLabel is dominated
+							colsIndicator.clear(b);
+							dominated = true; break;
+						}
+					}
+					
+					// For the columns below the diagonal, currentLabel has a b strictly lower than their corresponding b2, thus
+					// currentLabel can dominate them. For the column in the diagonal, currentLabel and otherLabel have the same b.
+					
+					for (int b2 = colsIndicator_t2.previousSetBit(b - 1); b2 >= b - (t-t2) ; b2 = colsIndicator_t2.previousSetBit(b2 - 1)){
+						Label otherLabel = columnsMap.get(pack(b2,t2));
+						if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
+							colsIndicator_t2.clear(b2);
+						}
+					}
+					
+					if (t2 >= this.nonDominatedT.get(currentLabel.index) && canDominateSame){ colsIndicator_t2.clear(b); } 
+					if (canDominateSame) { canDominateSame = !this.negative_charging_duals.get(t2); }
+
+					for (int b2 = colsIndicator_t2.nextSetBit(b + 1); b2 >= 1; b2 = colsIndicator_t2.nextSetBit(b2 + 1)){
+						Label otherLabel = columnsMap.get(pack(b2,t2));
+						if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
+							colsIndicator_t2.clear(b2);
+						}
+					}
+
+					// If the currentLabel is dominated, it won't be extended to previous time periods.
+					if (dominated) break;
+					previous_t = t2;
+				}
+
+			}
+		
+		}
+
+		// Retrieve the resulting non-dominated columns
+		this.last_charging_periods = new HashMap<>();
+		filtered_labels.clear();
+		for (Map.Entry<Integer, BitSet> entry: columnsIndicator.entrySet()){
+
+			int t = entry.getKey();
+			BitSet colsIndicator = entry.getValue();
+
+			for (int b = colsIndicator.nextSetBit(1); b >= 0; b = colsIndicator.nextSetBit(b + 1)){
+
+				Label label = columnsMap.get(pack(b,t));
+				if (this.last_charging_periods.containsKey(label.index)) this.last_charging_periods.get(label.index).set(t);
+				else {
+					BitSet newBit = new BitSet(); newBit.set(t);
+					this.last_charging_periods.put(label.index, newBit);
+					filtered_labels.add(label);
+				}
+			}
+		}
+
+		return filtered_labels;
+	}
+
 	private void filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry){
 
 		int b = entry.getKey();
