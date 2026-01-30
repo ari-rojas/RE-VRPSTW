@@ -146,7 +146,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Long, Label> columnsMap = new HashMap<>();
 		this.last_charging_periods = new HashMap<>();
-		filtered_labels.sort( Comparator.comparingDouble( l -> l.reducedCost) );
+		filtered_labels.sort( Comparator.comparingDouble( l -> l.reducedCost + this.charging_bounds.get(l.chargingTime).get(l.vertex)) );
 		
 		// 3. Dominance between labels of different chargingTime b and different last_t t
 		for (Label currentLabel: filtered_labels){
@@ -264,12 +264,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		//////////////////////////////////////////////////////////
 
 		// To avoid constantly recomputing the departure times of the labels, we save them in the vertex field
-		int ix = 0;
-		for (Label label: labels) { label.index = ix; label.vertex = (int)(label.remainingTime/10); ix ++; }
-
-		// Only labels that will generate at least one column with negative reduced cost are accounted for
-		ArrayList<Label> filtered_labels = new ArrayList<>();
-		for (Label l: labels){ if (l.reducedCost < -dataModel.precision) filtered_labels.add(l); }
+		ArrayList<Label> filtered_labels = new ArrayList<>(); int ix = 0;
+		for (Label label: labels) {
+			label.index = ix; label.vertex = (int)(label.remainingTime/10);
+			filtered_labels.add(label); ix ++;
+		}
 
 		//////////////////////////////////////////////////////////
 		/// 2. Labels dominance
@@ -281,14 +280,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		// 2. Dominance between labels of same chargingTime b
 		// For each chargingTime b, get the last-charging-time-periods that have a non-dominated column, and their corresponding label
-		Map<Integer, BitSet> columnsIndicator = new HashMap<>();
-		Map<Long, Label> columnsMap = new HashMap<>(); BitSet t_set = new BitSet();
-		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) { filter_labels_same_chargingTime(entry, t_set, columnsMap, columnsIndicator); }
+		BitSet[] columnsIndicator = new BitSet[dataModel.last_charging_period+1];
+		for (int t = 1; t <= dataModel.last_charging_period; t++) columnsIndicator[t] = new BitSet();
+
+		Map<Long, Label> columnsMap = new HashMap<>(); int maxD = 0;
+
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) {
+			int dd = exhaustive_filter_labels_same_chargingTime(entry, columnsMap, columnsIndicator);
+			if (dd > maxD) maxD = dd;
+		}
 
 		// 4. Dominance between labels of different lastChargingTimePeriod t and chargingTime b
-		for (int t = t_set.previousSetBit(t_set.length()-1); t >= 1; t = t_set.previousSetBit(t - 1)){
-			// We get the FULL BitSet, to evaluate the dominance of each column, even if it has already been deemed dominated
-			BitSet colsIndicator = columnsIndicator.get(t);
+		for (int t = maxD; t >= 1; t--){
+			
+			BitSet colsIndicator = columnsIndicator[t];
+			if (colsIndicator.isEmpty()) continue;
 
 			for (int b = colsIndicator.previousSetBit(colsIndicator.length() - 1); b >= 1; b = colsIndicator.previousSetBit(b - 1)){
 
@@ -307,16 +313,20 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				if (dominated) continue;
 
-				int previous_t = t; boolean canDominateSame = !this.negative_charging_duals.get(t);
-				for (int t2 = t_set.previousSetBit(t - 1); t2 >= t-b+1 ; t2 = t_set.previousSetBit(t2 - 1)){
+				int previous_t = t; boolean canDominateSame = true;
+				for (int t2 = t-1; t2 >= t-b+1 ; t2 --){
+
+					BitSet colsIndicator_t2 = columnsIndicator[t2];
+					if (colsIndicator_t2.isEmpty()) continue;
 
 					// Update the reduced costs (as the labels are "extended")
 					for (int tt = previous_t; tt > t2; tt--){
-						double dual = this.dualCosts[dataModel.C + tt - 1];
-						current_rc -= dual;
+						if (this.negative_charging_duals.get(tt)){
+							double dual = this.dualCosts[dataModel.C + tt - 1];
+							current_rc -= dual;
+							canDominateSame = false;
+						}
 					}
-
-					BitSet colsIndicator_t2 = columnsIndicator.get(t2);
 
 					// For the columns above the diagonal, currentLabel has a b strictly greater than their corresponding b2, thus
 					// currentLabel can be dominated by them.
@@ -331,16 +341,18 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					// For the columns below the diagonal, currentLabel has a b strictly lower than their corresponding b2, thus
 					// currentLabel can dominate them. For the column in the diagonal, currentLabel and otherLabel have the same b.
 					
+					// b2 < b
 					for (int b2 = colsIndicator_t2.previousSetBit(b - 1); b2 >= b - (t-t2) ; b2 = colsIndicator_t2.previousSetBit(b2 - 1)){
 						Label otherLabel = columnsMap.get(pack(b2,t2));
 						if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
 							colsIndicator_t2.clear(b2);
 						}
 					}
-					
-					if (t2 >= this.nonDominatedT.get(currentLabel.index) && canDominateSame){ colsIndicator_t2.clear(b); } 
-					if (canDominateSame) { canDominateSame = !this.negative_charging_duals.get(t2); }
 
+					// b2 = b (same route)
+					if (t2 >= this.nonDominatedT.get(currentLabel.index) && canDominateSame) colsIndicator_t2.clear(b);
+
+					// b2 > b
 					for (int b2 = colsIndicator_t2.nextSetBit(b + 1); b2 >= 1; b2 = colsIndicator_t2.nextSetBit(b2 + 1)){
 						Label otherLabel = columnsMap.get(pack(b2,t2));
 						if (current_rc < otherLabel.reducedCost - dataModel.precision){ // otherLabel is dominated
@@ -348,8 +360,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						}
 					}
 
-					// If the currentLabel is dominated, it won't be extended to previous time periods.
+					// If currentLabel is dominated, it won't be extended to previous time periods.
 					if (dominated) break;
+
 					previous_t = t2;
 				}
 
@@ -360,10 +373,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		// Retrieve the resulting non-dominated columns
 		this.last_charging_periods = new HashMap<>();
 		filtered_labels.clear();
-		for (Map.Entry<Integer, BitSet> entry: columnsIndicator.entrySet()){
+		for (int t = 1; t <= dataModel.last_charging_period; t++){
 
-			int t = entry.getKey();
-			BitSet colsIndicator = entry.getValue();
+			BitSet colsIndicator = columnsIndicator[t];
 
 			for (int b = colsIndicator.nextSetBit(1); b >= 0; b = colsIndicator.nextSetBit(b + 1)){
 
@@ -405,6 +417,47 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			bestLabel = l; // update sweep front
 		}
 		this.nonDominatedT.put(bestLabel.index, b);
+
+	}
+
+	private int exhaustive_filter_labels_same_chargingTime(Map.Entry<Integer, List<Label>> entry, Map<Long, Label> colsMap, BitSet[] colsInd){
+
+		int b = entry.getKey();
+		List<Label> labels_group = entry.getValue();
+
+		//////////////////////////////////////////////////////////////////////////////
+		///  1. Dominance between labels of same chargingTime but diff departureTime
+		//////////////////////////////////////////////////////////////////////////////
+
+		// 1.a. Sort in descending order of departure time
+		PriorityQueue<Label> sorted = new PriorityQueue<>((l1, l2) -> Integer.compare(l2.vertex, l1.vertex)); // sort the labels by descending departure time
+		sorted.addAll(labels_group);
+
+		// 1.b. Sweep to detect dominance in time periods
+		Label bestLabel = sorted.poll(); int maxD = bestLabel.vertex;
+		while (!sorted.isEmpty()) {
+			
+			Label l = sorted.poll();
+			int d = l.vertex;
+
+			// The current bestLabel is partially dominated from t = 1 to t = d(l)
+			// therefore has a column for every last_charging_time_period t \in {d(l), ..., d-1}
+			for (int t = d; t < bestLabel.vertex; t++){
+				colsMap.put(pack(b,t), bestLabel);
+				colsInd[t].set(b);
+			}
+
+			this.nonDominatedT.put(bestLabel.index, d);
+
+			bestLabel = l; // update sweep front
+		}
+		for (int t = b; t < bestLabel.vertex; t++){
+			colsMap.put(pack(b,t), bestLabel);
+			colsInd[t].set(b);
+		}
+		this.nonDominatedT.put(bestLabel.index, b);
+
+		return maxD;
 
 	}
 
