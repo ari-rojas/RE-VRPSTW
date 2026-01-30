@@ -44,6 +44,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private final ExtendBAPNotifier extendedNotifier;
 
 	private List<Integer> chargingNodes = new ArrayList<Integer>();
+	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
 	private long timeChargingBranching = 0;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
@@ -270,6 +271,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				long time = 0;
 				try { // Try solving the node
 					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
+					if (this.arcFlowNodes.contains(bapNode.nodeID)) { dataModel.CUTSENABLED = true; } else { dataModel.CUTSENABLED = true; }
 					cgIncumbent = this.solveNode(bapNode, timeLimit);
 					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
@@ -311,24 +313,28 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						// Initialize Branch Creator
 						BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
 						
-						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to look for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
+						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
 						// Look for Number of Vehicles or Customers Arc Flow branching
 						boolean foundBranches = false;
 						foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
-						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished looking for first branches at node "+bapNode.nodeID);} // TIME BRANCHING
+						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }
 						if (foundBranches){
-							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to add first branches at node "+bapNode.nodeID);} // TIME BRANCHING
+							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
 							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
 							newBranches.addAll(bc.getFirstBranches(bapNode));
+
+							if (bc.branchOnCustomerArcs || this.arcFlowNodes.contains(bapNode.nodeID)){
+								this.arcFlowNodes.add(newBranches.get(0).nodeID);
+								this.arcFlowNodes.add(newBranches.get(1).nodeID);
+							}
+
 							if (this.chargingNodes.contains(bapNode.nodeID)) { 
 								timeChargingBranching += (System.currentTimeMillis()-time);
 								this.chargingNodes.add(newBranches.get(0).nodeID);
 								this.chargingNodes.add(newBranches.get(1).nodeID);
-								//logger.debug("TIME BRANCHING - Finished adding first branches at node "+bapNode.nodeID);
-							} // TIME BRANCHING
+							}
 						} else {
 							
-							//logger.debug("TIME BRANCHING - Starting Lexicographic step at node "+bapNode.nodeID);
 							time = System.currentTimeMillis();
 							
 							foundBranches = bc.canPerformBranching(bapNode.getSolution());
@@ -337,10 +343,14 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 								newBranches.addAll(bc.getBranches(bapNode));
 							}
 
+							if (this.arcFlowNodes.contains(bapNode.nodeID)){
+								this.arcFlowNodes.add(newBranches.get(0).nodeID);
+								this.arcFlowNodes.add(newBranches.get(1).nodeID);
+							}
+
 							timeChargingBranching += (System.currentTimeMillis()-time);
 							this.chargingNodes.add(newBranches.get(0).nodeID);
 							this.chargingNodes.add(newBranches.get(1).nodeID);
-							//logger.debug("TIME BRANCHING - Finished Lexicographic step and branching at node "+bapNode.nodeID);
 
 						}
 	

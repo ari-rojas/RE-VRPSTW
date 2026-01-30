@@ -25,9 +25,9 @@ import model.EVRPTW;
 public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>{
 
 	private double vehiclesForBranching=0; 				//number of vehicles used in a solution
-	private boolean branchingOnVehicles; 				//true if the branching is on the number of vehicles
-	private boolean branchOnCustomerArcs; 				//true if the branching is performed on an arc between customers (or the depot)
-	private boolean branchOnInitialChargingTime;		//true if the branching is performed on an arc representing the initial charging time
+	public boolean branchingOnVehicles; 				//true if the branching is on the number of vehicles
+	public boolean branchOnCustomerArcs; 				//true if the branching is performed on an arc between customers (or the depot)
+	public boolean branchOnInitialChargingTime;		//true if the branching is performed on an arc representing the initial charging time
 	private int arcForBranching=-1; 					//arc to branch on
 	private double bestArcValue = 0; 					//current flow value of the arc to branch on
 	private int timestepForBranching=-1; 				//timestep to branch on
