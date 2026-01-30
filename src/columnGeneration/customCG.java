@@ -25,7 +25,16 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public boolean needsChargingBranchingPricing;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
-	
+	static {
+		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingFifthPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, false);
+
+		solverCapabilities.put(CBHeuristicSecondPricingProblemSolver.class, true);
+		solverCapabilities.put(CBMinCostPricingProblemSolver.class, true);
+	}
 
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
