@@ -304,9 +304,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			boolean dominated = false;
 
 			// For chargingTime b2 = b
-			BitSet colsIndicator = columnsIndicator[b]; int previous_t = t;
+			BitSet colsIndicator = columnsIndicator[b];
 			int next_t = colsIndicator.nextSetBit(t + 1);
-			if (next_t > t){
+			if (next_t > t && next_t <= t+b-1){
 				// Find the label associated with the other column
 				Label otherLabel = columnsMap.get(pack(b,next_t));
 				if (otherLabel.index == currentLabel.index && !this.negative_charging_duals.get(t+1)) dominated = true;
@@ -318,7 +318,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int b2 = b_set.nextSetBit(b + 1); b2 >= 0; b2 = b_set.nextSetBit(b2 + 1)){
 
 				double current_rc = currentLabel.reducedCost;
-				colsIndicator = columnsIndicator[b2]; previous_t = t;
+				colsIndicator = columnsIndicator[b2]; int previous_t = t;
 				
 				for (int t2 = colsIndicator.previousSetBit(t + b2 - 1); t2 >= t + (b2-b); t2 = colsIndicator.previousSetBit(t2 - 1)){
 					
@@ -341,7 +341,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int b2 = b_set.previousSetBit(b - 1); b2 >= 1; b2 = b_set.previousSetBit(b2 - 1)){
 				
 				double current_rc = currentLabel.reducedCost;
-				colsIndicator = columnsIndicator[b2]; previous_t = t;
+				colsIndicator = columnsIndicator[b2]; int previous_t = t;
 			
 				// For t2 >= t, the label is extended forward
 				for (int t2 = colsIndicator.previousSetBit(t + b2 - 1); t2 >= t; t2 = colsIndicator.previousSetBit(t2 - 1)){
@@ -357,7 +357,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				if (dominated) break;
 
-				current_rc = currentLabel.reducedCost;
+				current_rc = currentLabel.reducedCost; previous_t = t;
 
 				// For t2 < t, the label is extended backwards
 				for (int t2 = colsIndicator.previousSetBit(t - 1); t2 >= t + (b2-b); t2 = colsIndicator.previousSetBit(t2 - 1)){
