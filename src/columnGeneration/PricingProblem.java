@@ -257,6 +257,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<Label> exhaustive_charging_pricing_filtering(ArrayList<Label> labels){
 
 		this.nonDominatedT = new HashMap<>();
+		this.last_charging_periods = new HashMap<>();
 		this.isExact = true;
 
 		//////////////////////////////////////////////////////////
