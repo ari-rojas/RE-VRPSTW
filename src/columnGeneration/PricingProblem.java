@@ -311,7 +311,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					}
 				}
 
-				if (dominated) continue;
+				if (dominated) continue; // If the label is dominated at t, it won't be extended to previous time periods
 
 				int previous_t = t; boolean canDominateSame = true;
 				for (int t2 = t-1; t2 >= t-b+1 ; t2 --){
