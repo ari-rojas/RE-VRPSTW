@@ -202,7 +202,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 					if (dominated) break;
 
-					current_rc = currentLabel.reducedCost;
+					current_rc = currentLabel.reducedCost; previous_t = t;
 
 					// For t2 < t, the label is extended backwards
 					for (int t2 = colsIndicator.previousSetBit(t - 1); t2 >= t + (b2-b); t2 = colsIndicator.previousSetBit(t2 - 1)){
