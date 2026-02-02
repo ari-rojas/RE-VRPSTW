@@ -207,12 +207,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-		
-		if (source == 0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
-
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
 		boolean[] ng_path = new boolean[dataModel.C];
 		if(source>0) ng_path[source-1] = true;
@@ -288,7 +282,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			long startTime = System.currentTimeMillis();
 
 			this.runLabeling(); 									//runs the labeling algorithm
-			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+			filtered_labels = pricingProblem.exhaustive_charging_pricing_filtering(vertices[0].processedLabels);
 			ExactSolution exactSolution = this.charging_pricing(filtered_labels);
 
 			newRoutes = exactSolution.newRoutes; existsElementaryRoute = !newRoutes.isEmpty();

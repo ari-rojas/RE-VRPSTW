@@ -161,12 +161,6 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-		
-		if (source == 0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
-
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable, currentLabel.unreachable.length);
 		if(source>0) unreachable[source-1] = true; //elementary
 
@@ -219,7 +213,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		long startTime = System.currentTimeMillis();
 
 		this.runLabeling(); 									//runs the labeling algorithm
-		ArrayList<Label> filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
+		ArrayList<Label> filtered_labels = pricingProblem.exhaustive_charging_pricing_filtering(vertices[0].processedLabels);
 		ArrayList<Route> newRoutes = this.charging_pricing(filtered_labels);
 
 		long totalTime = System.currentTimeMillis()-startTime;

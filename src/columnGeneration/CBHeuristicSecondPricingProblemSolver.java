@@ -198,12 +198,6 @@ public final class CBHeuristicSecondPricingProblemSolver extends AbstractPricing
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-		
-		if (source == 0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
-
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable, currentLabel.unreachable.length);
 		if(source>0) unreachable[source-1] = true; //elementary
 

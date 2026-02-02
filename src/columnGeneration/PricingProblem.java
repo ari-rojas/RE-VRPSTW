@@ -33,7 +33,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	private BitSet negative_charging_duals;
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
-	public Map<Integer, Map<Integer,Double>> charging_bounds;
 	private HashMap<Integer, Integer> nonDominatedT;
 	public Map<Integer, BitSet> last_charging_periods;
 
@@ -79,31 +78,24 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// Compute the bounds for every combination of chargingTime b and departureTime d
 		///////////////////////////////////////////////////////////////////////////////////
 
-		this.charging_bounds = new HashMap<>();
 		this.charging_reducedCosts = new HashMap<>();
 		for (int b = 1; b <= dataModel.f_inverse[dataModel.E]; b++){
 
 			Map<Integer, Double> reducedCostsMap = new HashMap<>();
-			double min_rc = Double.MAX_VALUE;
 			int first_departure = Math.max(b+1, minT);
 			for (int last_t = b; last_t < first_departure-1; last_t ++){
 				double rc = - (S[last_t] - S[last_t-b]) - this.last_charging_branch_duals[last_t] - this.initial_charging_branch_duals[last_t-b+1];
 				reducedCostsMap.put(last_t, rc);
-				if (rc < min_rc - dataModel.precision) min_rc = rc;
 			}
 			
-			Map<Integer, Double> boundsMap = new HashMap<>();
 			for (int d = first_departure; d <= maxT; d++){
 				
 				double rc = - (S[d-1] - S[d-b-1]) - this.last_charging_branch_duals[d-1] - this.initial_charging_branch_duals[d-b];
 				reducedCostsMap.put(d-1, rc);
-				if (rc < min_rc - dataModel.precision) min_rc = rc;
 				
-				boundsMap.put(d, min_rc);
 			}
 			
 			this.charging_reducedCosts.put(b, reducedCostsMap);
-			this.charging_bounds.put(b, boundsMap);
 			
 		}
 
@@ -146,7 +138,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Long, Label> columnsMap = new HashMap<>();
 		this.last_charging_periods = new HashMap<>();
-		filtered_labels.sort( Comparator.comparingDouble( l -> l.reducedCost + this.charging_bounds.get(l.chargingTime).get(l.vertex)) );
+		filtered_labels.sort( Comparator.comparingDouble( l -> l.reducedCost) );
 		
 		// 3. Dominance between labels of different chargingTime b and different last_t t
 		for (Label currentLabel: filtered_labels){
