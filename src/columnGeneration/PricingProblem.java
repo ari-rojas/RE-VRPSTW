@@ -297,7 +297,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			boolean dominated = false;
 
 			// See if there are any columns of the same route that might dominate it
-			for (int t2 = t_set.nextSetBit(t+1); t2 <= t+b-1; t2 = t_set.nextSetBit(t2 + 1)){
+			for (int t2 = t_set.nextSetBit(t+1); t2 > 0 && t2 <= t+b-1; t2 = t_set.nextSetBit(t2 + 1)){
 				if (columnsIndicator[t2].get(b)){
 					Label otherLabel = columnsMap.get(pack(b,t2));
 					if (otherLabel.index == currentLabel.index && !this.negative_charging_duals.get(t+1)) dominated = true;
@@ -309,7 +309,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			// For last_t t2 >= t
 			double current_rc = currentLabel.reducedCost; int previous_t = t;
-			for (int t2 = t_set.nextSetBit(t); t2 <= t+maxB-1; t2 = t_set.nextSetBit(t2 + 1)){
+			for (int t2 = t_set.nextSetBit(t); t2 > 0 && t2 <= t+maxB-1; t2 = t_set.nextSetBit(t2 + 1)){
 
 				BitSet colsIndicator = columnsIndicator[t2];
 
