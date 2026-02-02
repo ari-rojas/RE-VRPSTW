@@ -240,7 +240,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "ExNewPricing-RootBound", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "ExNewPricing-Bound", args[2]);
 		//EVRPTW evrptw = new EVRPTW("R202-50", 9, 0, true, "NewPricing-Bound", "Debug");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
 
