@@ -288,7 +288,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			long startTime = System.currentTimeMillis();
 
 			this.runLabeling(); 									//runs the labeling algorithm
-			filtered_labels = pricingProblem.exhaustive_charging_pricing_filtering(vertices[0].processedLabels);
+			filtered_labels = pricingProblem.charging_pricing_filtering(vertices[0].processedLabels);
 			ExactSolution exactSolution = this.charging_pricing(filtered_labels);
 
 			newRoutes = exactSolution.newRoutes; existsElementaryRoute = !newRoutes.isEmpty();
