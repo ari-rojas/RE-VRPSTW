@@ -142,7 +142,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			.thenComparingInt(r -> r.b)                         					// 2) lowest b first
 			.thenComparing((r1, r2) -> Integer.compare(r2.last_t, r1.last_t)) 		// 3) highest last_t first
 		);
-		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) filter_labels_same_chargingTime(entry, columnsQueue);
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) exhaustive_filter_labels_same_chargingTime(entry, columnsQueue);
 		
 		// The "processed" columns are mapped
 		Map<Long, Label> columnsMap = new HashMap<>();
