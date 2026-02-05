@@ -265,14 +265,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// therefore has a column for every last_charging_time_period t \in {d(l), ..., d-1}
 			for (int t = d; t < bestLabel.vertex; t++){
 				double col_rc = bestLabel.reducedCost + this.charging_reducedCosts.get(b).get(t);
-				if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, bestLabel.reducedCost, bestLabel));
+				if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, bestLabel.reducedCost+this.charging_bounds.get(b).get(bestLabel.vertex), bestLabel));
 			}
 
 			bestLabel = l; // update sweep front
 		}
 		for (int t = b; t < bestLabel.vertex; t++){
 			double col_rc = bestLabel.reducedCost + this.charging_reducedCosts.get(b).get(t);
-			if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, bestLabel.reducedCost, bestLabel));
+			if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, bestLabel.reducedCost+this.charging_bounds.get(b).get(bestLabel.vertex), bestLabel));
 		}
 
 	}
