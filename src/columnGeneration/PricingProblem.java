@@ -26,7 +26,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
-	public int maxCols = 800;
+	public int maxCols = 700;
 	public boolean isExact;
 
 	//Charging pricing information
