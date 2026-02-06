@@ -223,6 +223,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				BitSet newBit = new BitSet(); newBit.set(t);
 				this.last_charging_periods.put(index, newBit);
 			}
+
+			if (columnsMap.size() > this.maxCols) break;
 			
 		}
 
