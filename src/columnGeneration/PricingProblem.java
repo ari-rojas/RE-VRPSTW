@@ -224,7 +224,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				this.last_charging_periods.put(index, newBit);
 			}
 
-			if (columnsMap.size() > this.maxCols) break;
+			//if (columnsMap.size() > this.maxCols) break;
 			
 		}
 
