@@ -25,7 +25,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 	public Vertex[] vertices = dataModel.vertices; 						//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 						//labels that need be processed
-	public final int numCols = 800; 									//maximum number of routes (columns) allowed
+	public final int numCols = 400; 									//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 									//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 							//for the disjoint columns diversification strategy
 
@@ -95,7 +95,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		}
 
 		//Labeling algorithm
-		while (!nodesToProcess.isEmpty() && vertices[dataModel.V].unprocessedLabels.size() <= numCols && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				
