@@ -276,10 +276,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		// Retrieve and store the solution, if it exists
 		if (integer_solution_exists){
-			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), (List<Route>) unique_routes.values(), this.master.getCuts());
+			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), new ArrayList<>(unique_routes.values()), this.master.getCuts());
 		}
 
-		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, n, maxT);
+		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, true);
 		this.timeChargingBranching += System.currentTimeMillis() - time;
 
 		return integer_solution_exists;
@@ -291,6 +291,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		boolean integer_solution = false;
 		try {
 			IloCplex cplex = new IloCplex();
+			cplex.setOut(null); 			//disable CPLEX output
+			cplex.setParam(IloCplex.Param.Threads, 1);
 
 			// x[t] = x_(t,t+1), t = 0..maxT
 			IloNumVar[] x = new IloNumVar[maxT + 1];

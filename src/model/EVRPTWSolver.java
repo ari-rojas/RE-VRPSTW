@@ -240,7 +240,7 @@ public final class EVRPTWSolver {
 		//int gamma = Integer.parseInt(args[1]);
 
 		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "OriginalClean-Root", args[2]);
-		EVRPTW evrptw = new EVRPTW("C108-50", 1, 0, true, "OriginalClean-Bound", "Debug");
+		EVRPTW evrptw = new EVRPTW("R201-50", 3, 0, true, "OriginalClean-Bound", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
@@ -365,7 +365,7 @@ public final class EVRPTWSolver {
 		public void startLexicographicMaster(LexicographicMasterEvent lexiEvent){
 			if (dataModel.print_log) {
 
-				logger.debug("================ MASTER - LEXICOGRAPHIC ================");
+				logger.debug("================ MASTER - FINDING INTEGER SOLUTION ================");
 
 			}
 		}
@@ -374,7 +374,15 @@ public final class EVRPTWSolver {
 		public void finishLexicographicMaster(FinishLexicographicMasterEvent lexiEvent){
 			if (dataModel.print_log) {
 
-				logger.debug("Finished master -> RMP objective: {}, Total cost: {}", new Object[]{lexiEvent.depletion,lexiEvent.cost });
+				if (lexiEvent.found_integer_solution){
+					logger.debug("Found integer solution:");
+					List<Route> solution = lexiEvent.node.getSolution();
+					for (Route column : solution){
+						logger.debug(column.toString());
+					}
+				} else {
+					logger.debug("Did not find integer solution, charging branching proceeds.");
+				}
 
 			}
 		}
