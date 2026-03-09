@@ -476,7 +476,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
 			if (L2.remainingTime<L1.remainingTime) return false; 					//time
 			
-			if (L2.remainingEnergy[dataModel.gamma]<L1.remainingEnergy[dataModel.gamma]) return false; //energy
+			for (int gam=0; gam<=dataModel.gamma; gam++){
+				if (L2.remainingEnergy[dataModel.gamma]<L1.remainingEnergy[dataModel.gamma]) return false; //energy
+			}
 			
 			//reducedCost
 			double reducedCostL2 = 0;
