@@ -248,15 +248,14 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
-	protected double performLexicographicStep(BAPNode<EVRPTW, Route> bapNode, long timeLimit){
+	protected boolean findIntegerSolution(BAPNode<EVRPTW, Route> bapNode){
 		
-		// Solve Lexicographic Master Problem
+		long time=System.currentTimeMillis();
 		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
+		boolean exists_integer_solution = false;
 
 		List<Route> solution = bapNode.getSolution();
-		int[] charging_times = new int[solution.size()];
-		int[] departure_times = new int[solution.size()];
-		int n = 0;
+		int[] charging_times = new int[solution.size()]; int[] departure_times = new int[solution.size()]; int n = 0;
 		LinkedHashMap<ArrayList<Integer>, Route> unique_routes = new LinkedHashMap<ArrayList<Integer>, Route>();
 		for (Route column: solution){
 			if (unique_routes.containsKey(column.arcs)) continue;
@@ -269,35 +268,34 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
 
 		int maxT = dataModel.last_charging_period;
-		try { boolean exists_integer_solution = this.solveChargingScheduling(n, maxT, charging_times, departure_times, dataModel.B, unique_routes);}
+		try { exists_integer_solution = this.solveChargingScheduling(n, maxT, charging_times, departure_times, dataModel.B, unique_routes);}
 		catch (IloException e) {e.printStackTrace();}
 
-		OrderedBiMap varMap = ((Master)this.master).getMasterData().getVarMap();
-		for (Route column: unique_routes.values()){
-			if (varMap.containsKey(column)){
-				
+		if (exists_integer_solution){
+			OrderedBiMap varMap = ((Master)this.master).getMasterData().getVarMap();
+			List<Route> colsToAdd = new ArrayList<Route>();
+			ArrayList<Route> new_solution = (ArrayList<Route>) unique_routes.values();
+			for (Route column: new_solution){
+				if (!varMap.containsKey(column)){
+					column.BBnode = bapNode.nodeID;
+					colsToAdd.add(column);
+					logger.debug("Column does not exist: "+column.toString());
+				} else {
+					logger.debug("Column already exists: "+column.toString());
+				}
 			}
+			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), new_solution, bapNode.getInequalities());
+			bapNode.addInitialColumns(colsToAdd);
 		}
 
-		long time=System.currentTimeMillis(); double new_cost = 0;
-		//bapNode.storeSolution(new_cost, bapNode.getBound(), , new_Master.getCuts());
+		this.timeChargingBranching += System.currentTimeMillis() - time;
+		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, n, maxT);
 
-		//Double obj = new_Master.getObjective();
-		//this.timeSolvingMaster += (System.currentTimeMillis()-time);
-		//this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, obj, new_cost);
-
+		return exists_integer_solution;
 		
-
-		//if ((this.master.getrMap.get(column.associatedPricingProblem)).containsKey(column)) {
-
-		return 2;
 	}
 
 	protected boolean solveChargingScheduling(int n, int maxT, int[] charging_times, int[] departure_times, double B, LinkedHashMap<ArrayList<Integer>,Route> unique_routes) throws IloException {
-
-        // -----------------------------
-        // Decision variables
-        // -----------------------------
 
 		boolean integer_solution = false;
 		try {
@@ -385,6 +383,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				for (Map.Entry<ArrayList<Integer>, Route> entry: unique_routes.entrySet()){
 
 					Route new_column = entry.getValue().clone();
+					new_column.value = 1;
 					for (int t=departure_times[r]-1; t>=charging_times[r]; t--){
 						if (cplex.getValue(y[r][t]) > 0.5) {new_column.initialChargingTime = t-charging_times[r]+1; break;}
 					}
@@ -496,21 +495,30 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						} else {
 							
 							time = System.currentTimeMillis();
-							
-							foundBranches = bc.canPerformBranching(bapNode.getSolution());
+
+							foundBranches = this.findIntegerSolution(bapNode);
 							if (foundBranches){
-								this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-								newBranches.addAll(bc.getBranches(bapNode));
-							}
 
-							if (this.arcFlowNodes.contains(bapNode.nodeID)){
-								this.arcFlowNodes.add(newBranches.get(0).nodeID);
-								this.arcFlowNodes.add(newBranches.get(1).nodeID);
-							}
 
-							timeChargingBranching += (System.currentTimeMillis()-time);
-							this.chargingNodes.add(newBranches.get(0).nodeID);
-							this.chargingNodes.add(newBranches.get(1).nodeID);
+
+							} else {
+							
+								foundBranches = bc.canPerformBranching(bapNode.getSolution());
+								if (foundBranches){
+									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+									newBranches.addAll(bc.getBranches(bapNode));
+								}
+
+								if (this.arcFlowNodes.contains(bapNode.nodeID)){
+									this.arcFlowNodes.add(newBranches.get(0).nodeID);
+									this.arcFlowNodes.add(newBranches.get(1).nodeID);
+								}
+
+								timeChargingBranching += (System.currentTimeMillis()-time);
+								this.chargingNodes.add(newBranches.get(0).nodeID);
+								this.chargingNodes.add(newBranches.get(1).nodeID);
+
+							}
 
 						}
 	
