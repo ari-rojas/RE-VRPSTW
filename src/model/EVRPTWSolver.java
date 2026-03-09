@@ -237,10 +237,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		//int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "OriginalClean-Root", args[2]);
-		//EVRPTW evrptw = new EVRPTW("C108-50", 1, 0, true, "OriginalClean-Bound", "Debug");
+		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "OriginalClean-Root", args[2]);
+		EVRPTW evrptw = new EVRPTW("C108-50", 1, 0, true, "OriginalClean-Bound", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 	}
