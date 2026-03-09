@@ -362,6 +362,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		return false;
 	}
 
+	
 	/**
 	 * Verifies if L1 is (strongly) dominated by L2 (Heuristic rule)
 	 * @param L1, L2 labels
