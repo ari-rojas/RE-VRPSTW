@@ -492,7 +492,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 								
 								this.processIntegerNode(bapNode);
 
-
 							} else {
 							
 								foundBranches = bc.canPerformBranching(bapNode.getSolution());
