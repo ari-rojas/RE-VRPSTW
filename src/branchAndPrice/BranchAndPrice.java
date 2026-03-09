@@ -252,8 +252,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		
 		long time=System.currentTimeMillis();
 		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
-		boolean exists_integer_solution = false;
+		boolean integer_solution_exists = false;
 
+		// Retrieve the unique routes from the fractional solution
 		List<Route> solution = bapNode.getSolution();
 		int[] charging_times = new int[solution.size()]; int[] departure_times = new int[solution.size()]; int n = 0;
 		LinkedHashMap<ArrayList<Integer>, Route> unique_routes = new LinkedHashMap<ArrayList<Integer>, Route>();
@@ -266,32 +267,22 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				n ++;
 			}
 		}
+		logger.debug("There are "+n+" unique routes in the fractional solution.");
 
+		// Solve the charging scheduling problem
 		int maxT = dataModel.last_charging_period;
-		try { exists_integer_solution = this.solveChargingScheduling(n, maxT, charging_times, departure_times, dataModel.B, unique_routes);}
+		try { integer_solution_exists = this.solveChargingScheduling(n, maxT, charging_times, departure_times, dataModel.B, unique_routes);}
 		catch (IloException e) {e.printStackTrace();}
 
-		if (exists_integer_solution){
-			OrderedBiMap varMap = ((Master)this.master).getMasterData().getVarMap();
-			List<Route> colsToAdd = new ArrayList<Route>();
-			ArrayList<Route> new_solution = (ArrayList<Route>) unique_routes.values();
-			for (Route column: new_solution){
-				if (!varMap.containsKey(column)){
-					column.BBnode = bapNode.nodeID;
-					colsToAdd.add(column);
-					logger.debug("Column does not exist: "+column.toString());
-				} else {
-					logger.debug("Column already exists: "+column.toString());
-				}
-			}
-			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), new_solution, bapNode.getInequalities());
-			bapNode.addInitialColumns(colsToAdd);
+		// Retrieve and store the solution, if it exists
+		if (integer_solution_exists){
+			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), (List<Route>) unique_routes.values(), this.master.getCuts());
 		}
 
-		this.timeChargingBranching += System.currentTimeMillis() - time;
 		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, n, maxT);
+		this.timeChargingBranching += System.currentTimeMillis() - time;
 
-		return exists_integer_solution;
+		return integer_solution_exists;
 		
 	}
 
@@ -498,7 +489,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							foundBranches = this.findIntegerSolution(bapNode);
 							if (foundBranches){
-
+								
+								this.processIntegerNode(bapNode);
 
 
 							} else {
