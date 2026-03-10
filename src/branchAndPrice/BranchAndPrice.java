@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +29,10 @@ import columnGeneration.customCG;
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
+import ilog.concert.IloNumVar;
 import ilog.concert.IloObjective;
 import ilog.concert.IloRange;
+import ilog.concert.IloLinearNumExpr;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
 
@@ -243,6 +246,153 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
+	protected boolean findIntegerSolution(BAPNode<EVRPTW, Route> bapNode){
+		
+		long time=System.currentTimeMillis();
+		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
+		boolean integer_solution_exists = false;
+
+		// Retrieve the unique routes from the fractional solution
+		List<Route> solution = bapNode.getSolution();
+		int[] charging_times = new int[solution.size()]; int[] departure_times = new int[solution.size()]; int n = 0;
+		LinkedHashMap<ArrayList<Integer>, Route> unique_routes = new LinkedHashMap<ArrayList<Integer>, Route>();
+		for (Route column: solution){
+			if (unique_routes.containsKey(column.arcs)) continue;
+			else {
+				unique_routes.put(column.arcs, column);
+				charging_times[n] = column.chargingTime;
+				departure_times[n] = column.departureTime;
+				n ++;
+			}
+		}
+		logger.debug("There are "+n+" unique routes in the fractional solution.");
+
+		// Solve the charging scheduling problem
+		int maxT = dataModel.last_charging_period;
+		try { integer_solution_exists = this.solveChargingScheduling(n, maxT, charging_times, departure_times, dataModel.B, unique_routes);}
+		catch (IloException e) {e.printStackTrace();}
+
+		// Retrieve and store the solution, if it exists
+		if (integer_solution_exists){
+			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), new ArrayList<>(unique_routes.values()), this.master.getCuts());
+		}
+
+		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, true);
+		this.timeChargingBranching += System.currentTimeMillis() - time;
+
+		return integer_solution_exists;
+		
+	}
+
+	protected boolean solveChargingScheduling(int n, int maxT, int[] charging_times, int[] departure_times, double B, LinkedHashMap<ArrayList<Integer>,Route> unique_routes) throws IloException {
+
+		boolean integer_solution = false;
+		try {
+			IloCplex cplex = new IloCplex();
+			cplex.setOut(null); 			//disable CPLEX output
+			cplex.setParam(IloCplex.Param.Threads, 1);
+
+			// x[t] = x_(t,t+1), t = 0..maxT
+			IloNumVar[] x = new IloNumVar[maxT + 1];
+			for (int t = 0; t <= maxT; t++) {
+				x[t] = cplex.numVar(0.0, Double.MAX_VALUE, "x_" + t + "_" + (t + 1));
+			}
+
+			// y[r][t] = y_t^r, r = 0..n-1, b_r <= t < d_r
+			IloIntVar[][] y = new IloIntVar[n][maxT + 1];
+			for (int r = 0; r < n; r++) {
+				for (int t = charging_times[r]; t < departure_times[r]; t++) {
+					y[r][t] = cplex.boolVar("y_" + t + "_" + r);
+				}
+			}
+
+			// -----------------------------
+			// Boundary constraints
+			// x_(0,1) = 0
+			// x_(T,T+1) = 0, with T = maxT
+			// -----------------------------
+			cplex.addEq(x[0], 0.0, "x_0_1_zero");
+			cplex.addEq(x[maxT], 0.0, "x_" + maxT + "_" + (maxT + 1) + "_zero");
+
+			// -----------------------------
+			// 1) Charging capacity
+			// x_(t,t+1) + sum_{r : b_r <= t < d_r} y_t^r <= B     for all t = 1..maxT
+			// -----------------------------
+			for (int t = 1; t <= maxT; t++) {
+				IloLinearNumExpr lhs = cplex.linearNumExpr();
+
+				lhs.addTerm(1.0, x[t]);
+				for (int r = 0; r < n; r++) {
+					if (charging_times[r] <= t && t < departure_times[r]) lhs.addTerm(1.0, y[r][t]);
+				}
+
+				cplex.addLe(lhs, B, "capacity_" + t);
+			}
+
+			// -----------------------------
+			// 2) Flow conservation
+			// x_(t,t+1) + sum_{r : b_r <= t < d_r} y_t^r
+			//   = x_(t-1,t) + sum_{r : t+b_r-1 < d_r} y_{t+b_r-1}^r
+			// for all t = 1..maxT
+			// -----------------------------
+			for (int t = 1; t <= maxT; t++) {
+				IloLinearNumExpr lhs = cplex.linearNumExpr();
+				IloLinearNumExpr rhs = cplex.linearNumExpr();
+
+				// Left-hand side: x_(t,t+1) + sum_{r : b_r <= t < d_r} y_t^r
+				lhs.addTerm(1.0, x[t]);
+				for (int r = 0; r < n; r++) {
+					if (charging_times[r] <= t && t < departure_times[r])  lhs.addTerm(1.0, y[r][t]);
+				}
+
+				// Right-hand side: x_(t-1,t) + sum_{r : t+b_r-1 < d_r} y_{t+b_r-1}^r
+				rhs.addTerm(1.0, x[t - 1]);
+				for (int r = 0; r < n; r++) {
+					int tau = t + charging_times[r] - 1; // tau = t + b_r - 1
+					if (tau < departure_times[r]) rhs.addTerm(1.0, y[r][tau]);
+				}
+
+				cplex.addEq(lhs, rhs, "flow_" + t);
+			}
+
+			// -----------------------------
+			// 3) Each EV charges once
+			// sum_{t : b_r <= t < d_r} y_t^r = 1     for all r = 0..n-1
+			// -----------------------------
+			for (int r = 0; r < n; r++) {
+				IloLinearNumExpr expr = cplex.linearNumExpr();
+
+				for (int t = charging_times[r]; t < departure_times[r]; t++) expr.addTerm(1.0, y[r][t]);
+				cplex.addEq(expr, 1.0, "charge_once_" + r);
+			}
+
+			// Solve the model, and if a feasible solution exists, retrieve it
+			if (cplex.solve()) {
+                integer_solution = true;
+
+				int r = 0;
+				for (Map.Entry<ArrayList<Integer>, Route> entry: unique_routes.entrySet()){
+
+					Route new_column = entry.getValue().clone();
+					new_column.value = 1;
+					for (int t=departure_times[r]-1; t>=charging_times[r]; t--){
+						if (cplex.getValue(y[r][t]) > 0.5) {new_column.initialChargingTime = t-charging_times[r]+1; break;}
+					}
+
+					unique_routes.put(entry.getKey(), new_column);
+					r ++;
+				}
+				
+			}
+            cplex.end();
+
+        } catch (IloException e) {
+            e.printStackTrace();
+        }
+
+        return integer_solution;
+    }
+
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
@@ -336,23 +486,31 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						} else {
 							
 							time = System.currentTimeMillis();
-							
-							foundBranches = bc.canPerformBranching(bapNode.getSolution());
+
+							foundBranches = findIntegerSolution(bapNode);
+
 							if (foundBranches){
-								this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-								newBranches.addAll(bc.getBranches(bapNode));
-							}
 
-							if (this.arcFlowNodes.contains(bapNode.nodeID)){
-								this.arcFlowNodes.add(newBranches.get(0).nodeID);
-								this.arcFlowNodes.add(newBranches.get(1).nodeID);
-							}
+								this.processIntegerNode(bapNode);
 
-							timeChargingBranching += (System.currentTimeMillis()-time);
-							this.chargingNodes.add(newBranches.get(0).nodeID);
-							this.chargingNodes.add(newBranches.get(1).nodeID);
+							} else {
 							
+								foundBranches = bc.canPerformBranching(bapNode.getSolution());
+								if (foundBranches){
+									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+									newBranches.addAll(bc.getBranches(bapNode));
+								}
 
+								if (this.arcFlowNodes.contains(bapNode.nodeID)){
+									this.arcFlowNodes.add(newBranches.get(0).nodeID);
+									this.arcFlowNodes.add(newBranches.get(1).nodeID);
+								}
+
+								timeChargingBranching += (System.currentTimeMillis()-time);
+								this.chargingNodes.add(newBranches.get(0).nodeID);
+								this.chargingNodes.add(newBranches.get(1).nodeID);
+							
+							}
 
 						}
 	
