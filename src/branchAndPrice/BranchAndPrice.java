@@ -453,6 +453,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				if (foundBranches){
 
 					this.processIntegerNode(bapNode);
+					return true;
 
 				} else {
 
