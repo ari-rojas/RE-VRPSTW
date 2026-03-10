@@ -65,14 +65,14 @@ public class ExtendBAPNotifier{
       }
     }
 
-    public void fireFinishLexicographicMasterEvent(BAPNode node, double obj, double cost) {
+    public void fireFinishLexicographicMasterEvent(BAPNode node, boolean found) {
       FinishLexicographicMasterEvent lexiMasterEvent = null;
 
       ExtendBAPListener listener;
       for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishLexicographicMaster(lexiMasterEvent)) {
         listener = (ExtendBAPListener)var3.next();
         if (lexiMasterEvent == null) {
-          lexiMasterEvent = new FinishLexicographicMasterEvent(this.parent, node, obj, cost);
+          lexiMasterEvent = new FinishLexicographicMasterEvent(this.parent, node, found);
         }
       }
     }
