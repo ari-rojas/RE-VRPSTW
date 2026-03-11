@@ -187,7 +187,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		//Solve pricing problems in the order of the pricing algorithms
 		notifier.fireStartPricingEvent();
 		pricingProblemManager.setTimeLimit(timeLimit);
-		//((PricingProblem) pricingProblems.get(0)).compute_charging_bounds();
+		((PricingProblem) pricingProblems.get(0)).compute_charging_bounds();
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			newColumns=pricingProblemManager.solvePricingProblems(solver);
