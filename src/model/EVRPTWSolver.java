@@ -103,13 +103,7 @@ public final class EVRPTWSolver {
 		solvers.add(CBMinCostPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
-		List<Route> initSolution = this.getInitialSolution(pricingProblem);
-		for (Route init_col: initialColumns){
-			Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) init_col.route.clone(), (int[]) init_col.routeSequence.clone(), pricingProblem, init_col.cost, init_col.departureTime, init_col.energy, init_col.load, 0.0, (ArrayList<Integer>) init_col.arcs.clone(), init_col.initialChargingTime, init_col.chargingTime);
-			new_route.BBnode=0;
-			initSolution.add(new_route);
-		}
-		//initSolution.addAll(initialColumns);
+		List<Route> initSolution = this.getInitialSolution(pricingProblem, initialColumns);
 
 		//Define Branch creators
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
@@ -186,9 +180,17 @@ public final class EVRPTWSolver {
 	 * Simple initial solution: visit each customer with a single vehicle and assign a charging schedule. 
 	 * @return initial set of routes
 	 */
-	private List<Route> getInitialSolution(PricingProblem pricingProblem){
+	private List<Route> getInitialSolution(PricingProblem pricingProblem, ArrayList<Route> initialColumns){
 
 		List<Route> initSolution = new ArrayList<>();
+		List<ArrayList<Integer>> all_arcs = new ArrayList<>();
+		for (Route init_col: initialColumns){
+			Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) init_col.route.clone(), (int[]) init_col.routeSequence.clone(), pricingProblem, init_col.cost, init_col.departureTime, init_col.energy, init_col.load, 0.0, (ArrayList<Integer>) init_col.arcs.clone(), init_col.initialChargingTime, init_col.chargingTime);
+			new_route.BBnode=0;
+			initSolution.add(new_route);
+
+			all_arcs.add(init_col.arcs);
+		}
 
 		//Dummy (artificial) routes to identify infeasibility and initialize the CG
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
@@ -219,6 +221,7 @@ public final class EVRPTWSolver {
 					routeSequence = new int[] {i};
 					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
 					arcs.add(arc.id);arcs.add(arc2.id);
+					if (all_arcs.contains(arcs)) continue; // no repeated columns
 					int latestDeparture = dataModel.vertices[i].closing_tw-arc.time;
 					latestDeparture = (int) (latestDeparture/10);
 					int initialChargingTime = latestDeparture-dataModel.f_inverse[energy];
