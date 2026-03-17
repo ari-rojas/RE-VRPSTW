@@ -104,7 +104,7 @@ public final class EVRPTWSolver {
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution = this.getInitialSolution(pricingProblem);
-		if (initialColumns != null) initSolution.addAll(initialColumns);
+		if (initialColumns != null) { initSolution.addAll(initialColumns); }
 
 		//Define Branch creators
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));

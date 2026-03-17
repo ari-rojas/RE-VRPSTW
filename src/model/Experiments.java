@@ -369,6 +369,7 @@ public class Experiments {
                     gamma = gamma - 1;
                     if ((obj > 1e7 && isOptimal) || (obj - new_obj < 1e4)){ // If the experiment is either infeasible or the new obj value is the same, no need to update the initial columns
 
+                        deleteStaticObject(Configuration.class, "instance");
                         continue;
 
                     } else if (gamma >= 0) {
@@ -415,6 +416,7 @@ public class Experiments {
 
                             Route route = solution.get(r);
                             Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), route.initialChargingTime, chargingTimes[r]);
+                            new_route.BBnode=0;
 
                             initialColumns.add(new_route);
                         }
@@ -585,7 +587,7 @@ public class Experiments {
 
     public static void main(String[] args){
 
-        run_forward_robustness_experiments(args[0]);
+        run_backward_robustness_experiments(args[0]);
     
     }
 
