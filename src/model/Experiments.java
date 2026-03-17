@@ -236,7 +236,7 @@ public class Experiments {
                 while (gamma <= 10){
                     
                     EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma);
-                    EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
+                    EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
                     Solver.solve(32400000L); evrptw.fileOut.close();
                     ArrayList<Route> solution = Solver.close();
@@ -354,7 +354,7 @@ public class Experiments {
                 int gamma = 10;
 
                 double obj = Double.MAX_VALUE;
-                ArrayList<Route> initialColumns = null;
+                ArrayList<Route> initialColumns = new ArrayList<>();
                 while (gamma >= 0){
                     
                     EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma);
@@ -367,7 +367,7 @@ public class Experiments {
                     boolean isOptimal = Solver.isOptimal;
 
                     gamma = gamma - 1;
-                    if ((obj > 1e7 && isOptimal) || (obj - new_obj < 1e4)){ // If the experiment is either infeasible or the new obj value is the same, no need to update the initial columns
+                    if (new_obj > 1e7 && isOptimal){ // If the experiment is either infeasible or the new obj value is the same, no need to update the initial columns
 
                         deleteStaticObject(Configuration.class, "instance");
                         continue;
@@ -415,7 +415,7 @@ public class Experiments {
                         for (int r = 0; r < nR; r++){
 
                             Route route = solution.get(r);
-                            Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), route.initialChargingTime, chargingTimes[r]);
+                            Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), null, route.cost, route.departureTime, worstCaseEnergy[r], route.load, 0.0, (ArrayList<Integer>) route.arcs.clone(), route.initialChargingTime, chargingTimes[r]);
                             new_route.BBnode=0;
 
                             initialColumns.add(new_route);

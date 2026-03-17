@@ -104,7 +104,12 @@ public final class EVRPTWSolver {
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution = this.getInitialSolution(pricingProblem);
-		if (initialColumns != null) { initSolution.addAll(initialColumns); }
+		for (Route init_col: initialColumns){
+			Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) init_col.route.clone(), (int[]) init_col.routeSequence.clone(), pricingProblem, init_col.cost, init_col.departureTime, init_col.energy, init_col.load, 0.0, (ArrayList<Integer>) init_col.arcs.clone(), init_col.initialChargingTime, init_col.chargingTime);
+			new_route.BBnode=0;
+			initSolution.add(new_route);
+		}
+		//initSolution.addAll(initialColumns);
 
 		//Define Branch creators
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
@@ -238,14 +243,14 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		/* int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "ExNewPricing-Root0-CS", args[2]);
 		//EVRPTW evrptw = new EVRPTW("R202-50", 9, 0, true, "ExNewPricing", "Debug");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
-		Solver.close();
+		Solver.close(); */
 
 	}
 
