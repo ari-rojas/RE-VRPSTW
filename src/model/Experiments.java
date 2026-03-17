@@ -224,14 +224,14 @@ public class Experiments {
 
     }
 
-    public static void run_robustness_experiments(String instance){
+    public static void run_forward_robustness_experiments(String instance){
 
         String alg = "ExNewPricing-Long";
         if (instance != ""){
             try {
 
                 int gamma = 0;
-                if (instance == "R211-50") gamma = 1;
+                if (instance == "") gamma = 1;
 
                 while (gamma <= 10){
                     
@@ -335,6 +335,93 @@ public class Experiments {
                     }
 
                     gamma = next_gamma;
+                    deleteStaticObject(Configuration.class, "instance");
+
+                }
+
+            } catch (Exception ex) { ex.printStackTrace(); }
+        
+        }
+
+    }
+
+    public static void run_backward_robustness_experiments(String instance){
+
+        String alg = "ExNewPricing-Long";
+        if (instance != ""){
+            try {
+
+                int gamma = 10;
+
+                double obj = Double.MAX_VALUE;
+                ArrayList<Route> initialColumns = null;
+                while (gamma >= 0){
+                    
+                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma);
+                    EVRPTWSolver Solver = new EVRPTWSolver(evrptw, initialColumns);
+
+                    Solver.solve(32400000L); evrptw.fileOut.close();
+                    ArrayList<Route> solution = Solver.close();
+
+                    double new_obj = Solver.upperBound;
+                    boolean isOptimal = Solver.isOptimal;
+
+                    gamma = gamma - 1;
+                    if ((obj > 1e7 && isOptimal) || (obj - new_obj < 1e4)){ // If the experiment is either infeasible or the new obj value is the same, no need to update the initial columns
+
+                        continue;
+
+                    } else if (gamma >= 0) {
+
+                        // Retrieve the solution
+                        int nR = solution.size(); int[] departureTimes = new int[nR]; int maxT = 0;
+
+                        int[] nominalEnergy = new int[nR];
+                        PriorityQueue<Integer>[] energyDeviations = new PriorityQueue[nR];
+                        int[] worstCaseEnergy = new int[nR];
+                        int[] chargingTimes = new int[nR];
+                        for (int r = 0; r < nR; r++){
+
+                            Route route = solution.get(r);
+
+                            int d = route.departureTime; departureTimes[r] = d;
+                            if (d > maxT) maxT = d;
+                            
+                            int nomEnergy = 0;
+                            PriorityQueue<Integer> energyDevs = new PriorityQueue<>(Comparator.reverseOrder());
+                            for (Integer arcID: route.arcs){
+                                Arc arc = evrptw.arcs[arcID];
+                                nomEnergy += arc.energy;
+                                energyDevs.add(arc.energy_deviation);
+                            }
+
+                            nominalEnergy[r] = nomEnergy;
+
+                            int worstEnergy = nomEnergy;
+                            for (int g = 1; g <= gamma; g++) {
+                                Integer dev = energyDevs.poll();
+                                if (dev != null) worstEnergy += dev;
+                                else break;
+                            }
+
+                            energyDeviations[r] = energyDevs; worstCaseEnergy[r] = worstEnergy;
+                            chargingTimes[r] = evrptw.f_inverse[worstEnergy];
+
+                        }
+
+                        // Retrieving the robust solution
+                        initialColumns = new ArrayList<>();
+                        for (int r = 0; r < nR; r++){
+
+                            Route route = solution.get(r);
+                            Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), route.initialChargingTime, chargingTimes[r]);
+
+                            initialColumns.add(new_route);
+                        }
+
+                    }
+
+                    obj = new_obj;
                     deleteStaticObject(Configuration.class, "instance");
 
                 }
@@ -498,7 +585,7 @@ public class Experiments {
 
     public static void main(String[] args){
 
-        run_robustness_experiments(args[0]);
+        run_forward_robustness_experiments(args[0]);
     
     }
 
