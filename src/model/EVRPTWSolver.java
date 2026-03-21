@@ -184,11 +184,13 @@ public final class EVRPTWSolver {
 
 		List<Route> initSolution = new ArrayList<>();
 		List<ArrayList<Integer>> all_arcs = new ArrayList<>();
+		this.upperBound = 0.0;
+		if (initialColumns.isEmpty()) this.upperBound = Math.pow(10, 20);
 		for (Route init_col: initialColumns){
 			Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) init_col.route.clone(), (int[]) init_col.routeSequence.clone(), pricingProblem, init_col.cost, init_col.departureTime, init_col.energy, init_col.load, 0.0, (ArrayList<Integer>) init_col.arcs.clone(), init_col.initialChargingTime, init_col.chargingTime);
 			new_route.BBnode=0;
 			initSolution.add(new_route);
-
+			this.upperBound += new_route.cost;
 			all_arcs.add(init_col.arcs);
 		}
 
@@ -196,7 +198,7 @@ public final class EVRPTWSolver {
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
 		int[] routeSequence = new int[dataModel.C];
 		for(int i=0; i< dataModel.C; i++) {route.put(i+1, 1); routeSequence[i] = i+1;}
-		upperBound = Math.pow(10, 20);
+		
 		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
 
 		//Dummy routes (possibly feasible)
