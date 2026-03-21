@@ -248,14 +248,14 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		/* int gamma = Integer.parseInt(args[1]);
+		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "ExNewPricing-Root0-CS", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "ExNewPricing-Root0", args[2]);
 		//EVRPTW evrptw = new EVRPTW("R202-50", 9, 0, true, "ExNewPricing", "Debug");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, null);
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
-		Solver.close(); */
+		Solver.close();
 
 	}
 
