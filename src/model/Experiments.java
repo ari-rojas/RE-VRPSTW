@@ -587,7 +587,7 @@ public class Experiments {
 
     public static void main(String[] args){
 
-        run_backward_robustness_experiments(args[0]);
+        run_forward_robustness_experiments(args[0]);
     
     }
 

@@ -142,9 +142,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public void solveIPAtRootNode(BAPNode<EVRPTW, Route> node) throws IloException {
 
 		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
-		IloCplex cplex =new IloCplex(); 									//create CPLEX instance
-		cplex.setOut(null);													//disable CPLEX output
-		cplex.setParam(IloCplex.IntParam.Threads, config.MAXTHREADS); 		//set number of threads that may be used by the cplex
+		IloCplex cplex =new IloCplex();
+		cplex.setOut(null); 			//disable CPLEX output
+		cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
+		cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
+		cplex.setParam(IloCplex.Param.RandomSeed, 30);
+		cplex.setParam(IloCplex.Param.Threads, 1);
 
 		//Define the objective
 		IloObjective obj= cplex.addMinimize();
@@ -172,7 +175,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+ column.chargingTime-1); t++)
 				iloColumn=iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
 
-
 			//Create the variable and store it
 			IloIntVar var= cplex.intVar(iloColumn, 0, 1);
 			cplex.add(var);
@@ -180,7 +182,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
 
 		//Set time limit
-		cplex.setParam(IloCplex.DoubleParam.TiLim, 10.0); //set time limit in seconds (in this case 10 seconds)
+		cplex.setParam(IloCplex.Param.TimeLimit, 10.0); //set time limit in seconds (in this case 10 seconds)
 		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal && cplex.getCplexTime()<10){
 			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
 			upperBoundOnObjective = objectiveIncumbentSolution;
@@ -188,9 +190,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			List<Route> optimalSolution = new ArrayList<Route>();
 			for (Route route: solution.keySet()) {
 				double value = cplex.getValue(solution.get(route));
-				if(value>=config.PRECISION){
+				if(value > 0.5){
 					Route newRoute = route.clone();
-					newRoute.value = value;
+					newRoute.value = 1;
 					optimalSolution.add(newRoute);
 				}
 			}
