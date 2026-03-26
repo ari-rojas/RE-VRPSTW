@@ -610,9 +610,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						}
 						
 						this.updateNodeGeneratedColumns(bapNode);
-						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
+						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4))) {
+							this.perform_fixing_by_reduced_cost(bapNode, timeLimit);
+						}
+						dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
 						
 						// Look for Number of Vehicles or Customers Arc Flow branching
+						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
 						boolean foundBranches = process_branching(bapNode, newBranches, time);
 	
 						if (!foundBranches) { throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?"); }
