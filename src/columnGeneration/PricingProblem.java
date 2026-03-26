@@ -472,4 +472,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
     	return (((long) b) << 32) | (t & 0xffffffffL);
 	}
 
+	/** Returns the time in seconds (and considering two decimals). */
+	public double getTimeInSeconds(double time) {
+		double realTime = time*0.001;
+		realTime = Math.floor(realTime*100)/100; //two decimals
+		return realTime;
+	}
+
 }
