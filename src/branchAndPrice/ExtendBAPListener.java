@@ -12,4 +12,8 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishLexicographicMaster(FinishLexicographicMasterEvent var1);
 
+    void IPRootNode(IPRootNodeEvent var1);
+
+    void finishIPRootNode(FinishIPRootNodeEvent var1);
+
 }

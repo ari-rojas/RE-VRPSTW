@@ -130,8 +130,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		//Solve MIP at root node (optional)
 		if(bapNode.nodeID == 0) {
+			double time = System.currentTimeMillis();
+			extendedNotifier.fireIPRootNodeEvent(bapNode);
 			try {solveIPAtRootNode(bapNode);} 
 			catch (IloException e) {e.printStackTrace();}
+			extendedNotifier.fireFinishIPRootNodeEvent(bapNode, System.currentTimeMillis() - time);
 		}
 
 	}
@@ -188,15 +191,22 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			upperBoundOnObjective = objectiveIncumbentSolution;
 			//retrieve solution
 			List<Route> optimalSolution = new ArrayList<Route>();
+			if (dataModel.print_log) logger.debug("Found integer solution:");
 			for (Route route: solution.keySet()) {
 				double value = cplex.getValue(solution.get(route));
 				if(value > 0.5){
 					Route newRoute = route.clone();
 					newRoute.value = 1;
 					optimalSolution.add(newRoute);
+
+					if (dataModel.print_log) logger.debug(newRoute.toString());
 				}
 			}
 			incumbentSolution = optimalSolution;
+		} else {
+			if (dataModel.print_log) {
+				logger.debug("Did not find an integer solution");
+			}
 		}
 		cplex.close();
 		cplex.end();

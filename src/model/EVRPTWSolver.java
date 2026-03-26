@@ -48,6 +48,8 @@ import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
+import branchAndPrice.IPRootNodeEvent;
+import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.CBMinCostPricingProblemSolver;
@@ -316,6 +318,20 @@ public final class EVRPTWSolver {
 		public void CGMasterIsInfeasible(CGMasterIsInfeasibleEvent cgMasterIsInfeasibleEvent){
 			if (dataModel.print_log) {
 				logger.debug("CPLEX found the RMP to be infeasible.");
+			}
+		}
+
+		@Override
+		public void IPRootNode(IPRootNodeEvent IPRootEvent){
+			if (dataModel.print_log) {
+				logger.debug("=============== SOLVING IP ===============");
+			}
+		}
+
+		@Override
+		public void finishIPRootNode(FinishIPRootNodeEvent IPRootEvent){
+			if (dataModel.print_log) {
+				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
 			}
 		}
 
