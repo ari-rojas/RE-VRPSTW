@@ -43,6 +43,8 @@ import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolv
 import org.jorlib.frameworks.columnGeneration.util.Configuration;
 import branchAndPrice.BranchAndPrice;
 import branchAndPrice.BranchingRules;
+import branchAndPrice.CGFinishFixingByReducedCostEvent;
+import branchAndPrice.CGFixingByReducedCostEvent;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
@@ -387,6 +389,26 @@ public final class EVRPTWSolver {
 						return "-" + i.toString() + ": " + cutSummary.get(i);
 					}).collect(Collectors.joining(", "));
 					this.logger.debug(summary);
+				}
+			}
+		}
+
+		@Override
+		public void fixingByReducedCost(CGFixingByReducedCostEvent frcEvent){
+			if (dataModel.print_log) {
+				logger.debug("================ FIXING BY REDUCED COST ================");
+				logger.debug("UB = {} LB = {} Gap = {} ({})",new Object[]{frcEvent.UB, frcEvent.LB, frcEvent.UB-frcEvent.LB, Math.round((1-frcEvent.LB/frcEvent.UB)*1e4)/1e4});
+			}
+		}
+
+		@Override
+		public void finishFixingByReducedCost(CGFinishFixingByReducedCostEvent frcEvent){
+			if (dataModel.print_log) {
+				logger.debug("Removing {} arcs.",frcEvent.arcs.size());
+				for(Map.Entry<Integer, Double> entry: frcEvent.arcs.entrySet()){
+					int arcID = entry.getKey(); Arc arc = dataModel.arcs[arcID];
+					double rc = entry.getValue();
+					logger.debug("Arc {} ({},{}): RC - RC* = {} - {} = {}",new Object[]{arcID, arc.tail, arc.head, Math.round(rc*1e4)/1e4, Math.round(frcEvent.best_rc*1e4)/1e4, Math.round((rc-frcEvent.best_rc)*1e4)/1e4});
 				}
 			}
 		}
