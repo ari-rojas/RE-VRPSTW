@@ -139,6 +139,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) exhaustive_filter_labels_same_chargingTime(entry, columnsQueue);
 		
 		// The "processed" columns are mapped
+		RouteColumn[] columnsMap = new RouteColumn[dataModel.last_charging_period+1];
 		BitSet init_t_set = new BitSet();
 
 		while (!columnsQueue.isEmpty()){
@@ -150,18 +151,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			if (init_t_set.get(init_t)) continue; // if there is already a column in the main diagonal, it is dominated
 			
-			boolean dominated = false; boolean all_zeros = true;
+			boolean dominated = false;
 			for (int diag_t = init_t+1; diag_t <= t; diag_t ++){
-				all_zeros = all_zeros && this.zero_charging_duals.get(diag_t-1);
-				if (!all_zeros) break; // if not all duals are zeros, it won't be dominated
-				if (init_t_set.get(diag_t) && all_zeros) {dominated = true; break;} // it is dominated if all duals are zero (and there is a column already in the diagonal)
+				double minus_betas = this.charging_reducedCosts[diag_t-init_t][diag_t-1];
+				if (init_t_set.get(diag_t) && columnsMap[diag_t].reducedCost + minus_betas <= column.reducedCost + dataModel.precision) {dominated = true; break;} // it is dominated if all duals are zero (and there is a column already in the diagonal)
 			}
 
 			if (dominated) continue;
 
 			// If the column is NOT dominated, map the column
 			int index = currentLabel.index;
-			init_t_set.set(init_t);
+			init_t_set.set(init_t); columnsMap[init_t] = column;
 			if (this.last_charging_periods.containsKey(index)) this.last_charging_periods.get(index).set(t);
 			else {
 				BitSet newBit = new BitSet(); newBit.set(t);
