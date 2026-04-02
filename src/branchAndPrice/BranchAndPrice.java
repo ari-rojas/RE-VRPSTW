@@ -131,13 +131,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		//Inherit the cuts generated (not necessary)
 
 		//Solve MIP at root node (optional)
-		if(bapNode.nodeID == 0) {
+		/* if(bapNode.nodeID == 0) {
 			double time = System.currentTimeMillis();
 			extendedNotifier.fireIPRootNodeEvent(bapNode);
 			try {solveIPAtRootNode(bapNode);} 
 			catch (IloException e) {e.printStackTrace(); logger.debug(e.getMessage());}
 			extendedNotifier.fireFinishIPRootNodeEvent(bapNode, System.currentTimeMillis() - time);
-		}
+		} */
 
 	}
 
@@ -610,10 +610,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						}
 						
 						this.updateNodeGeneratedColumns(bapNode);
-						if ((bapNode.nodeID == 0) && ((1-bapNode.getBound()/this.objectiveIncumbentSolution) < (0.1 - 1e-4))) {
-							this.perform_fixing_by_reduced_cost(bapNode, timeLimit);
-						}
-						dataModel.infeasibleArcs = pricingProblem.infeasibleArcs.clone();
 						
 						// Look for Number of Vehicles or Customers Arc Flow branching
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();

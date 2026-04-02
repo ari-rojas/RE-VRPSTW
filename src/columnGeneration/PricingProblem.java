@@ -32,7 +32,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public boolean isExact;
 
 	//Charging pricing information
-	private BitSet negative_charging_duals;
+	private BitSet zero_charging_duals;
 	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
 
 	private HashMap<Integer, Integer> nonDominatedT;
@@ -53,7 +53,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public void compute_charging_bounds(){
 
-		this.negative_charging_duals = new BitSet();
+		this.zero_charging_duals = new BitSet();
 
 		// 1. Get the minimum and maximum possible departure times
 		int minT = (int) (dataModel.vertices[0].opening_tw/10);
@@ -67,7 +67,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		double[] S = new double[maxT]; S[0] = 0.0;
 		for (int t = 1; t < maxT; t++) {
 			double dual = this.dualCosts[dataModel.C + t - 1];
-			this.negative_charging_duals.set(t, dual < -dataModel.precision);
+			this.zero_charging_duals.set(t, dual >= -dataModel.precision);
 			S[t] = S[t - 1] + dual;
 		}
 
@@ -136,12 +136,80 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		// 2. Dominance between labels of same chargingTime b
 		// For each chargingTime b, get the last-charging-time-periods that have a non-dominated column, and their corresponding label
-		PriorityQueue<RouteColumn> columnsQueue = new PriorityQueue<>(
-			Comparator
-			.comparingDouble((RouteColumn r) -> r.reducedCost)						// 1) lowest reducedCost first
-			.thenComparingInt(r -> r.b)                         					// 2) lowest b first
-			.thenComparing((r1, r2) -> Integer.compare(r2.last_t, r1.last_t)) 		// 3) highest last_t first
-		);
+		PriorityQueue<RouteColumn> columnsQueue = new PriorityQueue<>(new RouteColumnComparator());
+		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) exhaustive_filter_labels_same_chargingTime(entry, columnsQueue);
+		
+		// The "processed" columns are mapped
+		int maxT = dataModel.last_charging_period;
+		RouteColumn[] columnsMap = new RouteColumn[maxT+1];
+		BitSet init_t_set = new BitSet();
+
+		while (!columnsQueue.isEmpty()){
+
+			RouteColumn column = columnsQueue.poll();
+			int b = column.b; int t = column.last_t;
+			int init_t = t-b+1;
+			Label currentLabel = column.routeLabel;
+			
+			if (init_t_set.get(init_t)) continue; // if there is already a column in the main diagonal, it is dominated
+			
+			boolean dominated = false; boolean all_zeros = true;
+			for (int diag_t = init_t+1; diag_t <= t; diag_t ++){
+				all_zeros = all_zeros && this.zero_charging_duals.get(diag_t);
+				if (!all_zeros) break; // if not all duals are zeros, it won't be dominated
+				if (init_t_set.get(diag_t) && all_zeros) {dominated = true; break;} // it is dominated if all duals are zero (and there is a column already in the diagonal)
+			}
+
+			if (dominated) continue;
+
+			// If the column is NOT dominated, map the column
+			int index = currentLabel.index;
+			init_t_set.set(init_t); columnsMap[init_t] = column;
+			if (this.last_charging_periods.containsKey(index)) this.last_charging_periods.get(index).set(t);
+			else {
+				BitSet newBit = new BitSet(); newBit.set(t);
+				this.last_charging_periods.put(index, newBit);
+			}
+
+			//if (columnsMap.size() > this.maxCols) break;
+			
+		}
+
+		ArrayList<Label> to_remove = new ArrayList<>();
+		for (Label l: filtered_labels) if (!last_charging_periods.containsKey(l.index)) to_remove.add(l);
+		filtered_labels.removeAll(to_remove);
+
+		return filtered_labels;
+	}
+
+	public ArrayList<Label> charging_pricing_filtering_old(ArrayList<Label> labels){
+
+		this.nonDominatedT = new HashMap<>();
+		this.last_charging_periods = new HashMap<>();
+		this.isExact = true;
+
+		//////////////////////////////////////////////////////////
+		/// 1. Bounding Procedure and Preprocessing
+		//////////////////////////////////////////////////////////
+
+		// To avoid constantly recomputing the departure times of the labels, we save them in the vertex field
+		ArrayList<Label> filtered_labels = new ArrayList<>(); int ix = 0;
+		for (Label label: labels) {
+			label.index = ix; label.vertex = (int)(label.remainingTime/10);
+			filtered_labels.add(label); ix ++;
+		}
+
+		//////////////////////////////////////////////////////////
+		/// 2. Labels dominance
+		//////////////////////////////////////////////////////////
+
+		// 1. Group labels by charging time b
+		Map<Integer, List<Label>> labelsByB = new HashMap<>();
+		for (Label label : filtered_labels) labelsByB.computeIfAbsent(label.chargingTime, k -> new ArrayList<>()).add(label);
+
+		// 2. Dominance between labels of same chargingTime b
+		// For each chargingTime b, get the last-charging-time-periods that have a non-dominated column, and their corresponding label
+		PriorityQueue<RouteColumn> columnsQueue = new PriorityQueue<>(new RouteColumnComparator());
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) exhaustive_filter_labels_same_chargingTime(entry, columnsQueue);
 		
 		// The "processed" columns are mapped
@@ -163,7 +231,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int t2 = t_set.nextSetBit(t+1); t2 > 0 && t2 <= t+b-1; t2 = t_set.nextSetBit(t2 + 1)){
 				if (columnsIndicator[t2].get(b)){
 					Label otherLabel = columnsMap.get(pack(b,t2));
-					if (otherLabel.index == currentLabel.index && !this.negative_charging_duals.get(t+1)) dominated = true;
+					if (otherLabel.index == currentLabel.index && this.zero_charging_duals.get(t+1)) dominated = true;
 					break; // Only needs to check dominance with respect to the first found column
 				}
 			}
@@ -425,7 +493,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		return bwSequences;
 	}
-
 	private final class PartialBackwardSequence {
 
 		public double reducedCost;
@@ -465,6 +532,43 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.last_t = last_t;
 			this.reducedCost = rc;
 			this.routeLabel = routeLabel;
+		}
+	}
+
+	public class RouteColumnComparator implements Comparator<RouteColumn> {
+
+		@Override
+		public int compare(RouteColumn c1, RouteColumn c2) {
+
+			// 1) Primary order: non-descending reducedCost
+			double diff = c1.reducedCost - c2.reducedCost;
+			if (diff > dataModel.precision) return 1; // c2 has priority
+			else if (diff < dataModel.precision) return -1; // c1 has priority
+
+			// 2) Tie-breaking rule
+			RouteColumn r1 = c1;
+			RouteColumn r2 = c2;
+			boolean r1IsC1 = true;
+
+			if (c1.b > c2.b) {
+				r1 = c2; r2 = c1;
+				r1IsC1 = false;
+			}
+
+			int start1 = r1.last_t - r1.b + 1;
+			int end1   = r1.last_t;
+			int start2 = r2.last_t - r2.b + 1;
+			int end2   = r2.last_t;
+
+			// Check whether the charging schedules of the columns overlap
+			boolean overlap = Math.max(start1, start2) <= Math.min(end1, end2);
+			if (overlap)  {
+				// If b1 <= b2 - (last_t2 - last_t1), then r1 has priority; else r2
+				boolean r1HasPriority = r1.b <= r2.b - (end2 - end1);
+				if (r1HasPriority) return r1IsC1 ? -1 : 1; // c1 has priority
+				else return r1IsC1 ? 1 : -1; // c2 has priority
+				
+			} else return 0; // No common time periods -> no priority
 		}
 	}
 
