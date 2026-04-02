@@ -33,7 +33,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	//Charging pricing information
 	private BitSet zero_charging_duals;
-	public Map<Integer, Map<Integer, Double>> charging_reducedCosts;
+	public double[][] charging_reducedCosts;
 
 	private HashMap<Integer, Integer> nonDominatedT;
 	public Map<Integer, BitSet> last_charging_periods;
@@ -58,6 +58,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		// 1. Get the minimum and maximum possible departure times
 		int minT = (int) (dataModel.vertices[0].opening_tw/10);
 		int maxT = dataModel.last_charging_period + 1;
+		int maxB = dataModel.f_inverse[dataModel.E];
 
 		///////////////////////////////////////////////////////////////////////////
 		/// Preprocess the dual information
@@ -86,24 +87,22 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// Compute the bounds for every combination of chargingTime b and departureTime d
 		///////////////////////////////////////////////////////////////////////////////////
 
-		this.charging_reducedCosts = new HashMap<>();
-		for (int b = 1; b <= dataModel.f_inverse[dataModel.E]; b++){
+		this.charging_reducedCosts = new double[maxB+1][maxT+1];
+		for (int b = 1; b <= maxB; b++){
 
-			Map<Integer, Double> reducedCostsMap = new HashMap<>();
 			int first_departure = Math.max(b+1, minT);
 			for (int last_t = b; last_t < first_departure-1; last_t ++){
 				double rc = - (S[last_t] - S[last_t-b]) - this.last_charging_branch_duals[last_t] - this.initial_charging_branch_duals[last_t-b+1];
-				reducedCostsMap.put(last_t, rc);
+				this.charging_reducedCosts[b][last_t] = rc;
 			}
 			
 			for (int d = first_departure; d <= maxT; d++){
 				
 				double rc = - (S[d-1] - S[d-b-1]) - this.last_charging_branch_duals[d-1] - this.initial_charging_branch_duals[d-b];
-				reducedCostsMap.put(d-1, rc);
+				this.charging_reducedCosts[b][d-1] = rc;
 				
 			}
-			
-			this.charging_reducedCosts.put(b, reducedCostsMap);
+		
 			
 		}
 
@@ -153,7 +152,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			boolean dominated = false; boolean all_zeros = true;
 			for (int diag_t = init_t+1; diag_t <= t; diag_t ++){
-				all_zeros = all_zeros && this.zero_charging_duals.get(diag_t);
+				all_zeros = all_zeros && this.zero_charging_duals.get(diag_t-1);
 				if (!all_zeros) break; // if not all duals are zeros, it won't be dominated
 				if (init_t_set.get(diag_t) && all_zeros) {dominated = true; break;} // it is dominated if all duals are zero (and there is a column already in the diagonal)
 			}
@@ -338,14 +337,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// The current bestLabel is partially dominated from t = 1 to t = d(l)
 			// therefore has a column for every last_charging_time_period t \in {d(l), ..., d-1}
 			for (int t = d; t < bestLabel.vertex; t++){
-				double col_rc = bestLabel.reducedCost + this.charging_reducedCosts.get(b).get(t);
+				double col_rc = bestLabel.reducedCost + this.charging_reducedCosts[b][t];
 				if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, col_rc, bestLabel));
 			}
 
 			bestLabel = l; // update sweep front
 		}
 		for (int t = b; t < bestLabel.vertex; t++){
-			double col_rc = bestLabel.reducedCost + this.charging_reducedCosts.get(b).get(t);
+			double col_rc = bestLabel.reducedCost + this.charging_reducedCosts[b][t];
 			if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, col_rc, bestLabel));
 		}
 

@@ -309,7 +309,7 @@ public final class HeuristicLabelingFifthPricingProblemSolver extends AbstractPr
 				BitSet last_charging_ts = pricingProblem.last_charging_periods.get(label.index);
 				for (int t = last_charging_ts.nextSetBit(0); t >= 0; t = last_charging_ts.nextSetBit(t + 1)){
 
-					double rc = reducedCost + pricingProblem.charging_reducedCosts.get(chargingTime).get(t);
+					double rc = reducedCost + pricingProblem.charging_reducedCosts[chargingTime][t];
 					if (rc < -dataModel.precision){
 						int initial = t-chargingTime+1;
 
