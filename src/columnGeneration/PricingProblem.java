@@ -140,8 +140,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) exhaustive_filter_labels_same_chargingTime(entry, columnsQueue);
 		
 		// The "processed" columns are mapped
-		int maxT = dataModel.last_charging_period;
-		RouteColumn[] columnsMap = new RouteColumn[maxT+1];
 		BitSet init_t_set = new BitSet();
 
 		while (!columnsQueue.isEmpty()){
@@ -164,7 +162,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			// If the column is NOT dominated, map the column
 			int index = currentLabel.index;
-			init_t_set.set(init_t); columnsMap[init_t] = column;
+			init_t_set.set(init_t);
 			if (this.last_charging_periods.containsKey(index)) this.last_charging_periods.get(index).set(t);
 			else {
 				BitSet newBit = new BitSet(); newBit.set(t);
@@ -210,6 +208,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		// 2. Dominance between labels of same chargingTime b
 		// For each chargingTime b, get the last-charging-time-periods that have a non-dominated column, and their corresponding label
 		PriorityQueue<RouteColumn> columnsQueue = new PriorityQueue<>(new RouteColumnComparator());
+		/* PriorityQueue<RouteColumn> columnsQueue = new PriorityQueue<>(
+			Comparator
+			.comparingDouble((RouteColumn r) -> r.reducedCost)						// 1) lowest reducedCost first
+			.thenComparingInt(r -> r.b)                         					// 2) lowest b first
+			.thenComparing((r1, r2) -> Integer.compare(r2.last_t, r1.last_t)) 		// 3) highest last_t first
+		); */
 		for (Map.Entry<Integer, List<Label>> entry : labelsByB.entrySet()) exhaustive_filter_labels_same_chargingTime(entry, columnsQueue);
 		
 		// The "processed" columns are mapped
@@ -543,7 +547,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// 1) Primary order: non-descending reducedCost
 			double diff = c1.reducedCost - c2.reducedCost;
 			if (diff > dataModel.precision) return 1; // c2 has priority
-			else if (diff < dataModel.precision) return -1; // c1 has priority
+			else if (diff < -dataModel.precision) return -1; // c1 has priority
+
+			if (c1.b == c2.b) return c1.last_t > c2.last_t ? -1 : 1; // if same reduced cost and same b, prioritize the one with larger last_t
 
 			// 2) Tie-breaking rule
 			RouteColumn r1 = c1;
