@@ -145,8 +145,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		while (!columnsQueue.isEmpty()){
 
 			RouteColumn column = columnsQueue.poll();
-			int b = column.b; int t = column.last_t;
-			int init_t = t-b+1;
+			int init_t = column.init_t; int t = column.last_t;
 			Label currentLabel = column.routeLabel;
 			
 			if (init_t_set.get(init_t)) continue; // if there is already a column in the main diagonal, it is dominated
@@ -338,14 +337,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// therefore has a column for every last_charging_time_period t \in {d(l), ..., d-1}
 			for (int t = d; t < bestLabel.vertex; t++){
 				double col_rc = bestLabel.reducedCost + this.charging_reducedCosts[b][t];
-				if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, col_rc, bestLabel));
+				if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, t-b+1, col_rc, bestLabel));
 			}
 
 			bestLabel = l; // update sweep front
 		}
 		for (int t = b; t < bestLabel.vertex; t++){
 			double col_rc = bestLabel.reducedCost + this.charging_reducedCosts[b][t];
-			if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, col_rc, bestLabel));
+			if (col_rc < - dataModel.precision) colsQueue.add(new RouteColumn(b,t, t-b+1, col_rc, bestLabel));
 		}
 
 	}
@@ -523,16 +522,19 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		}
 	}
+	
 	private class RouteColumn{
 
 		int b;
 		int last_t;
+		int init_t;
 		double reducedCost;
 		Label routeLabel;
 
-		private RouteColumn(int b, int last_t, double rc, Label routeLabel){
+		private RouteColumn(int b, int last_t, int init_t, double rc, Label routeLabel){
 			this.b = b;
 			this.last_t = last_t;
+			this.init_t = init_t;
 			this.reducedCost = rc;
 			this.routeLabel = routeLabel;
 		}
@@ -546,34 +548,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			// 1) Primary order: non-descending reducedCost
 			double diff = c1.reducedCost - c2.reducedCost;
 			if (diff > dataModel.precision) return 1; // c2 has priority
-			else if (diff < -dataModel.precision) return -1; // c1 has priority
+			if (diff < -dataModel.precision) return -1; // c1 has priority
+			
+			int b1 = c1.b, b2 = c2.b;
+    		int t1 = c1.last_t, t2 = c2.last_t;
+			int initt1 = c1.init_t, initt2 = c2.init_t;
 
-			if (c1.b == c2.b) return c1.last_t > c2.last_t ? -1 : 1; // if same reduced cost and same b, prioritize the one with larger last_t
+			if (b1 == b2) return t1 > t2 ? -1 : 1; // if same reduced cost and same b, prioritize the one with larger last_t
 
-			// 2) Tie-breaking rule
-			RouteColumn r1 = c1;
-			RouteColumn r2 = c2;
-			boolean r1IsC1 = true;
-
-			if (c1.b > c2.b) {
-				r1 = c2; r2 = c1;
-				r1IsC1 = false;
+			if (b1 < b2) {
+				if (t1 < initt2 || t2 < initt1) return 0; // No overlap, so no priority
+				return (initt1 >= initt2) ? -1 : 1; // Priority to c1
+			} else {
+				if (t2 < initt1 || t1 < initt2) return 0; // No overlap, so no priority
+				return (initt2 >= initt1) ? 1 : -1; // Priority to c2
 			}
-
-			int start1 = r1.last_t - r1.b + 1;
-			int end1   = r1.last_t;
-			int start2 = r2.last_t - r2.b + 1;
-			int end2   = r2.last_t;
-
-			// Check whether the charging schedules of the columns overlap
-			boolean overlap = Math.max(start1, start2) <= Math.min(end1, end2);
-			if (overlap)  {
-				// If b1 <= b2 - (last_t2 - last_t1), then r1 has priority; else r2
-				boolean r1HasPriority = r1.b <= r2.b - (end2 - end1);
-				if (r1HasPriority) return r1IsC1 ? -1 : 1; // c1 has priority
-				else return r1IsC1 ? 1 : -1; // c2 has priority
-				
-			} else return 0; // No common time periods -> no priority
 		}
 	}
 
