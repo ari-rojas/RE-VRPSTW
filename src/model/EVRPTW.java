@@ -275,11 +275,13 @@ public final class EVRPTW implements ModelInterface {
 			int energy = Integer.parseInt(customElements.getElementsByTagName("energy_consumption").item(0).getTextContent());
 			int energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation").item(0).getTextContent());
 			int min_energy = Integer.parseInt(customElements.getElementsByTagName("min_energy").item(0).getTextContent());
-			
-			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, min_energy);
+			int min_cost = Integer.parseInt(customElements.getElementsByTagName("min_cost").item(0).getTextContent());
+			int min_time = Integer.parseInt(customElements.getElementsByTagName("min_time").item(0).getTextContent());
+			boolean minCostAlternative = true;
+
+			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, min_energy, min_cost, min_time, minCostAlternative);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
-
 			
 		}
 	}
@@ -394,13 +396,16 @@ public final class EVRPTW implements ModelInterface {
 		public int energy; 							//energy of the arc
 		public int energy_deviation;				//worst-case energy deviation of the arc
 		public int min_energy;
+		public int min_cost;
+		public int min_time;
+		public boolean minCostAlternative;
 		public double modifiedCost; 				//modified cost of the arc
 
 		/**
 		 * Creates a new arc.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
 		 */
-		public Arc(int id, int tail, int head, int cost, int time, int energy, int energy_deviation, int min_energy) {
+		public Arc(int id, int tail, int head, int cost, int time, int energy, int energy_deviation, int min_energy, int min_cost, int min_time, boolean minCostAlt) {
 			this.id = id;
 			this.tail = tail;
 			this.head = head;
@@ -409,6 +414,9 @@ public final class EVRPTW implements ModelInterface {
 			this.energy = energy;
 			this.energy_deviation = energy_deviation;
 			this.min_energy = min_energy;
+			this.min_energy = min_cost;
+			this.min_energy = min_time;
+			this.minCostAlternative = minCostAlt;
 			this.modifiedCost = 0.0;
 		}
 
