@@ -70,8 +70,6 @@ public final class EVRPTWSolver {
 
 		this.dataModel = dataModel;
 
-		
-
 		//Create a cutHandler, then create a SRC AbstractInequality Generator and add it to the handler
 		CutHandler<EVRPTW, VRPMasterData> cutHandler = new CutHandler<>();
 		SubsetRowInequalityGenerator cutGen = new SubsetRowInequalityGenerator(dataModel);
