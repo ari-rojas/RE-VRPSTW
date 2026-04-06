@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.PriorityQueue;
+import java.util.Properties;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -15,6 +16,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.jorlib.frameworks.columnGeneration.model.ModelInterface;
+import org.jorlib.frameworks.columnGeneration.util.Configuration;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -73,6 +75,12 @@ public final class EVRPTW implements ModelInterface {
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
 	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment) throws IOException {
+		
+		//Properties
+		Properties properties = new Properties();
+		properties.setProperty("MAXTHREADS", "1"); //only one thread
+		Configuration.readFromFile(properties);
+		
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}

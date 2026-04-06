@@ -65,11 +65,6 @@ public final class EVRPTWSolver {
 
 		this.dataModel = dataModel;
 
-		//Properties
-		Properties properties = new Properties();
-		properties.setProperty("MAXTHREADS", "1"); //only one thread
-		Configuration.readFromFile(properties);
-
 		//Create a cutHandler, then create a SRC AbstractInequality Generator and add it to the handler
 		CutHandler<EVRPTW, VRPMasterData> cutHandler = new CutHandler<>();
 		SubsetRowInequalityGenerator cutGen = new SubsetRowInequalityGenerator(dataModel);
