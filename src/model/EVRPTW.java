@@ -79,7 +79,7 @@ public final class EVRPTW implements ModelInterface {
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
 	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment) throws IOException {
-		
+
 		//Properties
 		Properties properties = new Properties();
 		properties.setProperty("MAXTHREADS", "1"); //only one thread
