@@ -273,10 +273,9 @@ public final class EVRPTW implements ModelInterface {
 			//custom elements (energy and minimum values)
 			Element customElements = (Element) linkElement.getElementsByTagName("custom").item(0);
 			int energy = Integer.parseInt(customElements.getElementsByTagName("energy_consumption").item(0).getTextContent());
-			int energy_deviation = 0;
-			if (!this.getName().substring(0, 2).equals("DY")) energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation").item(0).getTextContent());
+			int energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation").item(0).getTextContent());
 			int min_energy = Integer.parseInt(customElements.getElementsByTagName("min_energy").item(0).getTextContent());
-
+			
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, min_energy);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
