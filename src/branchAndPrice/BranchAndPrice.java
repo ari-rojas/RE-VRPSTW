@@ -506,7 +506,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			} else {
 
 				// 3. Look for integer solution given integer routing arc flows
-				foundBranches = this.findIntegerSolution(bapNode);
+				//foundBranches = this.findIntegerSolution(bapNode);
+				foundBranches = false;
 
 				if (foundBranches){
 
