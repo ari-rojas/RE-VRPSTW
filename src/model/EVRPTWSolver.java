@@ -234,7 +234,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "OriginalClean-Root-CS", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL", args[2]);
 		//EVRPTW evrptw = new EVRPTW("R201-50", 3, 0, true, "OriginalClean-Bound", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 

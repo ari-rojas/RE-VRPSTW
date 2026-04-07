@@ -201,7 +201,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		/// Bounding Procedure
 		////////////////////////////////////////////
 		
-		if (source == 0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
+		//if (source == 0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
 
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
 		boolean[] ng_path = new boolean[dataModel.C];
