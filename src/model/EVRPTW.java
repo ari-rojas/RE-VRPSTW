@@ -421,8 +421,8 @@ public final class EVRPTW implements ModelInterface {
 			this.energy = energy;
 			this.energy_deviation = energy_deviation;
 			this.min_energy = min_energy;
-			this.min_energy = min_cost;
-			this.min_energy = min_time;
+			this.min_cost = min_cost;
+			this.min_time = min_time;
 			this.minCostAlternative = minCostAlt;
 			this.modifiedCost = 0.0;
 		}
