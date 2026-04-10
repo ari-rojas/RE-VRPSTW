@@ -554,15 +554,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
     		int t1 = c1.last_t, t2 = c2.last_t;
 			int initt1 = c1.init_t, initt2 = c2.init_t;
 
-			if (b1 == b2) return t1 > t2 ? -1 : 1; // if same reduced cost and same b, prioritize the one with larger last_t
+			if (b1 == b2) return (t1 > t2) ? -1 : 1; // if same reduced cost and same b, prioritize the one with larger last_t
+			if (t1 < initt2 || t2 < initt1) return 0; // if no common time periods, no priority
+			if (initt1 > initt2) return -1; // priority to the one with highest starting charging time
+			if (initt1 < initt2) return 1;
 
-			if (b1 < b2) {
-				if (t1 < initt2 || t2 < initt1) return 0; // No overlap, so no priority
-				return (initt1 >= initt2) ? -1 : 1; // Priority to c1
-			} else {
-				if (t2 < initt1 || t1 < initt2) return 0; // No overlap, so no priority
-				return (initt2 >= initt1) ? 1 : -1; // Priority to c2
-			}
+			return (b1 < b2) ? -1 : 1; // if same starting charging time (same diagonal), give priority to smallest b
+			
 		}
 	}
 
