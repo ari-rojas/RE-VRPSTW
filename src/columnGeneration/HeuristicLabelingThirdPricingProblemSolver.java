@@ -57,7 +57,8 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 				if(isDominated) continue;
 				else {currentLabel.index = vertices[currentLabel.vertex].processedLabels.size(); vertices[currentLabel.vertex].processedLabels.add(currentLabel);}
 				for(Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-					if(infeasibleArcs[a.id] > 0) continue;
+					if(a.tail > 0 && a.head <= dataModel.C && a.modifiedCost >= -dataModel.precision) continue;
+                    if(infeasibleArcs[a.id] > 0) continue;
 					Label extendedLabel;
 					if(a.tail<=dataModel.C) extendedLabel = extendLabel(currentLabel, a);
 					else extendedLabel = extendLabelChargingTime(currentLabel, a);
