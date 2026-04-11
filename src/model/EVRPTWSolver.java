@@ -53,6 +53,8 @@ import branchAndPrice.FinishLexicographicMasterEvent;
 import branchAndPrice.IPRootNodeEvent;
 import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
+import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
+import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.CBMinCostPricingProblemSolver;
 import columnGeneration.CBHeuristicSecondPricingProblemSolver;
