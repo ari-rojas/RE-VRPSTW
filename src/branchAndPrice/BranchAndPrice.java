@@ -200,7 +200,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
 
 		//Set time limit
-		cplex.setParam(IloCplex.Param.TimeLimit, 300.0); //set time limit in seconds (in this case 10 seconds)
+		cplex.setParam(IloCplex.Param.TimeLimit, 60.0); //set time limit in seconds (in this case 10 seconds)
 		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal){
 			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
 			upperBoundOnObjective = objectiveIncumbentSolution;
