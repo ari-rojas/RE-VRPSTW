@@ -77,5 +77,31 @@ public class ExtendBAPNotifier{
       }
     }
 
+    public void fireIPRootNodeEvent(BAPNode node){
+      IPRootNodeEvent IPEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.IPRootNode(IPEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (IPEvent == null) {
+          IPEvent = new IPRootNodeEvent(this.parent, node);
+        }
+      }
+
+    }
+
+    public void fireFinishIPRootNodeEvent(BAPNode node, double time){
+      FinishIPRootNodeEvent IPEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishIPRootNode(IPEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (IPEvent == null) {
+          IPEvent = new FinishIPRootNodeEvent(this.parent, node, time);
+        }
+      }
+
+    }
+
 
 }

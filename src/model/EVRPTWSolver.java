@@ -48,6 +48,8 @@ import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
+import branchAndPrice.IPRootNodeEvent;
+import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
 import columnGeneration.HeuristicLabelingPricingProblemSolver;
@@ -316,6 +318,20 @@ public final class EVRPTWSolver {
 				for(AbstractColumn<?, ?> column : finishPricingEvent.columns){
 					logger.debug(column.toString());
 				}
+			}
+		}
+
+		@Override
+		public void IPRootNode(IPRootNodeEvent IPRootEvent){
+			if (dataModel.print_log) {
+				logger.debug("=============== SOLVING IP ===============");
+			}
+		}
+
+		@Override
+		public void finishIPRootNode(FinishIPRootNodeEvent IPRootEvent){
+			if (dataModel.print_log) {
+				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
 			}
 		}
 
