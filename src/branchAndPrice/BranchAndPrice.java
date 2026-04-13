@@ -610,6 +610,18 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.extendedNotifier.removeExtendBAPListener(listener);
 	}
 
+	/**
+	 * Computes the coefficient of a route in SRC.
+	 * @param route for which the coefficient is calculated.
+	 * @param subsetRowInequality considered.
+	 */
+	public int getSRCCoefficient(Route route, SubsetRowInequality subsetRowInequality) {
+		int visits = 0;
+		for(int i: subsetRowInequality.cutSet)
+			visits+=route.route.getOrDefault(i, 0);
+		return (int) Math.floor(0.5*visits);
+	}
+
 	public class CGResult {
 
 		public List<Route> cgIncumbentSolution;
