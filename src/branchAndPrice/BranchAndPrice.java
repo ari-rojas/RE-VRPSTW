@@ -26,6 +26,7 @@ import org.jorlib.frameworks.columnGeneration.util.OrderedBiMap;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
+import columnGeneration.SubsetRowInequality;
 import columnGeneration.VRPMasterData;
 import columnGeneration.customCG;
 import ilog.concert.IloColumn;
@@ -130,10 +131,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		//Inherit the cuts generated (not necessary)
 
 		//Solve MIP at root node (optional)
-		if(bapNode.nodeID == 0) {
+		/* if(bapNode.nodeID == 0) {
+			double time = System.currentTimeMillis();
+			extendedNotifier.fireIPRootNodeEvent(bapNode);
 			try {solveIPAtRootNode(bapNode);} 
-			catch (IloException e) {e.printStackTrace();}
-		}
+			catch (IloException e) {e.printStackTrace(); logger.debug(e.getMessage());}
+			extendedNotifier.fireFinishIPRootNodeEvent(bapNode, System.currentTimeMillis() - time);
+		} */
 
 	}
 
@@ -143,9 +147,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	public void solveIPAtRootNode(BAPNode<EVRPTW, Route> node) throws IloException {
 
 		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
-		IloCplex cplex =new IloCplex(); 									//create CPLEX instance
-		cplex.setOut(null);													//disable CPLEX output
-		cplex.setParam(IloCplex.IntParam.Threads, config.MAXTHREADS); 		//set number of threads that may be used by the cplex
+		IloCplex cplex =new IloCplex();
+		cplex.setOut(null); 			//disable CPLEX output
+		//cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
+		//cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
+		cplex.setParam(IloCplex.Param.RandomSeed, 30);
+		cplex.setParam(IloCplex.Param.Threads, 1);
+		cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 1e-4);
 
 		//Define the objective
 		IloObjective obj= cplex.addMinimize();
@@ -159,8 +167,15 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		for (int t = 0; t < dataModel.last_charging_period; t++)
 			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
 
+		Set<SubsetRowInequality> subsetRowInequalities = ((Master)master).getMasterData().subsetRowInequalities.keySet();
+		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
+		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
+			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
+			ix ++;
+
 		for(Route route: node.getInitialColumns()) {
 
+			if (route.isArtificialColumn) continue;
 			Route column = route.clone();
 			//Register column with objective
 			IloColumn iloColumn= cplex.column(obj,column.cost);
@@ -173,29 +188,38 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+ column.chargingTime-1); t++)
 				iloColumn=iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
 
+			ix = 0;
+			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
+				iloColumn=iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
+				ix ++;
 
 			//Create the variable and store it
-			IloIntVar var= cplex.intVar(iloColumn, 0, 1);
+			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
 			cplex.add(var);
 			solution.put(column, var);
 		}
 
 		//Set time limit
-		cplex.setParam(IloCplex.DoubleParam.TiLim, 10.0); //set time limit in seconds (in this case 10 seconds)
-		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal && cplex.getCplexTime()<10){
+		cplex.setParam(IloCplex.Param.TimeLimit, 300.0); //set time limit in seconds (in this case 10 seconds)
+		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal){
 			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
 			upperBoundOnObjective = objectiveIncumbentSolution;
 			//retrieve solution
 			List<Route> optimalSolution = new ArrayList<Route>();
+			if (dataModel.print_log) logger.debug("Found integer solution. Objective: "+objectiveIncumbentSolution);
 			for (Route route: solution.keySet()) {
 				double value = cplex.getValue(solution.get(route));
-				if(value>=config.PRECISION){
+				if(value > 0.5){
 					Route newRoute = route.clone();
-					newRoute.value = value;
+					newRoute.value = 1;
 					optimalSolution.add(newRoute);
+
+					if (dataModel.print_log) logger.debug(newRoute.toString());
 				}
 			}
 			incumbentSolution = optimalSolution;
+		} else {
+			if (dataModel.print_log) logger.debug("Did not find an integer solution");
 		}
 		cplex.close();
 		cplex.end();
