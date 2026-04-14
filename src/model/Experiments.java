@@ -87,7 +87,7 @@ public class Experiments {
                 int B = 1;
                 while (!same_obj){
         
-                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW","tuning");
+                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW","tuning", "");
                     EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
         
                     Double obj = Solver.upperBound;
@@ -128,7 +128,7 @@ public class Experiments {
             Element unb_B = (Element) instance_element.getElementsByTagName("unb_B").item(0);
             int B = Integer.parseInt(unb_B.getElementsByTagName("K").item(0).getTextContent());
 
-            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning");
+            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning", "");
             EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
 
             deleteStaticObject(Configuration.class, "instance");
@@ -168,7 +168,7 @@ public class Experiments {
 
                         Double last_obj = 10000.;
                         for (int B=max_chargers; B >= min_chargers; B--){
-                            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning");
+                            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning", "");
                             EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
 
                             Double obj = Solver.upperBound;
@@ -206,7 +206,7 @@ public class Experiments {
                 try {
                     if (!name.equals("")) {
                         
-                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "RE-VRSPTW", experiment);
+                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "RE-VRSPTW", experiment, "");
                         EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
             
                         deleteStaticObject(Configuration.class, "instance");
@@ -224,9 +224,9 @@ public class Experiments {
 
     }
 
-    public static void run_forward_robustness_experiments(String instance){
+    public static void run_forward_robustness_experiments(String instance, String en_dev){
 
-        String alg = "BL-IP-CS-Bound-Root-Forward";
+        String alg = "BL-IP-CS-Bound-Root-Forward"+en_dev;
         if (instance != ""){
             try {
 
@@ -235,7 +235,7 @@ public class Experiments {
 
                 while (gamma <= 10){
                     
-                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma);
+                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
                     Solver.solve(32400000L); evrptw.fileOut.close();
@@ -345,9 +345,9 @@ public class Experiments {
 
     }
 
-    public static void run_backward_robustness_experiments(String instance){
+    public static void run_backward_robustness_experiments(String instance, String en_dev){
 
-        String alg = "BL-IP-CS-Bound-Root-Forward";
+        String alg = "BL-IP-CS-Bound-Root-Backward"+en_dev;
         if (instance != ""){
             try {
 
@@ -357,7 +357,7 @@ public class Experiments {
                 ArrayList<Route> initialColumns = new ArrayList<>();
                 while (gamma >= 0){
                     
-                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma);
+                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, initialColumns);
 
                     Solver.solve(32400000L); evrptw.fileOut.close();
@@ -587,7 +587,7 @@ public class Experiments {
 
     public static void main(String[] args){
 
-        run_forward_robustness_experiments(args[0]);
+        run_forward_robustness_experiments(args[0], args[1]);
     
     }
 
