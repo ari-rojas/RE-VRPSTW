@@ -129,6 +129,23 @@ public final class EVRPTWSolver {
 		this.upperBound = getScaledObjective(bap.getObjective());
 	}
 
+	public void solve(long timeLimit){
+
+		//Solve the problem problem through Branch-and-Price
+		this.bap.runBranchAndPrice(System.currentTimeMillis()+timeLimit);
+	}
+
+	public ArrayList<Route> close(){
+
+		//Clean up:
+		this.bap.close(); 		//close master and pricing problems
+		this.cutHandler.close(); //close the cut handler. The close() call is propagated to all registered AbstractCutGenerator classes
+		this.upperBound = getScaledObjective(this.bap.getObjective());
+		this.isOptimal = this.bap.isOptimal();
+		
+		return new ArrayList<>(this.bap.getSolution());
+	}
+
 	/** Computes the charging schedule statistics for a given solution. */
 	public double[] getChargingInformation(List<Route> solution) {
 
