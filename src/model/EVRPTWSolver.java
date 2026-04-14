@@ -70,6 +70,10 @@ public final class EVRPTWSolver {
 	private final EVRPTW dataModel;  		//information about the instance
 	public Double upperBound; 				//upper bound on column generation solution (stronger is better).
 
+	public BranchAndPrice bap;
+	public CutHandler<EVRPTW, VRPMasterData> cutHandler;
+	public boolean isOptimal;
+
 	public EVRPTWSolver(EVRPTW dataModel, ArrayList<Route> initialColumns) throws FileNotFoundException{
 
 		this.dataModel = dataModel;
@@ -97,7 +101,7 @@ public final class EVRPTWSolver {
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
 
 		//Create a Branch-and-Price instance
-		BranchAndPrice bap = new BranchAndPrice(dataModel, master, pricingProblem, solvers, branchCreators, upperBound.intValue(), initSolution);
+		this.bap = new BranchAndPrice(dataModel, master, pricingProblem, solvers, branchCreators, upperBound.intValue(), initSolution);
 
 		//OPTIONAL: Attach a debugger
 		PersonalizedDebbuger debugger = new PersonalizedDebbuger(bap, cutHandler, false);
