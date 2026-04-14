@@ -77,25 +77,27 @@ public final class EVRPTWSolver {
 	public EVRPTWSolver(EVRPTW dataModel, ArrayList<Route> initialColumns) throws FileNotFoundException{
 
 		this.dataModel = dataModel;
+		this.isOptimal = false;
 
 		//Create a cutHandler, then create a SRC AbstractInequality Generator and add it to the handler
-		CutHandler<EVRPTW, VRPMasterData> cutHandler = new CutHandler<>();
+		this.cutHandler = new CutHandler<>();
 		SubsetRowInequalityGenerator cutGen = new SubsetRowInequalityGenerator(dataModel);
-		cutHandler.addCutGenerator(cutGen);
+		this.cutHandler.addCutGenerator(cutGen);
 
 		//Create the pricing problem
 		PricingProblem pricingProblem = new PricingProblem(dataModel, "EVRSPTWPricing");
 
 		//Create the master problem
-		Master master = new Master(dataModel, pricingProblem, cutHandler);
+		Master master = new Master(dataModel, pricingProblem, this.cutHandler);
 
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
-		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
+	
+		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
-		List<Route> initSolution=this.getInitialSolution(pricingProblem, initialColumns);
+		List<Route> initSolution = this.getInitialSolution(pricingProblem, initialColumns);
 
 		//Define Branch creators
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
@@ -104,33 +106,8 @@ public final class EVRPTWSolver {
 		this.bap = new BranchAndPrice(dataModel, master, pricingProblem, solvers, branchCreators, upperBound.intValue(), initSolution);
 
 		//OPTIONAL: Attach a debugger
-		PersonalizedDebbuger debugger = new PersonalizedDebbuger(bap, cutHandler, false);
-		bap.addExtendCGEventListener(debugger);
-
-		//Solve the problem problem through Branch-and-Price
-		bap.runBranchAndPrice(System.currentTimeMillis()+10800000L);
-
-		//Print solution
-		/* PrintWriter out;
-		try {
-			out = new PrintWriter(new BufferedWriter(new FileWriter("./results/output.txt", true)));
-			out.print(dataModel.getName()+"\t"+bap.getSolution().size()+"\t"+	getScaledObjective(bap.getBoundRootNode())+"\t"+ dataModel.columnsRootNode + "\t"+ dataModel.cutsRootNode+ "\t"
-					+bap.getNumberOfProcessedNodes() +"\t" + getTimeInSeconds(bap.getMasterSolveTime())+"\t"+getTimeInSeconds(bap.getPricingSolveTime())+"\t"+getTimeInSeconds(bap.getSolveTime()) +"\t"+ getScaledObjective(bap.getObjective())
-					+ "\t");
-
-			double[] chargingInformation = getChargingInformation(bap.getSolution());
-			out.print(dataModel.B +  "\t" + chargingInformation[0] + "\t"+ chargingInformation[1] + "\t"+ chargingInformation[2]);
-			out.print("\n");
-			out.close();
-
-		} catch (IOException e) {
-			// Do nothing
-		} */
-
-		//Clean up:
-		bap.close(); 		//close master and pricing problems
-		cutHandler.close(); //close the cut handler. The close() call is propagated to all registered AbstractCutGenerator classes
-		this.upperBound = getScaledObjective(bap.getObjective());
+		PersonalizedDebbuger debugger = new PersonalizedDebbuger(this.bap, this.cutHandler, false);
+		this.bap.addExtendCGEventListener(debugger);
 	}
 
 	public void solve(long timeLimit){
