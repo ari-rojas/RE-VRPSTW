@@ -242,8 +242,10 @@ public final class EVRPTWSolver {
 	public static void main(String[] args) throws IOException{
 
 		int gamma = Integer.parseInt(args[1]);
+		String energy_deviation = args[3];
+		if (energy_deviation != "") energy_deviation = "-"+energy_deviation;
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL-IP-CS-Bound-Root", args[2], "");
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL-IP-CS-Bound-Root"+energy_deviation, args[2], args[3]);
 		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "ExNewPricing", "Debug");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
