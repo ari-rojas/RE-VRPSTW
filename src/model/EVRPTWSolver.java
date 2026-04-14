@@ -70,7 +70,7 @@ public final class EVRPTWSolver {
 	private final EVRPTW dataModel;  		//information about the instance
 	public Double upperBound; 				//upper bound on column generation solution (stronger is better).
 
-	public EVRPTWSolver(EVRPTW dataModel) throws FileNotFoundException{
+	public EVRPTWSolver(EVRPTW dataModel, ArrayList<Route> initialColumns) throws FileNotFoundException{
 
 		this.dataModel = dataModel;
 
@@ -91,7 +91,7 @@ public final class EVRPTWSolver {
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
-		List<Route> initSolution=this.getInitialSolution(pricingProblem);
+		List<Route> initSolution=this.getInitialSolution(pricingProblem, initialColumns);
 
 		//Define Branch creators
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
