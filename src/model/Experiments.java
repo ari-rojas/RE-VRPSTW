@@ -227,7 +227,7 @@ public class Experiments {
     public static void run_forward_robustness_experiments(String instance, String en_dev){
 
         String energy_deviation = en_dev;
-        if (energy_deviation != "") energy_deviation = "-"+energy_deviation;
+        if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
         String alg = "BL-IP-CS-Bound-Root-Forward"+energy_deviation;
 
         if (instance != ""){
@@ -351,7 +351,7 @@ public class Experiments {
     public static void run_backward_robustness_experiments(String instance, String en_dev){
 
         String energy_deviation = en_dev;
-        if (energy_deviation != "") energy_deviation = "-"+energy_deviation;
+        if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
         String alg = "BL-IP-CS-Bound-Root-Backward"+energy_deviation;
 
         if (instance != ""){
