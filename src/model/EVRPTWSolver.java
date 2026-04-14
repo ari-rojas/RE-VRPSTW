@@ -243,7 +243,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL-IP-CS-Bound-Root", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL-IP-CS-Bound-Root", args[2], "");
 		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "ExNewPricing", "Debug");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 

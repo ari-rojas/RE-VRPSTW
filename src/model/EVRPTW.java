@@ -33,6 +33,7 @@ public final class EVRPTW implements ModelInterface {
 
 	public final String instanceName;						//instance name
 	public PrintStream fileOut;
+	public final String en_dev;
 
 	//Basic information
 	public int C; 											//number of customers
@@ -75,12 +76,14 @@ public final class EVRPTW implements ModelInterface {
 	 * @param instanceName input instance.
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
-	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment) throws IOException {
+	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment, String en_dev) throws IOException {
 		
 		//Properties
 		Properties properties = new Properties();
 		properties.setProperty("MAXTHREADS", "1"); //only one thread
 		Configuration.readFromFile(properties);
+
+		this.en_dev = en_dev;
 		
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
@@ -279,7 +282,7 @@ public final class EVRPTW implements ModelInterface {
 			//custom elements (energy and minimum values)
 			Element customElements = (Element) linkElement.getElementsByTagName("custom").item(0);
 			int energy = Integer.parseInt(customElements.getElementsByTagName("energy_consumption").item(0).getTextContent());
-			int energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation").item(0).getTextContent());
+			int energy_deviation = Integer.parseInt(customElements.getElementsByTagName("energy_deviation"+this.en_dev).item(0).getTextContent());
 			int min_energy = Integer.parseInt(customElements.getElementsByTagName("min_energy").item(0).getTextContent());
 			int min_cost = Integer.parseInt(customElements.getElementsByTagName("min_cost").item(0).getTextContent());
 			int min_time = Integer.parseInt(customElements.getElementsByTagName("min_time").item(0).getTextContent());
