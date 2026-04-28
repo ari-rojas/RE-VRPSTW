@@ -249,7 +249,7 @@ public final class EVRPTWSolver {
 		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "Managerial-50", "Gamma0", "50", "1913", "0.0232", "0.8987");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
-		Solver.solve(10800000L); evrptw.fileOut.close();
+		Solver.solve(21600000L); evrptw.fileOut.close();
 		Solver.close();
 
 	}
