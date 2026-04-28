@@ -43,6 +43,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	private IloRange[] visitCustomerConstraints; 	//partitioning constraints
 	private IloRange[] chargersCapacityConstraints; //capacity constraints
 	private IloRange roundedCapacityInequality; 	//(weak) rounded capacity inequality
+	private IloRange boundOnCostInequality; 	//(weak) rounded capacity inequality
 	private int minimumNumberOfVehicles; 			//for the weak rounded capacity inequality
 	private List<Route> solutionKeeper; 			//stores the solution found
 
@@ -80,6 +81,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			//Rounded capacity constraint
 			this.minimumNumberOfVehicles =  (int) Math.ceil((double) totalLoad/dataModel.Q);
 			roundedCapacityInequality = cplex.addGe(cplex.linearNumExpr(), minimumNumberOfVehicles, "capacity inequality");
+
+			boundOnCostInequality = cplex.addGe(cplex.linearNumExpr(), dataModel.PoR*dataModel.Det_Obj, "mincost inequality");
 
 		} catch (IloException e) {
 			e.printStackTrace();
@@ -191,7 +194,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			}
 
 			double dualConstant = 0; //constant dual values (not depending on the arc)
-			dualConstant+=masterData.cplex.getDual(roundedCapacityInequality);
+			dualConstant+=masterData.cplex.getDual(roundedCapacityInequality)+masterData.cplex.getDual(boundOnCostInequality);
 
 			// branching on vehicles duals
 			for(NumberVehiclesInequalities branching: masterData.branchingNumberOfVehicles.keySet())
@@ -237,6 +240,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				// register column with rounded capacity inequality
 				iloColumn=iloColumn.and(masterData.cplex.column(roundedCapacityInequality, 1));
 
+				// NEW ---------------------------------------------
+				// register column with bound on cost inequality
+				iloColumn=iloColumn.and(masterData.cplex.column(boundOnCostInequality, column.cost));
 
 				// register the column with Subset Row Inequalities Constraints
 				for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
