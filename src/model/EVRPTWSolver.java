@@ -246,7 +246,7 @@ public final class EVRPTWSolver {
 		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Managerial"+energy_deviation, args[2], args[3], args[4], args[5], args[6]);
-		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "ExNewPricing", "Debug");
+		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "Managerial-50", "Gamma0", "50", "1913", "0.0232", "0.8987");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
