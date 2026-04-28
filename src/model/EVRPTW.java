@@ -34,6 +34,9 @@ public final class EVRPTW implements ModelInterface {
 	public final String instanceName;						//instance name
 	public PrintStream fileOut;
 	public final String en_dev;
+	public final int Det_Obj;
+	public final double PoR;
+	public final double Buff_Cov;
 
 	//Basic information
 	public int C; 											//number of customers
@@ -76,7 +79,7 @@ public final class EVRPTW implements ModelInterface {
 	 * @param instanceName input instance.
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
-	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment, String en_dev) throws IOException {
+	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment, String en_dev, String Det_Obj, String PoR, String Buffer_Cov) throws IOException {
 		
 		//Properties
 		Properties properties = new Properties();
@@ -84,6 +87,9 @@ public final class EVRPTW implements ModelInterface {
 		Configuration.readFromFile(properties);
 
 		this.en_dev = en_dev;
+		this.Det_Obj = Integer.parseInt(Det_Obj);
+		this.PoR = Double.parseDouble(PoR);
+		this.Buff_Cov = Double.parseDouble(Buffer_Cov);
 		
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
