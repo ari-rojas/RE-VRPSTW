@@ -42,7 +42,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	public void runLabeling() {
 		//initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
-		Label initialLabel = new Label(dataModel.C+1, -1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
+		Label initialLabel = new Label(dataModel.C+1, -1, 0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0, new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()), 0);
 		this.nodesToProcess.add(vertices[dataModel.C+1]);
 		initialLabel.index = 0;
 		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
@@ -138,6 +138,18 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 			else { remainingEnergy[gam] = currentLabel.remainingEnergy[gam] - arc.energy; }
 			if (remainingEnergy[gam] < 0) return null;
 		}
+
+		////////////////////////////////////////////
+		/// Energy Buffer 
+		////////////////////////////////////////////
+		
+		int energy_buffer = currentLabel.energy_buffer + arc.energy_deviation;
+		if (source == 0){
+			remainingEnergy[0] -= Math.ceil(energy_buffer*dataModel.Buff_Cov);
+			if (remainingEnergy[0] < 0) return null;
+		}
+
+		////////////////////////////////////////////////
 		
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
@@ -168,7 +180,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 				}
 			}
 		}
-		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime , unreachable, currentLabel.ng_path, eta, srcIndices);
+		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime , unreachable, currentLabel.ng_path, eta, srcIndices, energy_buffer);
 		return extendedLabel;
 	}
 
@@ -194,7 +206,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 			if (currentLabel.reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
-		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices, currentLabel.energy_buffer);
 		return extendedLabel;
 	}
 

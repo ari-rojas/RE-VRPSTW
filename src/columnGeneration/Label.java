@@ -22,9 +22,10 @@ public class Label{
 	public boolean[] ng_path; 				//customers that visit them would violate the ng-path cycling restrictions
 	public boolean[] eta; 					//number of times modulo 2 that the label has visited customers in S (a triplet in a SRC)
 	public HashSet<Integer> srcIndices; 	//SRC indices for which \eta = 1
+	public int energy_buffer;
 
 	/** Creates a new Label.*/
-	public Label(int vertex, int nextArc, int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
+	public Label(int vertex, int nextArc, int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices, int buffer) {
 		this.vertex = vertex;
 		this.nextArc = nextArc;
 		this.nextLabelIndex = nextLabelIndex;
@@ -37,6 +38,7 @@ public class Label{
 		this.ng_path = ng_path;
 		this.eta = eta;
 		this.srcIndices = srcIndices;
+		this.energy_buffer = buffer;
 	}
 
 	/** Obtains the string representation of a label. */
@@ -47,7 +49,7 @@ public class Label{
 
 	public Label clone(){
 		
-		return new Label(this.vertex, this.nextArc, this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices);
+		return new Label(this.vertex, this.nextArc, this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices, this.energy_buffer);
 	}
 
 	/** @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object. */
