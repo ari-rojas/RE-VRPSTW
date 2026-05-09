@@ -2,7 +2,9 @@ package columnGeneration;
 
 import model.EVRPTW;
 import model.EVRPTW.Arc;
+import model.EVRPTW.PPArc;
 import model.EVRPTW.Vertex;
+import model.EVRPTW.PPVertex;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,7 +27,7 @@ import branchAndPrice.RemoveArc;
  */
 public final class HeuristicMinCostLabelingPricingProblemSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
 
-	public Vertex[] vertices = dataModel.vertices; 			//vertices of the instance
+	public PPVertex[] vertices = dataModel.PPvertices; 			//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
 	public final int numCols = 400; 						//maximum number of routes (columns) allowed
 	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
@@ -40,7 +42,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		super(dataModel, pricingProblem);
 		this.name="ExactLabelingSolver"; //Set a name for the solver
 		this.infeasibleArcs = new int[dataModel.numArcs];
-		this.nodesToProcess = new PriorityQueue<Vertex>(dataModel.V, new SortVertices());
+		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.V, new SortVertices());
 	}
 
 	/**
@@ -606,13 +608,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	/**
 	 * @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object.
 	 */
-	public class SortVertices implements Comparator<Vertex> {
+	public class SortVertices implements Comparator<PPVertex> {
 
 		@Override
-		public int compare(Vertex vertex1, Vertex vertex2) {
+		public int compare(PPVertex vertex1, PPVertex vertex2) {
 
-			if(vertex2.id==0 && (vertex1.id>0 && vertex1.id<=dataModel.C)) return -1;
-			if(vertex1.id==0 && (vertex2.id>0 && vertex2.id<=dataModel.C)) return 1;
+			if(vertex2.vertex_type==EVRPTW.C0 && vertex1.vertex_type==EVRPTW.C1) return -1;
+			if(vertex2.vertex_type==EVRPTW.C0 && vertex1.vertex_type==EVRPTW.C1) return 1;
 
 			if(vertex1.id<dataModel.V && vertex2.id>=dataModel.V) return -1;
 			if(vertex1.id>=dataModel.V && vertex2.id<dataModel.V) return 1;

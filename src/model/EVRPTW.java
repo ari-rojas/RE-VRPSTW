@@ -100,6 +100,10 @@ public final class EVRPTW implements ModelInterface {
 	public static final byte AC2 = 4;	// Charging Scheduling arcs between consecutive charging time periods
 	public static final byte AC3 = 5;	// Charging Scheduling arcs to starting charging times
 
+	public int lenAR0;
+	public int lenAR1;
+	public int lenAR2;
+
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.
@@ -144,7 +148,12 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Full recharging time: " + this.f_inverse[this.E]);
 			System.out.println(" - Charging time periods: "+this.last_charging_period);
 			System.out.println(" - Number of Routing Graph arcs: "+this.numArcsRoadNetwork);
+			System.out.println(" - Number of arcs in AR0, AR1, AR2: "+this.lenAR0+", "+this.lenAR1+", "+this.lenAR2);
 			System.out.println(" - Number of PP arcs: "+this.numArcs);
+		}
+
+		for (int arcID = 0; arcID < this.numArcs; arcID++){
+			System.out.println(PParcs[arcID].toString());
 		}
 
 	}
@@ -233,7 +242,7 @@ public final class EVRPTW implements ModelInterface {
 		////////////////////////////////////
 		
 		this.PParcs = new PPArc[this.C*(this.C+this.last_charging_period+2)+2*this.last_charging_period];
-		id = 0;
+		id = 0; this.lenAR0 = 0; this.lenAR1 = 0; this.lenAR2 = 0;
 
 		// AR0 Routing arcs from the customer depot nodes to non-first customer nodes
 		for (int tail = 1; tail <= this.C; tail++){
@@ -244,13 +253,13 @@ public final class EVRPTW implements ModelInterface {
 				if (head <= this.C && this.graph.getEdge(0,tail).energy + routing_arc.energy + this.graph.getEdge(head,this.C+1).min_energy <= this.E && this.vertices[tail].opening_tw + routing_arc.time <= this.vertices[head].closing_tw){
 					int head_vertex_id = this.C1_startID+head;
 					PPArc newArc = new PPArc(id, AR0, this.graph.getEdge(tail, head), tail_vertex_id, head_vertex_id); this.PParcs[id] = newArc;
-					PPgraph.addEdge(tail_vertex_id, head_vertex_id, newArc); id ++;
+					PPgraph.addEdge(tail_vertex_id, head_vertex_id, newArc); id ++; this.lenAR0++;
 				}
 			}
 
 			// Routing arc (\in AR2) from the customer depot node i0 to the returning depot
 			PPArc newArc = new PPArc(id, AR2, this.graph.getEdge(tail, this.C+1), tail_vertex_id, this.T_startID); this.PParcs[id] = newArc;
-			PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++;
+			PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++; this.lenAR2++;
 		}
 
 		// AR1 Routing arcs between non-first customer nodes
@@ -265,13 +274,13 @@ public final class EVRPTW implements ModelInterface {
 					if (head <= this.C && this.graph.getEdge(0,tail).min_energy + routing_arc.energy + this.graph.getEdge(head,this.C+1).min_energy <= this.E && this.vertices[tail].open_tw_nonfirst + routing_arc.time <= this.vertices[head].closing_tw){
 						int head_vertex_id = this.C1_startID+head;
 						PPArc newArc = new PPArc(id, AR1, this.graph.getEdge(tail, head), tail_vertex_id, head_vertex_id); this.PParcs[id] = newArc;
-						PPgraph.addEdge(tail_vertex_id, head_vertex_id, newArc); id ++;
+						PPgraph.addEdge(tail_vertex_id, head_vertex_id, newArc); id ++; this.lenAR1++;
 					}
 				}
 
 				// Routing arc (\in AR2) from the customer depot node i0 to the returning depot
 				PPArc newArc = new PPArc(id, AR2, this.graph.getEdge(tail, this.C+1), tail_vertex_id, this.T_startID); this.PParcs[id] = newArc;
-				PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++;
+				PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++; this.lenAR2++;
 			}
 
 		}
@@ -385,7 +394,7 @@ public final class EVRPTW implements ModelInterface {
 			if (node_type > 0){ // Customer nodes
 				Element customElement = (Element) nodeElement.getElementsByTagName("custom").item(0);
 				int last_departure = Integer.parseInt(customElement.getElementsByTagName("last_departure").item(0).getTextContent());
-				boolean feasible_nonfirst = customElement.getElementsByTagName("last_departure").item(0).getTextContent().equals("true");
+				boolean feasible_nonfirst = customElement.getElementsByTagName("non_first_feasible").item(0).getTextContent().equals("true");
 				int open_tw_nonfirst = Integer.parseInt(customElement.getElementsByTagName("tw1_start").item(0).getTextContent());
 				vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw, last_departure, feasible_nonfirst, open_tw_nonfirst);
 			} else  vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw); // Depot nodes
@@ -627,7 +636,7 @@ public final class EVRPTW implements ModelInterface {
 		 */
 		@Override
 		public String toString(){
-			return VERTEX_TYPE_NAMES[this.vertex_type] + node_number;
+			return VERTEX_TYPE_NAMES[this.vertex_type] +" "+ node_number;
 		}
 	}
 	
@@ -671,7 +680,8 @@ public final class EVRPTW implements ModelInterface {
 		/** Obtains the string representation of the arc. */
 		@Override
 		public String toString(){
-			return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.id;
+			if (this.arc_type == 0 || this.arc_type == 1 || this.arc_type == 2) return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.routing_arc.toString() + "; ID = " + this.id;
+			else return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.id;
 		}
 
 		@Override
