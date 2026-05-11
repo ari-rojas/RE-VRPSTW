@@ -95,14 +95,12 @@ public final class EVRPTW implements ModelInterface {
 	// Identifiers for the different types of arcs in the Pricing Problem Graph
 	public static final byte AR0 = 0;	// Routing arcs between customer depot nodes and non-first customer nodes
 	public static final byte AR1 = 1;	// Routing arcs between non-first customer nodes
-	public static final byte AR2 = 2;	// Routing arcs leading to the returning depot node
-	public static final byte AC1 = 3;	// Charging Scheduling arcs to finishing charging times
-	public static final byte AC2 = 4;	// Charging Scheduling arcs between consecutive charging time periods
-	public static final byte AC3 = 5;	// Charging Scheduling arcs to starting charging times
+	public static final byte AC1 = 2;	// Charging Scheduling arcs to finishing charging times
+	public static final byte AC2 = 3;	// Charging Scheduling arcs between consecutive charging time periods
+	public static final byte AC3 = 4;	// Charging Scheduling arcs to starting charging times
 
 	public int lenAR0;
 	public int lenAR1;
-	public int lenAR2;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
@@ -148,7 +146,7 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Full recharging time: " + this.f_inverse[this.E]);
 			System.out.println(" - Charging time periods: "+this.last_charging_period);
 			System.out.println(" - Number of Routing Graph arcs: "+this.numArcsRoadNetwork);
-			System.out.println(" - Number of arcs in AR0, AR1, AR2: "+this.lenAR0+", "+this.lenAR1+", "+this.lenAR2);
+			System.out.println(" - Number of arcs in AR0, AR1: "+this.lenAR0+", "+this.lenAR1);
 			System.out.println(" - Number of PP arcs: "+this.numArcs);
 		}
 
@@ -242,7 +240,7 @@ public final class EVRPTW implements ModelInterface {
 		////////////////////////////////////
 		
 		this.PParcs = new PPArc[this.C*(this.C+this.last_charging_period+2)+2*this.last_charging_period];
-		id = 0; this.lenAR0 = 0; this.lenAR1 = 0; this.lenAR2 = 0;
+		id = 0; this.lenAR0 = 0; this.lenAR1 = 0;
 
 		// AR0 Routing arcs from the customer depot nodes to non-first customer nodes
 		for (int tail = 1; tail <= this.C; tail++){
@@ -258,8 +256,8 @@ public final class EVRPTW implements ModelInterface {
 			}
 
 			// Routing arc (\in AR2) from the customer depot node i0 to the returning depot
-			PPArc newArc = new PPArc(id, AR2, this.graph.getEdge(tail, this.C+1), tail_vertex_id, this.T_startID); this.PParcs[id] = newArc;
-			PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++; this.lenAR2++;
+			PPArc newArc = new PPArc(id, AR0, this.graph.getEdge(tail, this.C+1), tail_vertex_id, this.T_startID); this.PParcs[id] = newArc;
+			PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++; this.lenAR0++;
 		}
 
 		// AR1 Routing arcs between non-first customer nodes
@@ -279,8 +277,8 @@ public final class EVRPTW implements ModelInterface {
 				}
 
 				// Routing arc (\in AR2) from the customer depot node i0 to the returning depot
-				PPArc newArc = new PPArc(id, AR2, this.graph.getEdge(tail, this.C+1), tail_vertex_id, this.T_startID); this.PParcs[id] = newArc;
-				PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++; this.lenAR2++;
+				PPArc newArc = new PPArc(id, AR1, this.graph.getEdge(tail, this.C+1), tail_vertex_id, this.T_startID); this.PParcs[id] = newArc;
+				PPgraph.addEdge(tail_vertex_id, this.T_startID, newArc); id ++; this.lenAR1++;
 			}
 
 		}

@@ -24,9 +24,7 @@ public class Label{
 	public HashSet<Integer> srcIndices; 	//SRC indices for which \eta = 1
 
 	/** Creates a new Label.*/
-	public Label(int vertex, int nextArc, int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
-		this.vertex = vertex;
-		this.nextArc = nextArc;
+	public Label(int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
 		this.nextLabelIndex = nextLabelIndex;
 		this.reducedCost = reducedCost;
 		this.remainingLoad = remainingLoad;
@@ -47,7 +45,10 @@ public class Label{
 
 	public Label clone(){
 		
-		return new Label(this.vertex, this.nextArc, this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices);
+		Label newLab = new Label(this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices);
+		newLab.vertex = this.vertex;
+		newLab.nextArc = this.nextArc;
+		return newLab;
 	}
 
 	/** @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object. */

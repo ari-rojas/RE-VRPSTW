@@ -61,6 +61,7 @@ import columnGeneration.SubsetRowInequality;
 import columnGeneration.SubsetRowInequalityGenerator;
 import columnGeneration.VRPMasterData;
 import model.EVRPTW.Arc;
+import model.EVRPTW.PPArc;
 
 /**
  * Solver class for the mE-VRSPTW (BPC algorithm).
@@ -134,8 +135,8 @@ public final class EVRPTWSolver {
 		int minChargingTime = dataModel.last_charging_period;
 		int maxChargingTime = 1;
 		for(Route route:solution) {
-			if(route.initialChargingTime<minChargingTime) minChargingTime = route.initialChargingTime;
-			if(route.initialChargingTime+route.chargingTime-1>maxChargingTime) maxChargingTime = route.initialChargingTime+route.chargingTime-1;
+			if(route.lastChargingTime-route.chargingTime+1<minChargingTime) minChargingTime = route.lastChargingTime-route.chargingTime+1;
+			if(route.lastChargingTime>maxChargingTime) maxChargingTime = route.lastChargingTime;
 		}
 
 
@@ -143,7 +144,7 @@ public final class EVRPTWSolver {
 		int[] vehiclesCharging = new int[maxChargingTime+1];
 		for (int t = minChargingTime; t <= maxChargingTime; t++) {
 			for(Route route: solution) {
-				int charge = (route.initialChargingTime<=t && t<=route.initialChargingTime+route.chargingTime-1) ? 1 : 0;
+				int charge = (route.lastChargingTime-route.chargingTime+1<=t && t<=route.lastChargingTime) ? 1 : 0;
 				vehiclesCharging[t]+= charge;
 			}
 		}
@@ -180,56 +181,54 @@ public final class EVRPTWSolver {
 		this.upperBound = 0.0;
 		if (initialColumns.isEmpty()) this.upperBound = Math.pow(10, 20);
 		for (Route init_col: initialColumns){
-			Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) init_col.route.clone(), (int[]) init_col.routeSequence.clone(), pricingProblem, init_col.cost, init_col.departureTime, init_col.energy, init_col.load, 0.0, (ArrayList<Integer>) init_col.arcs.clone(), init_col.initialChargingTime, init_col.chargingTime);
+			Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) init_col.route.clone(), (int[]) init_col.routeSequence.clone(), pricingProblem, init_col.cost, init_col.departureTime, init_col.energy, init_col.load, 0.0, (ArrayList<Integer>) init_col.arcs.clone(), (ArrayList<Integer>) init_col.PParcs.clone(), init_col.lastChargingTime, init_col.chargingTime);
 			new_route.BBnode=0;
 			initSolution.add(new_route);
 			this.upperBound += new_route.cost;
 			all_arcs.add(init_col.arcs);
 		}
 
-		//Dummy (artificial) routes to identify infeasibility and initialize the CG
+		// Dummy (artificial) column to identify infeasibility and initialize the CG
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
 		int[] routeSequence = new int[dataModel.C];
 		for(int i=0; i< dataModel.C; i++) {route.put(i+1, 1); routeSequence[i] = i+1;}
 		
-		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
+		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), new ArrayList<>(), 0, 0)); //dummy 
 
-		//Dummy routes (possibly feasible)
-		for(int i=1; i<=dataModel.C; i++){ //a route for each customer
+		// Feasible direct shipping routes
+		for(int i = 1; i <= dataModel.C; i++){ //a route for each customer
 			route = new HashMap<Integer, Integer>();
 			route.put(i, 1);
-			boolean added = false;
-			for(Arc arc: dataModel.graph.getAllEdges(0, i)) {
-				if(added) break;
-				for(Arc arc2: dataModel.graph.getAllEdges(i, dataModel.C+1)) {
-					
-					int cost = arc.cost+arc2.cost;
-					int energy = arc.energy+arc2.energy;
-					if (dataModel.gamma > 1) {
-						energy += arc.energy_deviation + arc2.energy_deviation;
-					} else if (dataModel.gamma == 1) {
-						if (arc.energy_deviation + arc.energy > arc2.energy_deviation + arc2.energy) energy += arc.energy_deviation;
-						else energy += arc2.energy_deviation;
-					}
-
-					if(energy>dataModel.E) continue;
-					routeSequence = new int[] {i};
-					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					arcs.add(arc.id);arcs.add(arc2.id);
-					if (all_arcs.contains(arcs)) continue; // no repeated columns
-					int latestDeparture = dataModel.vertices[i].closing_tw-arc.time;
-					latestDeparture = (int) (latestDeparture/10);
-					int initialChargingTime = latestDeparture-dataModel.f_inverse[energy];
-
-					//Add the route
-					Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initialChargingTime, dataModel.f_inverse[energy]);
-					column.BBnode=0;
-					initSolution.add(column);
-					added = true;
-					break;
-
-				}
+			
+			Arc arc_0i = dataModel.graph.getEdge(0, i);
+			PPArc arc = dataModel.PPgraph.getEdge(dataModel.C0_startID+i, dataModel.T_startID);
+			Arc arc_i0 = arc.routing_arc;
+				
+			int cost = arc_0i.cost+arc_i0.cost;
+			int energy = arc_0i.energy+arc_i0.energy;
+			if (dataModel.gamma > 1) {
+				energy += arc_0i.energy_deviation + arc_i0.energy_deviation;
+			} else if (dataModel.gamma == 1) {
+				if (arc_0i.energy_deviation > arc_i0.energy_deviation) energy += arc_0i.energy_deviation;
+				else energy += arc_i0.energy_deviation;
 			}
+
+			if(energy>dataModel.E) continue;
+			routeSequence = new int[] {i};
+			ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+			arcs.add(arc_0i.id);arcs.add(arc_i0.id);
+			ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
+			PParcs.add(arc.id);
+
+			if (all_arcs.contains(arcs)) continue; // no repeated columns
+			int latestDeparture = dataModel.vertices[i].closing_tw-arc_0i.time;
+			latestDeparture = (int) (latestDeparture/10);
+
+			//Add the route
+			Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, PParcs, latestDeparture-1, dataModel.f_inverse[energy]);
+			column.BBnode=0;
+			initSolution.add(column);
+			
 		}
 
 		return initSolution;

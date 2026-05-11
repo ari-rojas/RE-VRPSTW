@@ -1,17 +1,14 @@
 package branchAndPrice;
 
-import java.util.Collection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.Iterator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
@@ -21,13 +18,11 @@ import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
-import org.jorlib.frameworks.columnGeneration.util.OrderedBiMap;
 
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import columnGeneration.SubsetRowInequality;
-import columnGeneration.VRPMasterData;
 import columnGeneration.customCG;
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
@@ -38,7 +33,6 @@ import ilog.concert.IloObjective;
 import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
-
 
 /**
  * Branch-and-Price class
@@ -90,7 +84,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
 		int[] routeSequence = new int[dataModel.C];
 		for(int i=0; i< dataModel.C; i++) {route.put(i+1, 1); routeSequence[i] = i+1;}
-		return Collections.singletonList(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
+		return Collections.singletonList(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), new ArrayList<Integer>(), 0, 0)); //dummy 
 	}
 
 	/**
@@ -185,7 +179,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				iloColumn=iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
 
 			//Register column with chargers capacity constraints
-			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+ column.chargingTime-1); t++)
+			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
 				iloColumn=iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
 
 			ix = 0;
@@ -402,7 +396,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 					Route new_column = entry.getValue().clone();
 					new_column.value = 1;
 					for (int t=departure_times[r]-1; t>=charging_times[r]; t--){
-						if (cplex.getValue(y[r][t]) > 0.5) {new_column.initialChargingTime = t-charging_times[r]+1; break;}
+						if (cplex.getValue(y[r][t]) > 0.5) {new_column.lastChargingTime = t; break;}
 					}
 
 					unique_routes.put(entry.getKey(), new_column);

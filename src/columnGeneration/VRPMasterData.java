@@ -7,7 +7,6 @@ import java.util.Map;
 import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.util.OrderedBiMap;
 
-import branchAndPrice.ChargingTimeInequality;
 import branchAndPrice.NumberVehiclesInequalities;
 import ilog.concert.IloNumVar;
 import ilog.concert.IloRange;
@@ -23,7 +22,6 @@ public final class VRPMasterData extends MasterData<EVRPTW, Route, PricingProble
 	public final PricingProblem pricingProblem;									//list of pricing problems
 	public HashMap<SubsetRowInequality, IloRange> subsetRowInequalities;		//mapping of the Subset row inequalities to constraints in the CPLEX model
 	public Map<NumberVehiclesInequalities, IloRange> branchingNumberOfVehicles;	//mapping of branching decisions on the number of vehicles
-	public Map<ChargingTimeInequality, IloRange> branchingChargingTimes;		//mapping of branching decisions on the charging times
 	public Map<Route, Double> routeValueMap;									//routes used (only non-zero routes are considered) 
 
 	public VRPMasterData(IloCplex cplex, PricingProblem pricingProblem, Map<PricingProblem, OrderedBiMap<Route, IloNumVar>> varMap) {
@@ -33,23 +31,14 @@ public final class VRPMasterData extends MasterData<EVRPTW, Route, PricingProble
 		this.subsetRowInequalities = new LinkedHashMap<>();
 		this.routeValueMap = new HashMap<>();
 		this.branchingNumberOfVehicles = new HashMap<NumberVehiclesInequalities, IloRange>();
-		this.branchingChargingTimes = new HashMap<ChargingTimeInequality, IloRange>();
 	}
 
 	public Map<NumberVehiclesInequalities, IloRange> getBranchingNumberOfVehicles(){
 		return new HashMap<NumberVehiclesInequalities, IloRange>(this.branchingNumberOfVehicles);
 	}
 
-	public Map<ChargingTimeInequality, IloRange> getBranchingChargingTimes(){
-		return new HashMap<ChargingTimeInequality, IloRange>(this.branchingChargingTimes);
-	}
-
 	public void setBranchingNumberOfVehicles(Map<NumberVehiclesInequalities, IloRange> map){
 		this.branchingNumberOfVehicles = map;
-	}
-
-	public void setBranchingChargingTimes(Map<ChargingTimeInequality, IloRange> map){
-		this.branchingChargingTimes = map;
 	}
 
 }

@@ -322,7 +322,7 @@ public class Experiments {
                             for (int r = 0; r < nR; r++){
 
                                 Route route = solution.get(r);
-                                Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), startingTimes[r], chargingTimes[r]);
+                                Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), (ArrayList<Integer>) route.PParcs.clone(), startingTimes[r], chargingTimes[r]);
                                 new_route.value = 1;
 
                                 robust_solution.add(new_route);
@@ -421,7 +421,7 @@ public class Experiments {
                         for (int r = 0; r < nR; r++){
 
                             Route route = solution.get(r);
-                            Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), null, route.cost, route.departureTime, worstCaseEnergy[r], route.load, 0.0, (ArrayList<Integer>) route.arcs.clone(), route.initialChargingTime, chargingTimes[r]);
+                            Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), null, route.cost, route.departureTime, worstCaseEnergy[r], route.load, 0.0, (ArrayList<Integer>) route.arcs.clone(), (ArrayList<Integer>) route.PParcs.clone(), route.lastChargingTime, chargingTimes[r]);
                             new_route.BBnode=0;
 
                             initialColumns.add(new_route);

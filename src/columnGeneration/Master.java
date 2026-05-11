@@ -22,13 +22,8 @@ import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.CutHandler;
 import org.jorlib.frameworks.columnGeneration.util.OrderedBiMap;
-import branchAndPrice.BranchEndChargingTimeDown;
-import branchAndPrice.BranchEndChargingTimeUp;
-import branchAndPrice.BranchInitialChargingTimeDown;
-import branchAndPrice.BranchInitialChargingTimeUp;
 import branchAndPrice.BranchVehiclesDown;
 import branchAndPrice.BranchVehiclesUp;
-import branchAndPrice.ChargingTimeInequality;
 import branchAndPrice.FixArc;
 import branchAndPrice.NumberVehiclesInequalities;
 import branchAndPrice.RemoveArc;
@@ -114,7 +109,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				if (dataModel.print_log) {
 					logger.debug("Objective: "+ masterData.objectiveValue);
 					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
-					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size() + " Number of charging time branches: " + masterData.branchingChargingTimes.size());
+					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size());
 					logger.debug("Columns (only non-zero columns are returned):");
 					for(Route route: solution)
 						logger.debug(route.toString());
@@ -134,9 +129,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 						double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
 						logger.debug(subsetRowInequality.toString() + ": " + dual);
 					}
-					for(IloRange branching: masterData.branchingChargingTimes.values()) {
-						double dual = masterData.cplex.getDual(branching);
-						logger.debug(branching.toString() + ": " + dual);
 					} */
 					
 				}
@@ -155,7 +147,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	public void initializePricingProblem(PricingProblem pricingProblem){
 		try {
 
-			pricingProblem.branchesOnChargingTimes = masterData.branchingChargingTimes.keySet();
 			double[] dualsPartition= masterData.cplex.getDuals(visitCustomerConstraints);
 			double[] dualsCapacity = masterData.cplex.getDuals(chargersCapacityConstraints);
 			double[] dualsSRC = new double[masterData.subsetRowInequalities.size()];
@@ -172,7 +163,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				}
 			}
 
-			double [] duals = new double[dualsPartition.length + dualsCapacity.length+ s + pricingProblem.branchesOnChargingTimes.size()];  //resultant array of size first array and second array  
+			double [] duals = new double[dualsPartition.length + dualsCapacity.length+ s];  //resultant array of size first array and second array  
 			for (int i = 0; i < dualsPartition.length; i++) 
 				duals[i] = dualsPartition[i];
 
@@ -183,12 +174,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				duals[dualsPartition.length+dualsCapacity.length+i] = dualsSRC[i];
 
 			pricingProblem.subsetRowCuts = SRCToConsider;
-
-			int i = 0;
-			for(IloRange branching: masterData.branchingChargingTimes.values()) {
-				duals[dualsPartition.length+dualsCapacity.length+s+i] = masterData.cplex.getDual(branching);
-				i++;
-			}
 
 			double dualConstant = 0; //constant dual values (not depending on the arc)
 			dualConstant+=masterData.cplex.getDual(roundedCapacityInequality);
@@ -220,7 +205,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				iloColumn=iloColumn.and(masterData.cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
 
 			// register column with chargers capacity constraints
-			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+ column.chargingTime-1); t++)
+			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
 				iloColumn=iloColumn.and(masterData.cplex.column(chargersCapacityConstraints[t-1], 1));
 
 			// register (artificial) column with rounded capacity inequality and branching decisions (vehicles)
@@ -254,15 +239,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint,1));
 				}
 
-				// register the column with branching decision (charging time)
-				for (ChargingTimeInequality branch: masterData.branchingChargingTimes.keySet()) {
-					IloRange branchConstraint = masterData.branchingChargingTimes.get(branch);
-					if(branch.startCharging && column.initialChargingTime==branch.timestep) {
-						iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint, 1));
-					}else if(!branch.startCharging && (column.initialChargingTime+column.chargingTime-1)==branch.timestep) {
-						iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint, 1));
-					}
-				}
 			}
 
 			// create the variable and store it
@@ -398,14 +374,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	public void branchingDecisionPerformed(BranchingDecision bd) {
 		// for simplicity, we simply destroy the master problem and rebuild it. Of course, something more sophisticated may be used which retains the master problem.
 		Set<NumberVehiclesInequalities> vehiclesInequalities = masterData.branchingNumberOfVehicles.keySet(); 	//keep branching decisions
-		Set<ChargingTimeInequality> chargingInequalities = masterData.branchingChargingTimes.keySet(); 			//keep branching decisions
 
 		this.close(); 																							//close the old CPLEX model
 		masterData=this.buildModel(); 																			//create a new model without any columns
 		cutHandler.setMasterData(masterData); 																	//inform the cutHandler about the new master model
 		for(NumberVehiclesInequalities inequality: vehiclesInequalities) addBranchingOnVehichlesInequality(inequality);
-		for(ChargingTimeInequality inequality: chargingInequalities) addChargingTimeInequality(inequality);
-
 
 		if (bd instanceof BranchVehiclesDown) {
 			BranchVehiclesDown branching = (BranchVehiclesDown) bd;
@@ -425,26 +398,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			for(AbstractInequality src: removeArcDecision.poolOfCuts) addCut((SubsetRowInequality) src);
 		}
-		else if (bd instanceof BranchInitialChargingTimeDown) {
-			BranchInitialChargingTimeDown branching = (BranchInitialChargingTimeDown) bd;
-			addChargingTimeInequality(branching.inequality);
-			for(AbstractInequality src: branching.poolOfCuts) addCut((SubsetRowInequality) src);
-		}
-		else if (bd instanceof BranchInitialChargingTimeUp) {
-			BranchInitialChargingTimeUp branching = (BranchInitialChargingTimeUp) bd;
-			addChargingTimeInequality(branching.inequality);
-			for(AbstractInequality src: branching.poolOfCuts) addCut((SubsetRowInequality) src);
-		}
-		else if (bd instanceof BranchEndChargingTimeDown) {
-			BranchEndChargingTimeDown branching = (BranchEndChargingTimeDown) bd;
-			addChargingTimeInequality(branching.inequality);
-			for(AbstractInequality src: branching.poolOfCuts) addCut((SubsetRowInequality) src);
-		}
-		else if (bd instanceof BranchEndChargingTimeUp) {
-			BranchEndChargingTimeUp branching = (BranchEndChargingTimeUp) bd;
-			addChargingTimeInequality(branching.inequality);
-			for(AbstractInequality src: branching.poolOfCuts) addCut((SubsetRowInequality) src);
-		}
 	}
 
 	/**
@@ -460,22 +413,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			BranchVehiclesUp branching = (BranchVehiclesUp) bd;
 			masterData.branchingNumberOfVehicles.remove(branching.inequality);
 		}
-		else if (bd instanceof BranchInitialChargingTimeDown) { 
-			BranchInitialChargingTimeDown branching = (BranchInitialChargingTimeDown) bd;
-			masterData.branchingChargingTimes.remove(branching.inequality);
-		}
-		else if (bd instanceof BranchInitialChargingTimeUp) {
-			BranchInitialChargingTimeUp branching = (BranchInitialChargingTimeUp) bd;
-			masterData.branchingChargingTimes.remove(branching.inequality);
-		}
-		else if (bd instanceof BranchEndChargingTimeDown) {
-			BranchEndChargingTimeDown branching = (BranchEndChargingTimeDown) bd;
-			masterData.branchingChargingTimes.remove(branching.inequality);
-		}
-		else if (bd instanceof BranchEndChargingTimeUp) {
-			BranchEndChargingTimeUp branching = (BranchEndChargingTimeUp) bd;
-			masterData.branchingChargingTimes.remove(branching.inequality);
-		}
 	}
 
 	/**
@@ -487,22 +424,6 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			if (inequality.lessThanOrEqual) branchingConstraint = masterData.cplex.addLe(masterData.cplex.linearNumExpr(), inequality.coefficient, "branching_"+inequality.toString());
 			else branchingConstraint = masterData.cplex.addGe(masterData.cplex.linearNumExpr(), inequality.coefficient, "branching_"+inequality.toString());
 			masterData.branchingNumberOfVehicles.put(inequality, branchingConstraint);
-		}
-		catch (IloException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} //new constraint
-	}
-
-	/**
-	 * Creates a branching decision constraint (when branching on the number of vehicles used)
-	 */
-	public void addChargingTimeInequality(ChargingTimeInequality inequality) {
-		try {
-			IloRange branchingConstraint;
-			if (inequality.lessThanOrEqual) branchingConstraint = masterData.cplex.addLe(masterData.cplex.linearNumExpr(), inequality.coefficient, "branching_"+inequality.toString());
-			else branchingConstraint = masterData.cplex.addGe(masterData.cplex.linearNumExpr(), inequality.coefficient, "branching_"+inequality.toString());
-			masterData.branchingChargingTimes.put(inequality, branchingConstraint);
 		}
 		catch (IloException e) {
 			// TODO Auto-generated catch block

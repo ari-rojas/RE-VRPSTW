@@ -1,13 +1,9 @@
 package columnGeneration;
 
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.TreeSet;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
-import branchAndPrice.ChargingTimeInequality;
 import model.EVRPTW;
 
 /**
@@ -17,13 +13,10 @@ import model.EVRPTW;
 public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public ArrayList<SubsetRowInequality> subsetRowCuts; 				//subset row cuts considered
-	public Set<ChargingTimeInequality> branchesOnChargingTimes;			//branching on charging times
 	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
 	public Map<Integer, Map<Integer,Double>> charging_bounds;
-	public double[] last_charging_branch_duals;
-	public double[] initial_charging_branch_duals;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -46,17 +39,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			S[t] = S[t - 1] + dual;
 		}
 
-		// Include the charging branching dual information
-		this.last_charging_branch_duals = new double[maxT];
-		this.initial_charging_branch_duals = new double[maxT];
-		int i=0;
-		for(ChargingTimeInequality branching: this.branchesOnChargingTimes) {
-			double dual = this.dualCosts[dataModel.C+dataModel.last_charging_period+this.subsetRowCuts.size()+i];
-			if (branching.startCharging) this.initial_charging_branch_duals[branching.timestep] = dual;
-			else this.last_charging_branch_duals[branching.timestep] = dual;
-			i++;
-		}
-
 		///////////////////////////////////////////////////////////////////////////////////
 		/// Compute the bounds for every combination of chargingTime b and departureTime d
 		///////////////////////////////////////////////////////////////////////////////////
@@ -67,14 +49,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			double min_rc = Double.MAX_VALUE;
 			int first_departure = Math.max(b+1, minT);
 			for (int last_t = b; last_t < first_departure-1; last_t ++){
-				double rc = - (S[last_t] - S[last_t-b]) - this.last_charging_branch_duals[last_t] - this.initial_charging_branch_duals[last_t-b+1];
+				double rc = - (S[last_t] - S[last_t-b]);
 				if (rc < min_rc - dataModel.precision) min_rc = rc;
 			}
 
 			Map<Integer, Double> boundsMap = new HashMap<>();
 			for (int d = first_departure; d <= maxT; d++){
 				
-				double rc = - (S[d-1] - S[d-b-1]) - this.last_charging_branch_duals[d-1] - this.initial_charging_branch_duals[d-b];
+				double rc = - (S[d-1] - S[d-b-1]);
 				if (rc < min_rc - dataModel.precision) min_rc = rc;
 				
 				boundsMap.put(d, min_rc);
