@@ -168,7 +168,7 @@ public final class EVRPTWSolver {
 	private List<Route> getInitialSolution(PricingProblem pricingProblem, ArrayList<Route> initialColumns){
 
 		List<Route> initSolution = new ArrayList<>();
-		List<ArrayList<Integer>> all_arcs = new ArrayList<>();
+		List<ArrayList<Integer>> all_PParcs = new ArrayList<>();
 		this.upperBound = 0.0;
 		if (initialColumns.isEmpty()) this.upperBound = Math.pow(10, 20);
 		for (Route init_col: initialColumns){
@@ -176,7 +176,7 @@ public final class EVRPTWSolver {
 			new_route.BBnode=0;
 			initSolution.add(new_route);
 			this.upperBound += new_route.cost;
-			all_arcs.add(init_col.arcs);
+			all_PParcs.add(init_col.PParcs);
 		}
 
 		// Dummy (artificial) column to identify infeasibility and initialize the CG
@@ -208,15 +208,18 @@ public final class EVRPTWSolver {
 			routeSequence = new int[] {i};
 			ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
 			arcs.add(arc_0i.id);arcs.add(arc_i0.id);
-			ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
-			PParcs.add(arc.id);
-
-			if (all_arcs.contains(arcs)) continue; // no repeated columns
+			
 			int latestDeparture = dataModel.vertices[i].closing_tw-arc_0i.time;
 			latestDeparture = (int) (latestDeparture/10);
+			int last_t = latestDeparture-1;
+			
+			ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
+			PPArc lastT_0i_arc = dataModel.PPgraph.getEdge(dataModel.PPvertices[dataModel.T_startID+last_t].id, dataModel.PPvertices[dataModel.C0_startID+i].id);
+			PParcs.add(lastT_0i_arc.id); PParcs.add(arc.id);
+			if (all_PParcs.contains(PParcs)) continue; // no repeated columns
 
 			//Add the route
-			Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, PParcs, latestDeparture-1, dataModel.f_inverse[energy]);
+			Route column = new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, PParcs, last_t, dataModel.f_inverse[energy]);
 			column.BBnode=0;
 			initSolution.add(column);
 			

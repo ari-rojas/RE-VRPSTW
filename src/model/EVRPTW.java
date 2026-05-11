@@ -23,8 +23,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import columnGeneration.Label;
-import model.EVRPTW.Arc;
-import model.EVRPTW.SortByCost;
 
 /**
  * The Electric Vehicle Routing and Overnight Charging Scheduling Problem on a Multigraph
