@@ -324,94 +324,79 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	protected List<Route> generateNewColumns() {
 
 		//Solve the problem and check the solution
-		boolean existsElementaryRoute=false;
-		boolean maxNeighborhoodSize=false;
-		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
-		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
+		List<Route> newRoutes = new ArrayList<>(this.numCols);  			//list of routes
+		List<Route> nonElementaryRoutes = new ArrayList<>(this.numCols);  //list of nonelementary routes
+		
+		this.runLabeling(); 											//runs the labeling algorithm
 
-		while (!existsElementaryRoute && !maxNeighborhoodSize){
-			this.runLabeling(); 										//runs the labeling algorithm
-
-			if(PPvertices[0].unprocessedLabels.isEmpty()) {
-				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
-				
-			} else {
-				this.pricingProblemInfeasible=false;
-				for (Label label: PPvertices[0].unprocessedLabels) {
-					if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
-						
-						int load = dataModel.Q - label.remainingLoad;
-						int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
-						int departureTime = label.remainingTime;
-						
-						// Retrieves the charging schedule
-						int initialChargingTime = PPvertices[dataModel.PParcs[label.nextArc].head_vertex_id].node_number; 
-						int chargingTime = 0;
-						PPArc nextArc = dataModel.PParcs[label.nextArc];
-						while(nextArc.arc_type>=AC1) {
-							chargingTime++;
-							
-							label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
-							nextArc = dataModel.PParcs[label.nextArc];
-						}
-						
-						// Retrieves the route
-						HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
-						ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-						ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
-						boolean isElementary = true;
-						
-						int i = PPvertices[nextArc.tail_vertex_id].routing_vertex.node_id;
-						route.put(i, 1); 
-						Arc routing_arc = dataModel.graph.getEdge(0,i); int cost = routing_arc.cost;
-						arcs.add(routing_arc.id); PParcs.add(nextArc.id);
-						
-						int j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
-						route.put(j, 1); // By construction of the PP Graph, i and j are always different
-						routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
-						arcs.add(routing_arc.id);
+		if(PPvertices[0].unprocessedLabels.isEmpty()) {
+			this.pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
+		} else {
+			this.pricingProblemInfeasible=false;
+			for (Label label: PPvertices[0].unprocessedLabels) {
+				if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
+					
+					int load = dataModel.Q - label.remainingLoad;
+					int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
+					int departureTime = label.remainingTime;
+					
+					// Retrieves the charging schedule
+					int initialChargingTime = PPvertices[dataModel.PParcs[label.nextArc].head_vertex_id].node_number; 
+					int chargingTime = 0;
+					PPArc nextArc = dataModel.PParcs[label.nextArc];
+					while(nextArc.arc_type>=AC2) {
+						chargingTime++;
 						
 						label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
-						while(label.vertex != depotID) {
-							
-							i = j;
-							nextArc = dataModel.PParcs[label.nextArc];
-							j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
-							
-							if (route.containsKey(j)) {route.replace(j, route.get(j)+1); isElementary = false; } 
-							else route.put(j, 1);
-							routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
-
-							arcs.add(routing_arc.id); PParcs.add(nextArc.id);
-							label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
-							
-						}
-
-						// Retrieves the route sequence (of customers)
-						int[] routeSequence = new int[arcs.size()-1];
-						int counter = 0;
-						for(Integer arcID: arcs) {
-							if(counter>=routeSequence.length) break;
-							routeSequence[counter] = dataModel.arcs[arcID].head;
-							counter++;
-						}
-
-						Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
-						if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
-						else {nonElementaryRoutes.add(column);}
+						nextArc = dataModel.PParcs[label.nextArc];
 					}
-				}
-				if (!existsElementaryRoute) {
-					maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes); 
-					if(!maxNeighborhoodSize) {
-						nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>();
-						restart();} //restart //run again
-					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
+
+					// Save the (last_t - 0j) Arc
+					ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
+					PParcs.add(nextArc.id);
+					
+					// Retrieve the route
+					HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
+					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+					boolean isElementary = true;
+					
+					int j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
+					route.put(j, 1);
+					Arc routing_arc = dataModel.graph.getEdge(0,j); int cost = routing_arc.cost;
+					arcs.add(routing_arc.id);
+					
+					label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
+					while(label.vertex != depotID) {
+						
+						int i = j;
+						nextArc = dataModel.PParcs[label.nextArc];
+						j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
+						
+						if (route.containsKey(j)) {route.replace(j, route.get(j)+1); isElementary = false; } 
+						else route.put(j, 1);
+						routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
+
+						arcs.add(routing_arc.id); PParcs.add(nextArc.id);
+						label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
+						
+					}
+
+					// Retrieves the route sequence (of customers)
+					int[] routeSequence = new int[arcs.size()-1];
+					int counter = 0;
+					for(Integer arcID: arcs) {
+						if(counter>=routeSequence.length) break;
+						routeSequence[counter] = dataModel.arcs[arcID].head;
+						counter++;
+					}
+
+					Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
+					if (isElementary) {newRoutes.add(column);}
+					else {nonElementaryRoutes.add(column);}
 				}
 			}
+			
 		}
-
-		//if (PPvertices[0].unprocessedLabels.size() < numCols) pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished heuristic pricing: "+PPvertices[0].processedLabels.size()+" processed, "+PPvertices[0].unprocessedLabels.size()+" unprocessed.");

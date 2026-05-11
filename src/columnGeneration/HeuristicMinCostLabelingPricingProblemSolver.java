@@ -345,33 +345,31 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						int initialChargingTime = PPvertices[dataModel.PParcs[label.nextArc].head_vertex_id].node_number; 
 						int chargingTime = 0;
 						PPArc nextArc = dataModel.PParcs[label.nextArc];
-						while(nextArc.arc_type>=AC1) {
+						while(nextArc.arc_type>=AC2) {
 							chargingTime++;
 							
 							label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
 							nextArc = dataModel.PParcs[label.nextArc];
 						}
+
+						// Save the (last_t - 0j) Arc
+						ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
+						PParcs.add(nextArc.id);
 						
-						// Retrieves the route
+						// Retrieve the route
 						HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
 						ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-						ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
 						boolean isElementary = true;
 						
-						int i = PPvertices[nextArc.tail_vertex_id].routing_vertex.node_id;
-						route.put(i, 1); 
-						Arc routing_arc = dataModel.graph.getEdge(0,i); int cost = routing_arc.cost;
-						arcs.add(routing_arc.id); PParcs.add(nextArc.id);
-						
 						int j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
-						route.put(j, 1); // By construction of the PP Graph, i and j are always different
-						routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
+						route.put(j, 1);
+						Arc routing_arc = dataModel.graph.getEdge(0,j); int cost = routing_arc.cost;
 						arcs.add(routing_arc.id);
 						
 						label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
 						while(label.vertex != depotID) {
 							
-							i = j;
+							int i = j;
 							nextArc = dataModel.PParcs[label.nextArc];
 							j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
 							
@@ -387,7 +385,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 						// Retrieves the route sequence (of customers)
 						int[] routeSequence = new int[arcs.size()-1];
 						int counter = 0;
-						for(Integer arcID: arcs) {
+						for (Integer arcID: arcs) {
 							if(counter>=routeSequence.length) break;
 							routeSequence[counter] = dataModel.arcs[arcID].head;
 							counter++;
