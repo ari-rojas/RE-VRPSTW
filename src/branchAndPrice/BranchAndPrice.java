@@ -269,7 +269,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	protected boolean findIntegerSolution(BAPNode<EVRPTW, Route> bapNode){
 		
 		long time=System.currentTimeMillis();
-		this.extendedNotifier.fireLexicographicMasterEvent(bapNode);
+		this.extendedNotifier.fireMIPMasterEvent(bapNode);
 		boolean integer_solution_exists = false;
 
 		// Retrieve the unique routes from the fractional solution
@@ -297,7 +297,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			bapNode.storeSolution(bapNode.getObjective(), bapNode.getBound(), new ArrayList<>(unique_routes.values()), this.master.getCuts());
 		}
 
-		this.extendedNotifier.fireFinishLexicographicMasterEvent(bapNode, true);
+		this.extendedNotifier.fireFinishMIPMasterEvent(bapNode, true);
 		this.timeChargingBranching += System.currentTimeMillis() - time;
 
 		return integer_solution_exists;

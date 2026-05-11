@@ -8,9 +8,9 @@ public interface ExtendBAPListener extends EventListener {
 
     void CGProblemsLB(CGProblemsLBEvent var1);
 
-    void startLexicographicMaster(LexicographicMasterEvent var1);
+    void startMIPMaster(MIPMasterEvent var1);
 
-    void finishLexicographicMaster(FinishLexicographicMasterEvent var1);
+    void finishMIPMaster(FinishMIPMasterEvent var1);
 
     void IPRootNode(IPRootNodeEvent var1);
 

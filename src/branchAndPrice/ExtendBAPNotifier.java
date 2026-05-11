@@ -53,26 +53,26 @@ public class ExtendBAPNotifier{
 
     }
 
-    public void fireLexicographicMasterEvent(BAPNode node) {
-      LexicographicMasterEvent lexiMasterEvent = null;
+    public void fireMIPMasterEvent(BAPNode node) {
+      MIPMasterEvent lexiMasterEvent = null;
 
       ExtendBAPListener listener;
-      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.startLexicographicMaster(lexiMasterEvent)) {
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.startMIPMaster(lexiMasterEvent)) {
         listener = (ExtendBAPListener)var3.next();
         if (lexiMasterEvent == null) {
-          lexiMasterEvent = new LexicographicMasterEvent(this.parent, node);
+          lexiMasterEvent = new MIPMasterEvent(this.parent, node);
         }
       }
     }
 
-    public void fireFinishLexicographicMasterEvent(BAPNode node, boolean found) {
-      FinishLexicographicMasterEvent lexiMasterEvent = null;
+    public void fireFinishMIPMasterEvent(BAPNode node, boolean found) {
+      FinishMIPMasterEvent lexiMasterEvent = null;
 
       ExtendBAPListener listener;
-      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishLexicographicMaster(lexiMasterEvent)) {
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishMIPMaster(lexiMasterEvent)) {
         listener = (ExtendBAPListener)var3.next();
         if (lexiMasterEvent == null) {
-          lexiMasterEvent = new FinishLexicographicMasterEvent(this.parent, node, found);
+          lexiMasterEvent = new FinishMIPMasterEvent(this.parent, node, found);
         }
       }
     }

@@ -39,8 +39,8 @@ import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
-import branchAndPrice.LexicographicMasterEvent;
-import branchAndPrice.FinishLexicographicMasterEvent;
+import branchAndPrice.MIPMasterEvent;
+import branchAndPrice.FinishMIPMasterEvent;
 import branchAndPrice.IPRootNodeEvent;
 import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
@@ -375,7 +375,7 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
-		public void startLexicographicMaster(LexicographicMasterEvent lexiEvent){
+		public void startMIPMaster(MIPMasterEvent mipEvent){
 			if (dataModel.print_log) {
 
 				logger.debug("================ MASTER - FINDING INTEGER SOLUTION ================");
@@ -384,12 +384,12 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
-		public void finishLexicographicMaster(FinishLexicographicMasterEvent lexiEvent){
+		public void finishMIPMaster(FinishMIPMasterEvent MIPEvent){
 			if (dataModel.print_log) {
 
-				if (lexiEvent.found_integer_solution){
+				if (MIPEvent.found_integer_solution){
 					logger.debug("Found integer solution:");
-					List<Route> solution = lexiEvent.node.getSolution();
+					List<Route> solution = MIPEvent.node.getSolution();
 					for (Route column : solution){
 						logger.debug(column.toString());
 					}

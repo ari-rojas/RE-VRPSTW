@@ -1,13 +1,11 @@
 package branchAndPrice;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
-import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import model.EVRPTW;
