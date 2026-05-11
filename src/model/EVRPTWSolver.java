@@ -214,7 +214,7 @@ public final class EVRPTWSolver {
 			int last_t = latestDeparture-1;
 			
 			ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
-			PPArc lastT_0i_arc = dataModel.PPgraph.getEdge(dataModel.PPvertices[dataModel.T_startID+last_t].id, dataModel.PPvertices[dataModel.C0_startID+i].id);
+			PPArc lastT_0i_arc = dataModel.PPgraph.getEdge(dataModel.PPvertices[dataModel.T_startID+last_t].id, arc.tail_vertex_id);
 			PParcs.add(lastT_0i_arc.id); PParcs.add(arc.id);
 			if (all_PParcs.contains(PParcs)) continue; // no repeated columns
 
