@@ -38,8 +38,8 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 		// Retrieve the arc (i,j)
 		PPArc pparc = dataModel.PParcs[arc];
 
-		// Remove all other incoming arcs of j
-		for (PPArc other_arc: dataModel.PPgraph.incomingEdgesOf(pparc.head_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
+		// Remove all other outgoing arcs of i
+		for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(pparc.tail_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
 
 		// Remove the node i^(1-\kappa_(i,j))
 		// \kappa_(i,j): 1 if (i,j) \in AR0 \cup AC1, 0 otherwise
@@ -51,9 +51,9 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 		PPVertex vx_to_remove = dataModel.PPvertices[startID+customer_depot];
 		remove_node(vx_to_remove);
 
-		// If it's a routing arc and it does not end in the depot, remove all other outgoing arcs of i, and remove the j0 node
+		// If it's a routing arc and it does not end in the depot, remove all other incoming of j, and remove the j0 node
 		if (arc_type <= EVRPTW.AR1 && pparc.head_vertex_id != dataModel.T_startID){
-			for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(pparc.tail_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
+			for (PPArc other_arc: dataModel.PPgraph.incomingEdgesOf(pparc.head_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
 
 			customer_depot = dataModel.PPvertices[pparc.head_vertex_id].node_number;
 			vx_to_remove = dataModel.PPvertices[dataModel.C0_startID+customer_depot];
