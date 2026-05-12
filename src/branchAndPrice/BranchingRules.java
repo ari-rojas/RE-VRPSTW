@@ -1,6 +1,7 @@
 package branchAndPrice;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +11,7 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import model.EVRPTW;
+import model.EVRPTW.PPArc;
 
 /**
  * Class which creates new branches in the Branch-and-Price tree. 
@@ -32,10 +34,12 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private EVRPTW dataModel; 							//model data
 
 	private double PRECISION = 0.001;
+	private final int depotID;
 
 	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
 		super(dataModel, pricingProblem);
 		this.dataModel = dataModel;
+		this.depotID = dataModel.T_startID;
 	}
 
 	/**
@@ -55,36 +59,50 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		this.arcType = -1;
 		this.bestArcValue = 0;
 
-		//Aggregate route values
+		// Aggregate route values
 		for(Route route : solution){vehiclesForBranching+=route.value;}
 		if(isFractional(vehiclesForBranching)) {branchingOnVehicles = true; return true;}
 
-		//Determine whether there's a fractional edge for branching
-		Map<Integer, Double> arcValues=new LinkedHashMap<>();
+		// Determine whether there's a fractional routing arc for branching
+		// The array separates the arcs by arc_type: 0 belonging to AR0, 1 belonging to AR1
+		Map<Integer, Double>[] arcValues= (Map<Integer, Double>[]) new Map[2];
+		for (int i = 0; i < EVRPTW.AR1; i++) arcValues[i] = new HashMap<>();
 
 		//Aggregate edge values
 		for(Route route : solution){
 			if (route.value < 1-this.PRECISION) {
 				ArrayList<Integer> PParcs = route.PParcs;
-				for(int ix = 1; ix < PParcs.size(); ix++){ // Skip the first (ix = 0)
+				for(int ix = 1; ix < PParcs.size(); ix++){ // Skip the first (ix = 0), as it is the AC1 arc of the column
 					int arcID = PParcs.get(ix);
-					Double arcValue=arcValues.get(arcID);
-					if(arcValue == null) arcValues.put(arcID,route.value);
-					else arcValues.put(arcID,route.value+arcValue);
+					PPArc arc = dataModel.PParcs[arcID];
+					Double arcValue = arcValues[arc.arc_type].get(arcID);
+
+					if (arcValue == null) arcValues[arc.arc_type].put(arcID, route.value);
+					else arcValues[arc.arc_type].put(arcID, route.value+arcValue);
 				}
 			}
 		}
 
-		//Select the edge with a fractional value closest to 0.5
-		for(int arc : arcValues.keySet()){
-			double value=arcValues.get(arc);
+		// Select the arc whose flow is closest to 0.5
+		// Prioritize arcs belonging to AR1
+		for(int arcID : arcValues[1].keySet()){
+			double value = arcValues[1].get(arcID);
 			if(Math.abs(0.5-value) <= Math.abs(0.5- bestArcValue)){
-				arcForBranching=arc;
-				bestArcValue =value;
-				if(bestArcValue == 0.5 && dataModel.arcs[arc].tail!= 0 && dataModel.arcs[arc].head!=dataModel.C+1) {branchOnCustomerArcs = true; return true;}
+				arcForBranching = arcID; bestArcValue = value;
+				if (bestArcValue == 0.5 && dataModel.PParcs[arcID].head_vertex_id != depotID) { branchOnCustomerArcs = true; return true; }
 			}
 		}
-		if(isFractional(bestArcValue)) {branchOnCustomerArcs = true; return true;}
+		if (isFractional(bestArcValue)) { branchOnCustomerArcs = true; return true; }
+
+		// If no arcs in AR1 are fractional, check for fractional arcs belonging to AR0
+		for(int arcID : arcValues[0].keySet()){
+			double value = arcValues[0].get(arcID);
+			if(Math.abs(0.5-value) <= Math.abs(0.5- bestArcValue)){
+				arcForBranching = arcID; bestArcValue = value;
+				if (bestArcValue == 0.5 && dataModel.PParcs[arcID].head_vertex_id != depotID) { branchOnCustomerArcs = true; return true; }
+			}
+		}
+		if (isFractional(bestArcValue)) { branchOnCustomerArcs = true; return true; }
 
 		return false;
 	}
@@ -96,29 +114,31 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		this.arcType = -1;
 		this.bestArcValue = 0;
 
-		//Determine whether there's a fractional edge for branching
-		Map<Integer, Double> arcValues=new LinkedHashMap<>();
+		// Determine whether there's a fractional routing arc for branching
+		// The array separates the arcs by arc_type: 0 belonging to AR0, 1 belonging to AR1
+		Map<Integer, Double> arcValues = new HashMap<Integer, Double>();
 
 		//Aggregate edge values
 		for(Route route : solution){
 			if (route.value < 1-this.PRECISION) {
 				int arcID = route.PParcs.get(0);
 				Double arcValue = arcValues.get(arcID);
-				if(arcValue == null) arcValues.put(arcID,route.value);
-				else arcValues.put(arcID,route.value+arcValue);
+
+				if (arcValue == null) arcValues.put(arcID, route.value);
+				else arcValues.put(arcID, route.value+arcValue);
 			}
 		}
 
-		//Select the edge with a fractional value closest to 0.5
-		for(int arc : arcValues.keySet()){
-			double value=arcValues.get(arc);
+		// Select the arc whose flow is closest to 0.5
+		// Prioritize arcs belonging to AR1
+		for(int arcID : arcValues.keySet()){
+			double value = arcValues.get(arcID);
 			if(Math.abs(0.5-value) <= Math.abs(0.5- bestArcValue)){
-				arcForBranching=arc;
-				bestArcValue =value;
-				if(bestArcValue == 0.5 && dataModel.arcs[arc].tail!= 0 && dataModel.arcs[arc].head!=dataModel.C+1) {branchOnCustomerArcs = true; return true;}
+				arcForBranching = arcID; bestArcValue = value;
+				if(bestArcValue == 0.5 && dataModel.PParcs[arcID].head_vertex_id != dataModel.T_startID) { branchOnCustomerArcs = true; return true; }
 			}
 		}
-		if(isFractional(bestArcValue)) {branchOnCustomerArcs = true; return true;}
+		if (isFractional(bestArcValue)) { branchOnCustomerArcs = true; return true; }
 
 		return false;
 	}
@@ -130,17 +150,17 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 		if(branchingOnVehicles) {
 			//Branch 1: number of vehicles down
-			BranchVehiclesDown branchingDecision1=new BranchVehiclesDown(this.pricingProblems.get(0), (int) Math.floor(vehiclesForBranching), parentNode.getInequalities());
+			BranchVehiclesDown branchingDecision1 = new BranchVehiclesDown(this.pricingProblems.get(0), (int) Math.floor(vehiclesForBranching), parentNode.getInequalities());
 			node1=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: number of vehicles up
-			BranchVehiclesUp branchingDecision2=new BranchVehiclesUp(this.pricingProblems.get(0), (int) Math.ceil(vehiclesForBranching), parentNode.getInequalities());
+			BranchVehiclesUp branchingDecision2 = new BranchVehiclesUp(this.pricingProblems.get(0), (int) Math.ceil(vehiclesForBranching), parentNode.getInequalities());
 			node2=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		} else {
 			//Branch 1: remove the edge:
-			RemoveArc branchingDecision1=new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
+			RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
 			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: fix the edge:
-			FixArc branchingDecision2=new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
+			FixArc branchingDecision2 = new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
 			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		}
 		
@@ -161,10 +181,10 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		BAPNode<EVRPTW,Route> node1; 		//other child node
 		
 		//Branch 1: remove the edge:
-		RemoveArc branchingDecision1=new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
+		RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
 		node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 		//Branch 2: fix the edge:
-		FixArc branchingDecision2=new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
+		FixArc branchingDecision2 = new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
 		node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		
 		return Arrays.asList(node1,node2);
