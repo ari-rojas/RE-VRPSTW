@@ -19,7 +19,6 @@ public final class RemoveArc implements BranchingDecision<EVRPTW, Route> {
 	public double flowValue;								//flow value of the arc on which we are branching
 	public List<AbstractInequality> poolOfCuts;				//separated SRCs
 	public EVRPTW dataModel;								//data model
-	public ArrayList<Integer> infeasibleArcs;				//infeasible arcs by the branching decision
 
 	public RemoveArc(PricingProblem pricingProblem, int arc, EVRPTW dataModel, List<AbstractInequality> list, double flowValue){
 		this.pricingProblem=pricingProblem;
