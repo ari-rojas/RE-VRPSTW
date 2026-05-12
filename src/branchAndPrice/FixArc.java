@@ -49,13 +49,23 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 		int startID = dataModel.C1_startID;
 		if (arc_type == EVRPTW.AR1) startID = dataModel.C0_startID;
 		PPVertex vx_to_remove = dataModel.PPvertices[startID+customer_depot];
+		remove_node(vx_to_remove);
+
+		// If it's a routing arc and it does not end in the depot, remove all other outgoing arcs of i, and remove the j0 node
+		if (arc_type <= EVRPTW.AR1 && pparc.head_vertex_id != dataModel.T_startID){
+			for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(pparc.tail_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
+
+			customer_depot = dataModel.PPvertices[pparc.head_vertex_id].node_number;
+			vx_to_remove = dataModel.PPvertices[dataModel.C0_startID+customer_depot];
+			remove_node(vx_to_remove);
+		}
+		
+	}
+
+	private void remove_node(PPVertex vx_to_remove){
+
 		for (PPArc other_arc: dataModel.PPgraph.incomingEdgesOf(vx_to_remove.id)) this.infeasiblePPArcs.add(other_arc.id);
 		for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(vx_to_remove.id)) this.infeasiblePPArcs.add(other_arc.id);
-
-		// If it's a routing arc and it does not end in the depot, remove all other outgoing arcs of i
-		if (arc_type <= EVRPTW.AR1 && pparc.head_vertex_id != dataModel.T_startID)
-			for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(pparc.tail_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
-		 
 	}
 
 	/**
