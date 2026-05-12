@@ -90,8 +90,9 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 		if(column.isArtificialColumn) return true;
 
 		if (this.arc_type <= EVRPTW.AR1){ // If the branching arc is a routing arc
-			for (int edge: this.infeasiblePPArcs) if (column.PParcs.contains(edge)) return false; }
-		else if (column.PParcs.get(0) == this.arcID) return false;
+			for (int arcID: this.infeasiblePPArcs) if (column.PParcs.contains(arcID)) return false; }
+		else {
+			for (int arcID: this.infeasiblePPArcs) if (column.PParcs.get(0) == arcID) return false; }
 
 		return true;
 	}

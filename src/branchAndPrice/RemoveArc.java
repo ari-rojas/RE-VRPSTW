@@ -46,9 +46,12 @@ public final class RemoveArc implements BranchingDecision<EVRPTW, Route> {
 	 */
 	@Override
 	public boolean columnIsCompatibleWithBranchingDecision(Route column) {
+		
 		if(column.associatedPricingProblem != this.pricingProblem) return false;
 		if(column.isArtificialColumn) return true;
-		if(column.arcs.contains(arc)) return false;
+		
+		if(column.PParcs.contains(arc)) return false;
+		
 		return true;
 	}
 
