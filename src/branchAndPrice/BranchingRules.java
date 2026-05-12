@@ -66,7 +66,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		// Determine whether there's a fractional routing arc for branching
 		// The array separates the arcs by arc_type: 0 belonging to AR0, 1 belonging to AR1
 		Map<Integer, Double>[] arcValues= (Map<Integer, Double>[]) new Map[2];
-		for (int i = 0; i < EVRPTW.AR1; i++) arcValues[i] = new HashMap<>();
+		for (int i = 0; i < EVRPTW.AC1; i++) arcValues[i] = new HashMap<>();
 
 		//Aggregate edge values
 		for(Route route : solution){
@@ -85,6 +85,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 		// Select the arc whose flow is closest to 0.5
 		// Prioritize arcs belonging to AR1
+		this.arcType = EVRPTW.AR1;
 		for(int arcID : arcValues[1].keySet()){
 			double value = arcValues[1].get(arcID);
 			if(Math.abs(0.5-value) <= Math.abs(0.5- bestArcValue)){
@@ -94,6 +95,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		}
 		if (isFractional(bestArcValue)) { branchOnCustomerArcs = true; return true; }
 
+		this.arcType = EVRPTW.AR0;
 		// If no arcs in AR1 are fractional, check for fractional arcs belonging to AR0
 		for(int arcID : arcValues[0].keySet()){
 			double value = arcValues[0].get(arcID);
@@ -111,7 +113,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	public boolean canPerformBranching(List<Route> solution) {
 
 		this.arcForBranching = -1;
-		this.arcType = -1;
+		this.arcType = 2;
 		this.bestArcValue = 0;
 
 		// Determine whether there's a fractional routing arc for branching
@@ -130,7 +132,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		}
 
 		// Select the arc whose flow is closest to 0.5
-		// Prioritize arcs belonging to AR1
+		this.arcType = EVRPTW.AC1;
 		for(int arcID : arcValues.keySet()){
 			double value = arcValues.get(arcID);
 			if(Math.abs(0.5-value) <= Math.abs(0.5- bestArcValue)){
