@@ -29,6 +29,7 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.Prune
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartGeneratingCutsEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartMasterEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartPricingEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.colgenMain.AbstractColumn;
 import org.jorlib.frameworks.columnGeneration.io.SimpleDebugger;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractCutGenerator;
@@ -41,6 +42,8 @@ import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.MIPMasterEvent;
 import branchAndPrice.FinishMIPMasterEvent;
+import branchAndPrice.FixArc;
+import branchAndPrice.RemoveArc;
 import branchAndPrice.IPRootNodeEvent;
 import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
@@ -239,7 +242,7 @@ public final class EVRPTWSolver {
 		//if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
 		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "NF"+energy_deviation, args[2], args[3]);
-		EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "NF", "Debug", "");
+		EVRPTW evrptw = new EVRPTW("R106-25", 5, 0, true, "NF", "Debug", "");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
@@ -409,7 +412,19 @@ public final class EVRPTWSolver {
 				logger.debug("================ BRANCHING ================");
 				logger.debug("Branching - {} new nodes: ",branchEvent.nrBranches);
 				for(BAPNode childNode : branchEvent.childNodes){
-					logger.debug("ChildNode {} - {}",childNode.nodeID, childNode.getBranchingDecision().toString());
+
+					BranchingDecision bd = childNode.getBranchingDecision();
+					logger.debug("ChildNode {} - {}",childNode.nodeID, bd.toString());
+					
+					if (bd instanceof FixArc){
+						FixArc fixArcBranch = (FixArc) bd;
+						for (int arcID: fixArcBranch.infeasiblePPArcs) logger.debug(dataModel.PParcs[arcID].toString());
+					} else if (bd instanceof RemoveArc) {
+						RemoveArc removeArcBranch = (RemoveArc) bd;
+						logger.debug(dataModel.PParcs[removeArcBranch.arc].toString());
+
+					}
+					
 				}
 			}
 		}

@@ -36,6 +36,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 	public final int similarityThreshold = 5; 				//diversification of columns
 
 	public double bestReducedCost;
+	private int Gamma;
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
 	public static final byte C0 = EVRPTW.C0; 	 	// Customer depot nodes
@@ -61,6 +62,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		this.infeasibleArcs = new int[dataModel.numArcs];
 		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.V, new SortVertices());
 		this.depotID = dataModel.T_startID;
+		this.Gamma = dataModel.gamma;
 	}
 
 	/**
@@ -70,7 +72,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization
-		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
+		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
 		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.nextArc = depotID;
 		this.nodesToProcess.add(PPvertices[depotID]);
@@ -207,28 +209,21 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		// Only negative reduced cost labels at the depot
 		if (arc_type == AR0 && reducedCost >= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
 		
-		int[] remainingEnergy = new int[dataModel.gamma + 1];
-		remainingEnergy[0] = currentLabel.remainingEnergy[0]-routing_arc.energy; if (remainingEnergy[0] < 0) return null;
-		for (int gam = 1; gam <= dataModel.gamma; gam++){
-			if (currentLabel.remainingEnergy[gam-1] - routing_arc.energy_deviation < currentLabel.remainingEnergy[gam]){ remainingEnergy[gam] = currentLabel.remainingEnergy[gam-1] - routing_arc.energy - routing_arc.energy_deviation; }
-			else { remainingEnergy[gam] = currentLabel.remainingEnergy[gam] - routing_arc.energy; }
-			if (remainingEnergy[gam] < 0) return null;
-		}
+		int[] remainingEnergy = new int[Gamma + 1];
+		boolean is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, currentLabel.remainingEnergy, routing_arc);
+		if (!is_energy_feasible) return null;
 		
 		// If the arc connects to a vertex i0 \in C0, then the time and energy resources must account for the depot-i arc
 		if (arc_type == AR0){
 			Arc depotArc = dataModel.graph.getEdge(0, source);
 			remainingTime -= depotArc.time;
-			remainingEnergy[0] -= depotArc.energy; if (remainingEnergy[0] < 0) return null;
-			for (int gam = 1; gam <= dataModel.gamma; gam++){
-				if (remainingEnergy[gam-1] - depotArc.energy_deviation < remainingEnergy[gam]){ remainingEnergy[gam] = remainingEnergy[gam-1] - depotArc.energy - depotArc.energy_deviation; }
-				else { remainingEnergy[gam] -= depotArc.energy; }
-				if (remainingEnergy[gam] < 0) return null;
-			}
+			
+			is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, remainingEnergy, depotArc);
+			if (!is_energy_feasible) return null;
 		}
 		
 		// Update charging time and check if it's feasible
-		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
+		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[Gamma]];
 		if (chargingTime >= (int) (remainingTime/10)) return null;
 		
 		// After confirming that the label is feasible, update the remaining load
@@ -248,7 +243,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
-				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.min_time<vertices[c.tail].opening_tw || remainingEnergy[dataModel.gamma] - c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy < 0) {
+				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.min_time<vertices[c.tail].opening_tw || remainingEnergy[Gamma] - c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy < 0) {
 					unreachable[c.tail-1] = true; }
 			}
 		} else {
@@ -284,6 +279,23 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 		Label extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
+	}
+
+	private boolean update_worst_case_energy_resource(int[] remainingEnergy, int[] currentEnergy, Arc routing_arc){
+
+		int gamma_change = Gamma + 1;
+		for (int gam = 1; gam <= Gamma; gam++)
+			if (currentEnergy[gam-1] - routing_arc.energy_deviation < currentEnergy[gam]) { gamma_change = gam; break; }
+		if (gamma_change <= Gamma){
+			remainingEnergy[Gamma] = currentEnergy[Gamma-1] - routing_arc.energy - routing_arc.energy_deviation;
+			if (remainingEnergy[Gamma] < 0) return false; }
+		for (int gam = Gamma-1; gam >= gamma_change; gam--)
+			remainingEnergy[gam] = currentEnergy[gam-1] - routing_arc.energy - routing_arc.energy_deviation;
+		for (int gam = 0; gam < gamma_change; gam ++){
+			remainingEnergy[gam] = currentEnergy[gam] - routing_arc.energy;
+			if (remainingEnergy[gam] < 0) return false; }
+
+		return true;
 	}
 
 
@@ -331,7 +343,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 				if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
 					
 					int load = dataModel.Q - label.remainingLoad;
-					int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
+					int energy = dataModel.E-label.remainingEnergy[Gamma]; double reducedCost = label.reducedCost;
 					int departureTime = label.remainingTime;
 					
 					// Retrieves the charging schedule
@@ -541,7 +553,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
 		if (L2.remainingTime<L1.remainingTime) return false; 					//time
 		
-		for (int gam=0; gam<=dataModel.gamma; gam++){
+		for (int gam=0; gam<=Gamma; gam++){
 			if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false; //energy
 		}
 		
@@ -692,8 +704,8 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 			Label L2 = vertex2.unprocessedLabels.peek();
 			if(L1.remainingLoad>L2.remainingLoad) return -1;
 			if(L1.remainingLoad<L2.remainingLoad) return 1;
-			if(L1.remainingEnergy[dataModel.gamma]>L2.remainingEnergy[dataModel.gamma]) return -1;
-			if(L1.remainingEnergy[dataModel.gamma]<L2.remainingEnergy[dataModel.gamma]) return 1;
+			if(L1.remainingEnergy[Gamma]>L2.remainingEnergy[Gamma]) return -1;
+			if(L1.remainingEnergy[Gamma]<L2.remainingEnergy[Gamma]) return 1;
 			if(L1.remainingTime>L2.remainingTime) return -1;
 			if(L1.remainingTime<L2.remainingTime) return 1;
 			if(L1.reducedCost<L2.reducedCost) return -1;

@@ -576,7 +576,7 @@ public final class EVRPTW implements ModelInterface {
 		/** Obtains the string representation of the arc. */
 		@Override
 		public String toString(){
-			return "("+tail+","+head+"); " + this.id;
+			return "Routing Arc " + this.id + " ("+tail+","+head+")";
 		}
 
 		@Override
@@ -676,8 +676,8 @@ public final class EVRPTW implements ModelInterface {
 		/** Obtains the string representation of the arc. */
 		@Override
 		public String toString(){
-			if (this.arc_type <= AR1) return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.routing_arc.toString() + "; ID = " + this.id;
-			else return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.id;
+			if (this.arc_type <= AR1) return "PP Arc " + this.id + " ("+PPvertices[tail_vertex_id].toString()+", "+PPvertices[head_vertex_id].toString()+"); " + this.routing_arc.toString();
+			else return "PP Arc " + this.id + "("+PPvertices[tail_vertex_id].toString()+", "+PPvertices[head_vertex_id].toString()+")";
 		}
 
 		@Override
