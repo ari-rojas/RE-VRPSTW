@@ -54,6 +54,6 @@ public final class RemoveArc implements BranchingDecision<EVRPTW, Route> {
 
 	@Override
 	public String toString(){
-		return "Remove: "+ dataModel.arcs[arc].toString() + " Current flow-value: " + this.flowValue;
+		return "Remove: "+ dataModel.PParcs[arc].toString() + " Current flow-value: " + this.flowValue;
 	}
 }

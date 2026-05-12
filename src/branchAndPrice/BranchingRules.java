@@ -66,7 +66,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		for(Route route : solution){
 			if (route.value < 1-this.PRECISION) {
 				ArrayList<Integer> PParcs = route.PParcs;
-				for(int ix = 1; ix <= PParcs.size(); ix++){ // Skip the first (ix = 0)
+				for(int ix = 1; ix < PParcs.size(); ix++){ // Skip the first (ix = 0)
 					int arcID = PParcs.get(ix);
 					Double arcValue=arcValues.get(arcID);
 					if(arcValue == null) arcValues.put(arcID,route.value);
