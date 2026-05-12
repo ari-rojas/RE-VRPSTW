@@ -89,10 +89,7 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 		if(column.associatedPricingProblem != this.pricingProblem) return false;
 		if(column.isArtificialColumn) return true;
 
-		if (this.arc_type <= EVRPTW.AR1){ // If the branching arc is a routing arc
-			for (int arcID: this.infeasiblePPArcs) if (column.PParcs.contains(arcID)) return false; }
-		else {
-			for (int arcID: this.infeasiblePPArcs) if (column.PParcs.get(0) == arcID) return false; }
+		for (int arcID: this.infeasiblePPArcs) if (column.PParcs.contains(arcID)) return false;
 
 		return true;
 	}
