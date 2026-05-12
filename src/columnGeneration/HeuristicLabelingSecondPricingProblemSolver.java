@@ -353,16 +353,18 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 					while(dataModel.PParcs[label.nextArc].head_vertex_id != depotID) {
 						
 						int i = j;
-						nextArc = dataModel.PParcs[label.nextArc];
 						j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
 						
 						route.put(j, 1);
 						Arc routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
-
+						
 						arcs.add(routing_arc.id); PParcs.add(nextArc.id);
 						label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
-						
+						nextArc = dataModel.PParcs[label.nextArc];
 					}
+					Arc routing_arc = dataModel.graph.getEdge(j, dataModel.C+1);
+					arcs.add(routing_arc.id); PParcs.add(nextArc.id);
+					cost += routing_arc.cost;
 
 					// Retrieves the route sequence (of customers)
 					int[] routeSequence = new int[arcs.size()-1];
