@@ -240,10 +240,10 @@ public final class EVRPTWSolver {
 
 		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "NF"+energy_deviation, args[2], args[3]);
 		EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "NF", "Debug", "");
-		//EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
+		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
-		//Solver.solve(10800000L); evrptw.fileOut.close();
-		//Solver.close();
+		Solver.solve(10800000L); evrptw.fileOut.close();
+		Solver.close();
 
 	}
 
