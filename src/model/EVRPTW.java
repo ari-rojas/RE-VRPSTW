@@ -148,9 +148,9 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Number of PP arcs: "+this.numArcs);
 		}
 
-		for (int arcID = 0; arcID < this.numArcs; arcID++){
+		/* for (int arcID = 0; arcID < this.numArcs; arcID++){
 			System.out.println(PParcs[arcID].toString());
-		}
+		} */
 
 	}
 
@@ -676,7 +676,7 @@ public final class EVRPTW implements ModelInterface {
 		/** Obtains the string representation of the arc. */
 		@Override
 		public String toString(){
-			if (this.arc_type == 0 || this.arc_type == 1 || this.arc_type == 2) return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.routing_arc.toString() + "; ID = " + this.id;
+			if (this.arc_type <= AR1) return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.routing_arc.toString() + "; ID = " + this.id;
 			else return "("+PPvertices[tail_vertex_id].toString()+","+PPvertices[head_vertex_id].toString()+"); " + this.id;
 		}
 

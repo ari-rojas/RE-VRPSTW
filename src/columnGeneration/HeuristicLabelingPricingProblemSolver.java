@@ -342,31 +342,21 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 						label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
 						nextArc = dataModel.PParcs[label.nextArc];
 					}
-
-					// Save the (last_t - 0j) Arc
-					ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
-					PParcs.add(nextArc.id);
 					
 					// Retrieve the route
 					HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
 					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					boolean isElementary = true;
+					ArrayList<Integer> PParcs = new ArrayList<Integer>(dataModel.C);
 					
-					int j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
-					route.put(j, 1);
-					Arc routing_arc = dataModel.graph.getEdge(0,j); int cost = routing_arc.cost;
-					arcs.add(routing_arc.id);
-					
-					label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
-					while(label.vertex != depotID) {
+					int j = 0; int cost = 0;
+					while(dataModel.PParcs[label.nextArc].head_vertex_id != depotID) {
 						
 						int i = j;
 						nextArc = dataModel.PParcs[label.nextArc];
 						j = PPvertices[nextArc.head_vertex_id].routing_vertex.node_id;
 						
-						if (route.containsKey(j)) {route.replace(j, route.get(j)+1); isElementary = false; } 
-						else route.put(j, 1);
-						routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
+						route.put(j, 1);
+						Arc routing_arc = dataModel.graph.getEdge(i,j); cost += routing_arc.cost;
 
 						arcs.add(routing_arc.id); PParcs.add(nextArc.id);
 						label = PPvertices[nextArc.head_vertex_id].processedLabels.get(label.nextLabelIndex);
@@ -383,8 +373,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 					}
 
 					Route column = new Route("heuristicLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
-					if (isElementary) {newRoutes.add(column);}
-					else {nonElementaryRoutes.add(column);}
+					newRoutes.add(column);
 				}
 			}
 			
