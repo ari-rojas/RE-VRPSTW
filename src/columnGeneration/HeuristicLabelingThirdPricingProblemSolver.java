@@ -241,28 +241,22 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		if (arc_type == AR0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
 
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-		boolean[] ng_path = new boolean[dataModel.C];
+		unreachable[source-1] = true; //elementary
 		
 		// Mark unreachable customers and ng-path cycling restrictions
 		if(arc_type == AR1) {
-			ng_path[source-1] = true;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
 				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.min_time<vertices[c.tail].opening_tw || remainingEnergy[dataModel.gamma] - c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy < 0) {
 					unreachable[c.tail-1] = true; }
-
-				//ng-path
-				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
-				else ng_path[c.tail-1] = false;
 			}
 		} else {
-			ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
 			// We re-scale the remaining time, which represents the departure time of the route
 			remainingTime = (int) (remainingTime/10);
 		}
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
 		return extendedLabel;
 
 	}
