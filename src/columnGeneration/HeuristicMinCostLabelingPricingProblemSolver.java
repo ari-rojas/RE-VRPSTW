@@ -646,7 +646,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void branchingDecisionPerformed(BranchingDecision bd) {
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasibleArcs) this.infeasibleArcs[infeasibleArc] ++;
+			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] ++;
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			infeasibleArcs[removeArcDecision.arc] ++;
@@ -661,7 +661,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void branchingDecisionReversed(BranchingDecision bd) {
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasibleArcs) this.infeasibleArcs[infeasibleArc] --;
+			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] --;
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			infeasibleArcs[removeArcDecision.arc] --;

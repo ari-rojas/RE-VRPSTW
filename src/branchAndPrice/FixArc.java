@@ -7,7 +7,9 @@ import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequ
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import model.EVRPTW;
+import model.EVRPTW.PPVertex;
 import model.EVRPTW.Arc;
+import model.EVRPTW.PPArc;
 
 
 /**
@@ -17,31 +19,43 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 
 
 	public final PricingProblem pricingProblem;				//pricing problem
-	public final int arc;									//arc on which we branch
+	public final int arcID;									//arc on which we branch
+	public final byte arc_type;
 	public double flowValue;								//flow value of the arc on which we are branching
 	public List<AbstractInequality> poolOfCuts;				//separated SRCs
 	public EVRPTW dataModel;								//data model
-	public ArrayList<Integer> infeasibleArcs;				//infeasible arcs by the branching decision
+	public ArrayList<Integer> infeasiblePPArcs;				//infeasible arcs by the branching decision
 
-
-	public FixArc(PricingProblem pricingProblem, int arc, EVRPTW dataModel, List<AbstractInequality> list, double flowValue){
-		this.pricingProblem=pricingProblem;
-		this.arc=arc;
+	public FixArc(PricingProblem pricingProblem, int arc, byte arc_type, EVRPTW dataModel, List<AbstractInequality> list, double flowValue){
+		this.pricingProblem = pricingProblem;
+		this.arcID = arc;
+		this.arc_type = arc_type;
 		this.dataModel = dataModel;
 		this.poolOfCuts = list;
-		this.infeasibleArcs = new ArrayList<Integer>();
+		this.infeasiblePPArcs = new ArrayList<Integer>();
 		this.flowValue = flowValue;
 
-		int tail = dataModel.arcs[arc].tail;
-		int head = dataModel.arcs[arc].head;
-		if(tail>0) { //i is a customer
-			for(Arc otherArc: dataModel.graph.outgoingEdgesOf(tail)) 
-				if(otherArc.id!=arc) infeasibleArcs.add(otherArc.id);
-		}
-		if(head<dataModel.C+1) { //j is a customer
-			for(Arc otherArc: dataModel.graph.incomingEdgesOf(head)) 
-				if(otherArc.id!=arc) infeasibleArcs.add(otherArc.id);
-		}
+		// Retrieve the arc (i,j)
+		PPArc pparc = dataModel.PParcs[arc];
+
+		// Remove all other incoming arcs of j
+		for (PPArc other_arc: dataModel.PPgraph.incomingEdgesOf(pparc.head_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
+
+		// Remove the node i^(1-\kappa_(i,j))
+		// \kappa_(i,j): 1 if (i,j) \in AR0 \cup AC1, 0 otherwise
+		int customer_depot = dataModel.PPvertices[pparc.tail_vertex_id].node_number;
+		if (arc_type == EVRPTW.AC1) customer_depot = dataModel.PPvertices[pparc.head_vertex_id].node_number;
+
+		int startID = dataModel.C1_startID;
+		if (arc_type == EVRPTW.AR1) startID = dataModel.C0_startID;
+		PPVertex vx_to_remove = dataModel.PPvertices[startID+customer_depot];
+		for (PPArc other_arc: dataModel.PPgraph.incomingEdgesOf(vx_to_remove.id)) this.infeasiblePPArcs.add(other_arc.id);
+		for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(vx_to_remove.id)) this.infeasiblePPArcs.add(other_arc.id);
+
+		// If it's a routing arc and it does not end in the depot, remove all other outgoing arcs of i
+		if (arc_type <= EVRPTW.AR1 && pparc.head_vertex_id != dataModel.T_startID)
+			for (PPArc other_arc: dataModel.PPgraph.outgoingEdgesOf(pparc.tail_vertex_id)) if (other_arc.id != arc) this.infeasiblePPArcs.add(other_arc.id);
+		 
 	}
 
 	/**
@@ -61,23 +75,19 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 	 */
 	@Override
 	public boolean columnIsCompatibleWithBranchingDecision(Route column) {
+		
 		if(column.associatedPricingProblem != this.pricingProblem) return false;
 		if(column.isArtificialColumn) return true;
-		int tail = dataModel.arcs[arc].tail; 
-		int head = dataModel.arcs[arc].head;
 
-		if(tail>0 && head<dataModel.C+1) { //both are customers
-			if(!column.route.containsKey(tail) && !column.route.containsKey(head-1)) return true; //does not visits i and j
-		}
-
-		//infeasible arcs
-		for(int edge: infeasibleArcs) if(column.arcs.contains(edge)) return false;
+		if (this.arc_type <= EVRPTW.AR1){ // If the branching arc is a routing arc
+			for (int edge: this.infeasiblePPArcs) if (column.PParcs.contains(edge)) return false; }
+		else if (column.PParcs.get(0) == this.arcID) return false;
 
 		return true;
 	}
 
 	@Override
 	public String toString(){
-		return "Fix: "+ dataModel.arcs[arc].toString() + " Current flow-value: " + this.flowValue;
+		return "Fix: "+ dataModel.PParcs[arcID].toString() + " Current flow-value: " + this.flowValue;
 	}
 }
