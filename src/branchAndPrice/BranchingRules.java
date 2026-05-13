@@ -159,7 +159,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 			node2=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		} else {
 			//Branch 1: remove the edge:
-			RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
+			RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
 			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: fix the edge:
 			FixArc branchingDecision2 = new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
@@ -183,7 +183,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		BAPNode<EVRPTW,Route> node1; 		//other child node
 		
 		//Branch 1: remove the edge:
-		RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, dataModel, parentNode.getInequalities(), bestArcValue);
+		RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
 		node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 		//Branch 2: fix the edge:
 		FixArc branchingDecision2 = new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
