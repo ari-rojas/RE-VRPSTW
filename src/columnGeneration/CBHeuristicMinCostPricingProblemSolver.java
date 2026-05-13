@@ -642,7 +642,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] --;
-		}else if(bd instanceof RemoveArc) {//Removing one arc
+		}else if(bd instanceof RemoveArc) { //Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			infeasibleArcs[removeArcDecision.arc] --;
 		}
