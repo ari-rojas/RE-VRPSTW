@@ -336,7 +336,6 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 
 		//Solve the problem and check the solution
 		List<Route> newRoutes = new ArrayList<>(this.numCols);  			//list of routes
-		List<Route> nonElementaryRoutes = new ArrayList<>(this.numCols);  //list of nonelementary routes
 		
 		this.runLabeling(); 											//runs the labeling algorithm
 
@@ -548,17 +547,6 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		}
 
 		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
-
-		// Ng-paths and unreachable resources
-		Vertex currentVertex = PPvertices[L1.vertex].routing_vertex;
-		for(int i: vertices[currentVertex.node_id].neighbors) {
-			
-			//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
-			boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
-			if (other_way) {
-				return false;
-			}
-		}
 
 		return true;
 	}
