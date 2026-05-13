@@ -75,6 +75,7 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	public boolean CUTSENABLED;
+	public boolean rollbackTrigger;
 
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph

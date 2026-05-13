@@ -53,8 +53,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	public final int depotID;
 	public final int superDepotID;
 
-	public boolean rollbackTrigger;
-
 	public int[][] CB_infeasibleTimes;
 
 	/**
@@ -77,7 +75,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	 */
 	public void runLabeling() {
 
-		this.rollbackTrigger = false;
+		dataModel.rollbackTrigger = false;
 
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization

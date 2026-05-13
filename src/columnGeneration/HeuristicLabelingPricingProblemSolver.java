@@ -53,8 +53,6 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	public final int depotID;
 	public final int superDepotID;
 
-	public boolean rollbackTrigger;
-
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
@@ -73,7 +71,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 	 */
 	public void runLabeling() {
 
-		this.rollbackTrigger = false;
+		dataModel.rollbackTrigger = false;
 
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization
