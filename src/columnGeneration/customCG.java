@@ -1,7 +1,10 @@
 package columnGeneration;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -19,6 +22,17 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+
+	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
+	static {
+		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicLabelingSecondPricingProblemSolver.class, false);
+		solverCapabilities.put(HeuristicMinCostLabelingPricingProblemSolver.class, false);
+
+		solverCapabilities.put(CBHeuristicSecondPricingProblemSolver.class, true);
+		solverCapabilities.put(CBHeuristicMinCostPricingProblemSolver.class, true);
+	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
