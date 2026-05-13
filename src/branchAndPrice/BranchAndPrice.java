@@ -593,7 +593,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	@Override
 	protected boolean nodeCanBePruned(BAPNode<EVRPTW,Route> node){
 		//		System.out.println(Math.ceil(node.getBound()-config.PRECISION) + " >= " + this.objectiveIncumbentSolution);
-		return Math.ceil(node.getBound()) >= (this.objectiveIncumbentSolution-config.PRECISION);
+		return Math.ceil(Math.floor(node.getBound()*10000)/10000) >= (this.objectiveIncumbentSolution-config.PRECISION);
 	}
 
 	public void addExtendCGEventListener(ExtendBAPListener listener) {
