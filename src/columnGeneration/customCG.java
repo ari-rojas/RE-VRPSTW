@@ -205,7 +205,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		((PricingProblem) pricingProblems.get(0)).compute_charging_bounds();
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
-			newColumns=pricingProblemManager.solvePricingProblems(solver);
+			
+			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
+				newColumns = pricingProblemManager.solvePricingProblems(solver);
+			}
 
 			//Stop when we found new columns
 			if(!newColumns.isEmpty()){
