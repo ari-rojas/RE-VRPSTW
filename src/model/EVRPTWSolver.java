@@ -426,7 +426,7 @@ public final class EVRPTWSolver {
 						for (int arcID: fixArcBranch.infeasiblePPArcs) logger.debug(dataModel.PParcs[arcID].toString());
 					} else if (bd instanceof RemoveArc) {
 						RemoveArc removeArcBranch = (RemoveArc) bd;
-						logger.debug(dataModel.PParcs[removeArcBranch.arc].toString());
+						logger.debug(dataModel.PParcs[removeArcBranch.arcID].toString());
 
 					}
 					

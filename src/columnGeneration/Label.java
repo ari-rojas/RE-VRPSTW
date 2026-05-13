@@ -2,6 +2,7 @@ package columnGeneration;
 
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.BitSet;
 
 
 /**
@@ -23,6 +24,7 @@ public class Label{
 	public boolean[] ng_path; 				//customers that visit them would violate the ng-path cycling restrictions
 	public boolean[] eta; 					//number of times modulo 2 that the label has visited customers in S (a triplet in a SRC)
 	public HashSet<Integer> srcIndices; 	//SRC indices for which \eta = 1
+	public BitSet feasible_Ts;
 
 	/** Creates a new Label.*/
 	public Label(int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {

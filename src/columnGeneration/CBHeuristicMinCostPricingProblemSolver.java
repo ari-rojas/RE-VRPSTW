@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.BitSet;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.function.BiPredicate;
@@ -30,7 +31,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	public Vertex[] vertices = dataModel.vertices;
 	public PriorityQueue<PPVertex> nodesToProcess; 			//labels that need be processed
 	public final int numCols = 400; 						//maximum number of routes (columns) allowed
-	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
+	public int[] infeasibleArcs; 							//arcs that cannot be used by branching
 	public final int similarityThreshold = 5; 				//diversification of columns
 
 	public double bestReducedCost;
@@ -52,6 +53,8 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	public final int depotID;
 	public final int superDepotID;
 
+	public int[][] CB_infeasibleTimes;
+
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
@@ -63,6 +66,8 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		this.depotID = dataModel.T_startID;
 		this.superDepotID = dataModel.superDepotID;
 		this.Gamma = dataModel.gamma;
+
+		this.CB_infeasibleTimes = new int[dataModel.C][dataModel.last_charging_period + 1];
 	}
 
 	/**
@@ -99,7 +104,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 					if (extendedLabel!=null) { //verifies if the extension is feasible
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
-						if (a.arc_type == AR0) extendedLabel.dominanceVertex = superDepotID;
+						if (a.arc_type == AR0) { extendedLabel.dominanceVertex = superDepotID; extendedLabel.feasible_Ts = get_feasible_finishing_ts(extendedLabel); }
 						else extendedLabel.dominanceVertex = a.tail_vertex_id;
 						updateNodesToProcess(extendedLabel);
 					}
@@ -111,7 +116,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		dataModel.heuristicPricingTime+=totalTime;
 		if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
-
 
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
@@ -141,7 +145,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		if(!currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
 		return labelsToProcessNext;
 	}
-
 
 	/**
 	 * Given a new (non-dominated) label, updates the nodes to be processed
@@ -503,10 +506,13 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
 
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
-		if (L2.remainingTime<L1.remainingTime) return false; 					//departure time
 		if (L2.chargingTime>L1.chargingTime) return false;						//charging time
+		
+		// Set of feasible charging time periods
+		BitSet T1 = (BitSet) L1.feasible_Ts.clone();
+		T1.andNot(L2.feasible_Ts);
 
-		return true;
+		return T1.isEmpty();
 	}
 
 	/**
@@ -563,6 +569,16 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false;
 		return true;
 
+	}
+
+	public BitSet get_feasible_finishing_ts(Label label){
+
+		BitSet bs = new BitSet();	
+
+		int[] customer_infeasibleTimes = CB_infeasibleTimes[PPvertices[label.vertex].node_number-1];
+		for (int t = label.chargingTime; t < label.remainingTime; t++) if (customer_infeasibleTimes[t] == 0) bs.set(t);
+
+		return bs;
 	}
 
 
@@ -627,9 +643,23 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] ++;
+
+			if (fixArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[fixArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				for (int tt = 1; tt < vertices[i].last_departure; tt++) if (tt != t) this.CB_infeasibleTimes[i-1][tt] ++;
+			}
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arc] ++;
+			infeasibleArcs[removeArcDecision.arcID] ++;
+
+			if (removeArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[removeArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				this.CB_infeasibleTimes[i-1][t] ++;
+			}
 		}
 	}
 
@@ -642,9 +672,23 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] --;
+
+			if (fixArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[fixArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				for (int tt = 1; tt < vertices[i].last_departure; tt++) if (tt != t) this.CB_infeasibleTimes[i-1][tt] --;
+			}
 		}else if(bd instanceof RemoveArc) { //Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arc] --;
+			infeasibleArcs[removeArcDecision.arcID] --;
+
+			if (removeArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[removeArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				this.CB_infeasibleTimes[i-1][t] --;
+			}
 		}
 	}
 

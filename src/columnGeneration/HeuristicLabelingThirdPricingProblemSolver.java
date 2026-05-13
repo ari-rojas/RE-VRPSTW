@@ -636,7 +636,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] ++;
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arc] ++;
+			infeasibleArcs[removeArcDecision.arcID] ++;
 		}
 	}
 
@@ -651,7 +651,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] --;
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arc] --;
+			infeasibleArcs[removeArcDecision.arcID] --;
 		}
 	}
 

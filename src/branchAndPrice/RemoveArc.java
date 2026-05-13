@@ -15,14 +15,16 @@ import model.EVRPTW;
 public final class RemoveArc implements BranchingDecision<EVRPTW, Route> {
 
 	public final PricingProblem pricingProblem;				//pricing problem
-	public final int arc;									//arc on which we branch
+	public final int arcID;									//arc on which we branch
+	public final byte arc_type;									//arc on which we branch
 	public double flowValue;								//flow value of the arc on which we are branching
 	public List<AbstractInequality> poolOfCuts;				//separated SRCs
 	public EVRPTW dataModel;								//data model
 
-	public RemoveArc(PricingProblem pricingProblem, int arc, EVRPTW dataModel, List<AbstractInequality> list, double flowValue){
-		this.pricingProblem=pricingProblem;
-		this.arc=arc;
+	public RemoveArc(PricingProblem pricingProblem, int arc, byte arc_type, EVRPTW dataModel, List<AbstractInequality> list, double flowValue){
+		this.pricingProblem = pricingProblem;
+		this.arcID = arc;
+		this.arc_type = arc_type;
 		this.dataModel = dataModel;
 		this.poolOfCuts = list;
 		this.flowValue = flowValue;
@@ -49,13 +51,13 @@ public final class RemoveArc implements BranchingDecision<EVRPTW, Route> {
 		if(column.associatedPricingProblem != this.pricingProblem) return false;
 		if(column.isArtificialColumn) return true;
 		
-		if(column.PParcs.contains(arc)) return false;
+		if(column.PParcs.contains(arcID)) return false;
 		
 		return true;
 	}
 
 	@Override
 	public String toString(){
-		return "Remove: "+ dataModel.PParcs[arc].toString() + " Current flow-value: " + this.flowValue;
+		return "Remove: "+ dataModel.PParcs[arcID].toString() + " Current flow-value: " + this.flowValue;
 	}
 }

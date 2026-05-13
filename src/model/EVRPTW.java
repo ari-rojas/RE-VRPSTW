@@ -601,8 +601,8 @@ public final class EVRPTW implements ModelInterface {
 		
 		public final int node_number;
 
-		public ArrayList<Label> processedLabels; 		//labels that have reached the vertex and are non-dominated
-		public PriorityQueue<Label> unprocessedLabels; 	//labels that have reached the vertex but have not yet been processed
+		public ArrayList<Label> processedLabels; 					//labels that have reached the vertex and are non-dominated
+		public PriorityQueue<Label> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
 
 		/**
 		 * Creates a new routing subgraph customer / depot vertex.
