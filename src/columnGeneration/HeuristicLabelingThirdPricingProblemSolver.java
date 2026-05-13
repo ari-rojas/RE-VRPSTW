@@ -75,7 +75,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		//Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
-		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.nextArc = depotID;
+		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.dominanceVertex = depotID; initialLabel.nextArc = depotID;
 		this.nodesToProcess.add(PPvertices[depotID]);
 		PPvertices[depotID].unprocessedLabels.add(initialLabel);
 
