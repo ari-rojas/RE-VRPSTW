@@ -25,6 +25,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	
 	public boolean needsChargingBranchingPricing;
 
+	public OptimalSolutionMemory solutionMemory;
+
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
 	static {
 		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, false);
@@ -141,6 +143,23 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
 				
+				// Saves the current CG state in case it is needed in the future for a rollback
+				List<Route> memoryColumns = new ArrayList<>();
+				for (Route column: master.getColumns(pricingProblems.get(0))) memoryColumns.add(column.clone());
+
+				List<SubsetRowInequality> memorySRCs = new ArrayList<>();
+				for (SubsetRowInequality src: ((Master)master).getMasterData().subsetRowInequalities.keySet()) memorySRCs.add(src);
+
+				List<Route> memoryIncumbent = new ArrayList<>();
+				for (Route column: this.incumbentSolution){
+					Route newCol = column.clone(); newCol.value = column.value;
+					memoryIncumbent.add(newCol);
+				}
+				
+				List<Route> memorySolution = master.getSolution();
+
+				this.solutionMemory = new OptimalSolutionMemory(memoryColumns, memorySRCs, this.boundOnMasterObjective, memorySolution, this.objectiveMasterProblem, memoryIncumbent, this.incumbentSolutionObjective);
+
 				dataModel.cleanSRCs();	// MODIFICATION
 			}
 
@@ -232,5 +251,29 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 		}
 		return newColumns;
+	}
+
+	public class OptimalSolutionMemory{
+
+		public List<Route> previousColumns;
+		public List<SubsetRowInequality> previousCuts;
+		public double previousNodeBound;
+		public List<Route> previousMPSolution;
+		public double previousMPObjective;
+		public List<Route> previousIncumbentSolution;
+		public int previousIncumbentObjective;
+
+		public OptimalSolutionMemory(List<Route> previousColumns, List<SubsetRowInequality> previousCuts, double previousNodeBound, List<Route> previousMPSolution,
+			double previousMPObjective, List<Route> previousIncumbentSolution, int previousIncumbentObjective){
+
+			this.previousColumns = previousColumns;
+			this.previousCuts = previousCuts;
+			this.previousNodeBound = previousNodeBound;
+			this.previousMPSolution = previousMPSolution;
+			this.previousMPObjective = previousMPObjective;
+			this.previousIncumbentSolution = previousIncumbentSolution;
+			this.previousIncumbentObjective = previousIncumbentObjective;
+
+		}
 	}
 }

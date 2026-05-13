@@ -1,6 +1,5 @@
 package branchAndPrice;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
