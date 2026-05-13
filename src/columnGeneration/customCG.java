@@ -22,6 +22,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+	
+	public boolean needsChargingBranchingPricing;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
 	static {
@@ -37,27 +39,26 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective) {
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, boolean needsCB) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
-		// TODO Auto-generated constructor stub
+		this.needsChargingBranchingPricing = needsCB;
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective) {
-		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue,
-				boundOnMasterObjective);
-		// TODO Auto-generated constructor stub
+			int cutoffValue, double boundOnMasterObjective, boolean needsCB) {
+		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue, boundOnMasterObjective);
+		this.needsChargingBranchingPricing = needsCB;
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6) {
+			int arg5, double arg6, boolean arg7) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-		// TODO Auto-generated constructor stub
+		this.needsChargingBranchingPricing = arg7;
 	}
 
 	@Override
