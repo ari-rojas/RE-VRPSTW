@@ -115,7 +115,7 @@ public final class CBHeuristicSecondPricingProblemSolver extends AbstractPricing
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristicly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
+		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
 
 
