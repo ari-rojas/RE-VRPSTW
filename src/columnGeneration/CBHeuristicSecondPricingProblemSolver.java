@@ -453,7 +453,8 @@ public final class CBHeuristicSecondPricingProblemSolver extends AbstractPricing
 
 			case C0: return this::isDominatedDepot;
 			case C1: return this::isDominatedRouting;
-			case Tt: return this::isDominatedCharging; 
+			case Tt: return this::isDominatedCharging;
+			case EVRPTW.Depot: return this::isDominatedRouting;
 
 			default:
 				throw new IllegalArgumentException("Unknown vertex / arc type" + vx_type);

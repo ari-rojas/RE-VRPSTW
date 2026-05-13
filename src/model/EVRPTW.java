@@ -212,7 +212,7 @@ public final class EVRPTW implements ModelInterface {
 		/// VERTICES
 		/////////////////////////////////////
 		
-		this.PPvertices = new PPVertex[this.C*2+2+this.last_charging_period];
+		this.PPvertices = new PPVertex[this.C*2+3+this.last_charging_period];
 		int id = 0;
 
 		// Dummy source node
