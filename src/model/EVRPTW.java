@@ -23,6 +23,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import columnGeneration.Label;
+import columnGeneration.DepotLabel;
 
 /**
  * The Electric Vehicle Routing and Overnight Charging Scheduling Problem on a Multigraph
@@ -87,6 +88,7 @@ public final class EVRPTW implements ModelInterface {
 	public int C0_startID;
 	public int C1_startID;
 	public int T_startID;
+	public int superDepotID;
 
 	public static final String[] VERTEX_TYPE_NAMES = {"i0","i1","0","t","s"};
 
@@ -233,7 +235,11 @@ public final class EVRPTW implements ModelInterface {
 		for (int t = 1; t <= last_charging_period; t++) {
 			this.PPvertices[id] = new PPVertex(id, Tt, t); PPgraph.addVertex(id); id ++; }
 
-		// Dummy depot node to save the Labels 
+		// Dummy Super Depot node to save the Labels of all C0 vertices
+		this.PPvertices[id] = new PPVertex(id, C0, this.vertices[0], 0); this.superDepotID = id;
+		
+		int auxNumArcs = 2*(V*V-V);
+		for (int ix = 0; ix <= superDepotID; ix ++) this.PPvertices[ix].unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels(superDepotID, T_startID));
 		
 		/////////////////////////////////////
 		/// ARCS
@@ -611,7 +617,6 @@ public final class EVRPTW implements ModelInterface {
 
 			int auxNumArcs = 2*(V*V-V);
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
-			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
 		}
 
 		/**
@@ -626,7 +631,6 @@ public final class EVRPTW implements ModelInterface {
 
 			int auxNumArcs = 2*(V*V-V);
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
-			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
 		}
 
 		/**

@@ -7,12 +7,12 @@ import model.EVRPTW.Vertex;
 import model.EVRPTW.PPVertex;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.function.BiPredicate;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
@@ -50,6 +50,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public static final byte AC3 = EVRPTW.AC3;	// Charging Scheduling arcs to starting charging times
 
 	public final int depotID;
+	public final int superDepotID;
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -58,8 +59,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		super(dataModel, pricingProblem);
 		this.name="ExactLabelingSolver"; //Set a name for the solver
 		this.infeasibleArcs = new int[dataModel.numArcs];
-		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.V, new SortVertices());
+		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.PPvertices.length-dataModel.C, new SortVertices());
 		this.depotID = dataModel.T_startID;
+		this.superDepotID = dataModel.superDepotID;
 		this.Gamma = dataModel.gamma;
 	}
 
@@ -83,7 +85,11 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
-				else {currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size(); PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);}
+				else {
+					currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+					PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+					if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
+				}
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
@@ -93,6 +99,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					if (extendedLabel!=null) { //verifies if the extension is feasible
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
+						if (a.arc_type == AR0) extendedLabel.dominanceVertex = superDepotID;
+						else extendedLabel.dominanceVertex = a.tail_vertex_id;
 						updateNodesToProcess(extendedLabel);
 					}
 				}
@@ -113,6 +121,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
 		PPVertex currentVertex = nodesToProcess.poll();
 		byte vertex_type = currentVertex.vertex_type;
+		BiPredicate<Label, Label> isDominatedMethod = getDominanceChecker(vertex_type);
+
 		while(true) {
 			Label currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);
@@ -120,13 +130,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				boolean isDominated = false;
 				for(Label L2: labelsToProcessNext) {
 					
-					if (vertex_type <= C1) isDominated = isDominatedRouting(currentLabel, L2, vertex_type);
-					else isDominated = isDominatedCharging(currentLabel, L2);
+					isDominatedMethod.test(currentLabel, L2);
 					if(isDominated) break;
 				}
 				if(!isDominated) labelsToProcessNext.add(currentLabel);
 			}
-			if(currentVertex.unprocessedLabels.isEmpty() || (vertex_type<=C1 && currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
+			if(currentVertex.unprocessedLabels.isEmpty() || (vertex_type==C0 && currentVertex.unprocessedLabels.peek().chargingTime>currentLabel.chargingTime) || (vertex_type==C1 && currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
 		}
 
 		if(!currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
@@ -138,8 +147,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 * Given a new (non-dominated) label, updates the nodes to be processed
 	 */
 	public void updateNodesToProcess(Label extendedLabel) {
-		PPVertex currentVertex = PPvertices[extendedLabel.vertex];
-		if(currentVertex.vertex_type == Source) PPvertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
+		PPVertex currentVertex = PPvertices[extendedLabel.dominanceVertex];
+		if(currentVertex.vertex_type == Source) currentVertex.unprocessedLabels.add(extendedLabel);
 		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
 		else currentVertex.unprocessedLabels.add(extendedLabel);
 	}
@@ -202,9 +211,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
-
-		// Only negative reduced cost labels at the depot
-		if (arc_type == AR0 && reducedCost >= pricingProblem.reducedCostThreshold-dataModel.precision) return null;
 		
 		int[] remainingEnergy = new int[Gamma + 1];
 		boolean is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, currentLabel.remainingEnergy, routing_arc);
@@ -309,7 +315,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		for (int i = 0; i < PPvertices.length; i++) {
 			PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels()); }
+			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(superDepotID, dataModel.T_startID)); }
+
 		if (!this.pricingProblemInfeasible) for (int i = 0; i < vertices.length; i++) vertices[i].SRCIndices = new ArrayList<>(); 
 		this.nodesToProcess = new PriorityQueue<PPVertex>(new SortVertices());
 	}
@@ -320,7 +327,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void restart() {
 		for (int i = 0; i < PPvertices.length; i++) {
 			PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(superDepotID, dataModel.T_startID));
 		}
 		this.nodesToProcess = new PriorityQueue<PPVertex>(new SortVertices());
 	}
@@ -423,39 +430,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	}
 
 	/**
-	 * Finds disjoint block of routes (to diversify)
-	 */
-	public List<Route> disjointBlocks(List<Route> newRoutes){
-
-		if(newRoutes.isEmpty()) return newRoutes;
-		Collections.sort(newRoutes, new Comparator<Route>() {
-			public int compare(Route a, Route b){
-				if(a.reducedCost>b.reducedCost) return 1;
-				if(a.reducedCost<b.reducedCost) return -1;
-				return 0;
-			}
-		});
-		this.objective = newRoutes.get(0).reducedCost;
-
-		//Diversify routes
-		int blocks = 10;
-		List<Route> disjointRoutes = new ArrayList<Route>(this.numCols);
-		int[][] blocksWithCustomer = new int[dataModel.C][blocks];
-		for(Route route: newRoutes) {
-			for (int j = 0; j < blocks; j++) {
-				int similarity = 0;
-				for (int i: route.route.keySet()) {similarity+=blocksWithCustomer[i-1][j];}
-				if (similarity<= similarityThreshold) {
-					for (int i: route.route.keySet()) {blocksWithCustomer[i-1][j]+=1;}
-					disjointRoutes.add(route);
-					break;
-				}
-			}
-		}
-		return disjointRoutes;
-	}
-
-	/**
 	 * When the Pricing Problem is solved, the set objective function gets invoked first. 
 	 */
 	@Override
@@ -463,30 +437,33 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//Already done by the heuristic labeling (must be invoked first)
 	}
 
-	public boolean checkDominance(Label newLabel){
+	public BiPredicate<Label, Label> getDominanceChecker(byte vx_type){
 
-		byte arc_type = dataModel.PParcs[newLabel.nextArc].arc_type;
-		if (arc_type <= AR1) return checkDominanceRouting(newLabel, arc_type);
-		else return checkDominanceCharging(newLabel);
+		switch (vx_type){
+
+			case C0: return this::isDominatedDepot;
+			case C1: return this::isDominatedRouting;
+			case Tt: return this::isDominatedCharging; 
+
+			default:
+				throw new IllegalArgumentException("Unknown vertex / arc type" + vx_type);
+
+		}
 	}
 
-	/**
-	 * Verifies if a label is dominated. Returns true if it is, false otherwise.
-	 * If the label is dominated it is discarded
-	 * If the label is not dominated, the existing labels dominated by the label is discarded
-	 * @param label to which check dominance
-	 */
-	public boolean checkDominanceRouting(Label newLabel, byte depot) {
-
+	public boolean checkDominance(Label newLabel) {
+		
 		/* // DELETE BLOCK LATER
 		int[] lookup_route = new int[]{0,12,9,3,20,10,1}; // DELETE LATER
 		int[] nl_sequence = get_route_sequence(newLabel); // DELETE LATER
 		boolean is_nl_subset = false; // DELETE LATER
 		if (nl_sequence.length <= lookup_route.length){
 			is_nl_subset = sequence_is_subset(nl_sequence, lookup_route);
-		} */
+			} */
+		
+		PPVertex currentVertex = PPvertices[newLabel.dominanceVertex];
+		BiPredicate<Label, Label> isDominatedChecker = getDominanceChecker(currentVertex.vertex_type);
 
-		PPVertex currentVertex = PPvertices[newLabel.vertex];
 		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
 		for(Label existingLabel: currentVertex.unprocessedLabels) {
 
@@ -498,7 +475,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				is_el_subset = sequence_is_subset(el_sequence, lookup_route);
 			} */
 
-			if(isDominatedRouting(existingLabel, newLabel, depot)) {
+			if(isDominatedChecker.test(existingLabel, newLabel)) {
 				//existing_is_discarded = true; // DELETE LATER
 				labelsToDelete.add(existingLabel);
 			}
@@ -510,38 +487,38 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//boolean new_is_discarded = false; // DELETE LATER
 		for(Label existingLabel: currentVertex.processedLabels) {
 			//int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
-			if(isDominatedRouting(newLabel, existingLabel, depot)) return true;
-			
+			if(isDominatedChecker.test(newLabel, existingLabel)) return true;
 		}
 
 		return false;
 	}
 
-	public boolean checkDominanceCharging(Label newLabel) {
-
-		PPVertex currentVertex = PPvertices[newLabel.vertex];
-		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
-		for(Label existingLabel: currentVertex.unprocessedLabels) { if(isDominatedCharging(existingLabel, newLabel)) labelsToDelete.add(existingLabel); }
-		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
+	/**
+	 * Verifies if L1 is (strongly) dominated by L2
+	 * @param L1, L2 labels
+	 */
+	public boolean isDominatedDepot(Label L1, Label L2) {
 		
-		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
+		/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
+		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
 
-		for(Label existingLabel: currentVertex.processedLabels) { if(isDominatedCharging(newLabel, existingLabel)) return true; }
+		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
+		if (L2.remainingTime<L1.remainingTime) return false; 					//departure time
+		if (L2.chargingTime>L1.chargingTime) return false;						//charging time
 
-		return false;
+		return true;
 	}
-
 
 	/**
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
 	 */
-	public boolean isDominatedRouting(Label L1, Label L2, byte depot) {
+	public boolean isDominatedRouting(Label L1, Label L2) {
 		
 		/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
 
-		if (depot==AR1 && L2.remainingLoad<L1.remainingLoad) return false; 	//load
+		if (L2.remainingLoad<L1.remainingLoad) return false; 	//load
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
 		if (L2.remainingTime<L1.remainingTime) return false; 					//time
 		
@@ -568,14 +545,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		// Ng-paths and unreachable resources
 		Vertex currentVertex = PPvertices[L1.vertex].routing_vertex;
-		if (depot == AR1) {
-			for(int i: vertices[currentVertex.node_id].neighbors) {
-				
-				//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
-				boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
-				if (other_way) {
-					return false;
-				}
+		for(int i: vertices[currentVertex.node_id].neighbors) {
+			
+			//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
+			boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
+			if (other_way) {
+				return false;
 			}
 		}
 
@@ -708,17 +683,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			Label L1 = vertex1.unprocessedLabels.peek();
 			Label L2 = vertex2.unprocessedLabels.peek();
 
-			// If both vertices are C0, choose according to b, d and reducedCost
-			if(vertex1.vertex_type==C0){
-				if(L1.chargingTime<L2.chargingTime) return -1;
-				if(L1.chargingTime>L2.chargingTime) return 1;
-				if(L1.remainingTime>L2.remainingTime) return -1;
-				if(L1.remainingTime<L2.remainingTime) return 1;
-				if(L1.reducedCost<L2.reducedCost) return -1;
-				if(L1.reducedCost>L2.reducedCost) return 1;
-				return 0;
-			}
-
 			// If both vertices are C1, choose according the current unprocessed labels
 			if(L1.remainingLoad>L2.remainingLoad) return -1;
 			if(L1.remainingLoad<L2.remainingLoad) return 1;
@@ -732,4 +696,5 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			return 0;
 		}
 	}
+
 }
