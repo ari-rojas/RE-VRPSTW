@@ -698,9 +698,21 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			if(vertex2.vertex_type==Tt) return -1;
 			if(vertex1.vertex_type==Tt) return 1;
 			
-			// If both vertices are C0 or if both vertices are C1, choose according the current unprocessed labels
 			Label L1 = vertex1.unprocessedLabels.peek();
 			Label L2 = vertex2.unprocessedLabels.peek();
+
+			// If both vertices are C0, choose according to b, d and reducedCost
+			if(vertex1.vertex_type==C0){
+				if(L1.chargingTime<L2.chargingTime) return -1;
+				if(L1.chargingTime>L2.chargingTime) return 1;
+				if(L1.remainingTime>L2.remainingTime) return -1;
+				if(L1.remainingTime<L2.remainingTime) return 1;
+				if(L1.reducedCost<L2.reducedCost) return -1;
+				if(L1.reducedCost>L2.reducedCost) return 1;
+				return 0;
+			}
+
+			// If both vertices are C1, choose according the current unprocessed labels
 			if(L1.remainingLoad>L2.remainingLoad) return -1;
 			if(L1.remainingLoad<L2.remainingLoad) return 1;
 			if(L1.remainingEnergy[Gamma]>L2.remainingEnergy[Gamma]) return -1;
@@ -709,6 +721,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			if(L1.remainingTime<L2.remainingTime) return 1;
 			if(L1.reducedCost<L2.reducedCost) return -1;
 			if(L1.reducedCost>L2.reducedCost) return 1;
+			
 			return 0;
 		}
 	}

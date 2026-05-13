@@ -232,6 +232,8 @@ public final class EVRPTW implements ModelInterface {
 		this.T_startID = id-1;
 		for (int t = 1; t <= last_charging_period; t++) {
 			this.PPvertices[id] = new PPVertex(id, Tt, t); PPgraph.addVertex(id); id ++; }
+
+		// Dummy depot node to save the Labels 
 		
 		/////////////////////////////////////
 		/// ARCS
