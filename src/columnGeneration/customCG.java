@@ -133,7 +133,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			foundNewColumns=!newColumns.isEmpty();
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
-			if (boundOnMasterExceedsCutoffValue())
+			if (dataModel.rollbackTrigger){
+				///////////////////////////////
+				/// Trigger rollback event
+				///////////////////////////////
+				break;
+			} else if (boundOnMasterExceedsCutoffValue())
 				break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
@@ -227,6 +232,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			
 			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
 				newColumns = pricingProblemManager.solvePricingProblems(solver);
+				if (dataModel.rollbackTrigger) break;
 			}
 
 			//Stop when we found new columns

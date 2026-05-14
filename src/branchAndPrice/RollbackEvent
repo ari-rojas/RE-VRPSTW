@@ -1,0 +1,22 @@
+package branchAndPrice;
+
+import java.util.EventObject;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+
+public class RollbackEvent extends EventObject{
+
+    public final List<Route> solution;
+    public final double objective;
+    public final int nSRCs;
+    public final int nVehicleBranches;
+
+    public RollbackEvent(Object source, List<Route> solution, double obj, int nSRCs, int nVB) {
+        super(source);
+        this.solution = solution;
+        this.objective = obj;
+        this.nSRCs = nSRCs;
+        this.nVehicleBranches = nVB;
+    }
+
+    
+}
