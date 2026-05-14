@@ -1,7 +1,9 @@
 package branchAndPrice;
 
+import java.util.List;
 import java.util.EventObject;
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+
+import columnGeneration.Route;
 
 public class RollbackEvent extends EventObject{
 
