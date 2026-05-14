@@ -106,6 +106,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		notifier.fireStartCGEvent();
 
 		int cg_iterations = 0;
+
+		dataModel.rollbackTrigger = false;
 		dataModel.cut_iterations = 1;
 
 		do{
