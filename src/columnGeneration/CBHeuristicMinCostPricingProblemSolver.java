@@ -108,7 +108,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 					if(a.arc_type <= AR1) extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
 					else extendedLabel = extendLabelChargingTime(currentLabel, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
-						nLabels ++;
+						if (a.arc_type <= AR1) nLabels ++;
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
 						if (a.arc_type == AR0) { extendedLabel.dominanceVertex = superDepotID; extendedLabel.feasible_Ts = get_feasible_finishing_ts(extendedLabel); }
