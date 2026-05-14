@@ -12,6 +12,8 @@ import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
+
+import branchAndPrice.ExtendBAPNotifier;
 import model.EVRPTW;
 
 /**
@@ -20,6 +22,7 @@ import model.EVRPTW;
  */
 public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
+	private final ExtendBAPNotifier extendedNotifier;
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
 	
@@ -41,26 +44,29 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, boolean needsCB) {
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, boolean needsCB, ExtendBAPNotifier notifier) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		this.needsChargingBranchingPricing = needsCB;
+		this.extendedNotifier = notifier;
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective, boolean needsCB) {
+			int cutoffValue, double boundOnMasterObjective, boolean needsCB, ExtendBAPNotifier notifier) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue, boundOnMasterObjective);
 		this.needsChargingBranchingPricing = needsCB;
+		this.extendedNotifier = notifier;
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6, boolean arg7) {
+			int arg5, double arg6, boolean arg7, ExtendBAPNotifier arg8) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		this.needsChargingBranchingPricing = arg7;
+		this.extendedNotifier = arg8;
 	}
 
 	@Override
@@ -99,10 +105,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		boolean hasNewCuts; 						//identify whether the master problem violates any valid inequalities
 		notifier.fireStartCGEvent();
 
-		int aux_cont = 0;
+		int cg_iterations = 0;
+		dataModel.cut_iterations = 1;
 
 		do{
-			aux_cont ++;
+			cg_iterations ++;
 
 			nrOfColGenIterations++;
 			hasNewCuts=false;
@@ -134,9 +141,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
 			if (dataModel.rollbackTrigger){
-				///////////////////////////////
-				/// Trigger rollback event
-				///////////////////////////////
+				this.perform_rollback(solutionMemory);
 				break;
 			} else if (boundOnMasterExceedsCutoffValue())
 				break;
@@ -144,6 +149,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException();
 			} else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+
+				dataModel.cut_iterations ++;
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
@@ -169,6 +176,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 
 		} while (foundNewColumns || hasNewCuts);
+		
 		colGenSolveTime = System.currentTimeMillis() - colGenSolveTime;
 		notifier.fireFinishCGEvent();
 
@@ -259,11 +267,25 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		return newColumns;
 	}
 
+	private void perform_rollback(OptimalSolutionMemory memory){
+
+		this.extendedNotifier.fireRollbackEvent(dataModel.rollbackBaseLine, dataModel.rollbackExplosion);
+		this.objectiveMasterProblem = memory.previousMPObjective;
+		this.boundOnMasterObjective = memory.previousMPBound;
+
+		Master mMaster = (Master) master;
+		mMaster.rollbackReconstruction(memory.previousColumns, memory.previousCuts, memory.previousMPSolution, memory.previousMPObjective);
+
+		VRPMasterData mData = mMaster.getMasterData();
+		this.extendedNotifier.fireFinishRollbackEvent(mMaster.getSolution(), mData.objectiveValue, mData.getNrColumns(), mData.subsetRowInequalities.size(), mData.branchingNumberOfVehicles.size());
+	
+	}
+
 	public class OptimalSolutionMemory{
 
 		public List<Route> previousColumns;
 		public List<SubsetRowInequality> previousCuts;
-		public double previousNodeBound;
+		public double previousMPBound;
 		public List<Route> previousMPSolution;
 		public double previousMPObjective;
 		public List<Route> previousIncumbentSolution;
@@ -274,7 +296,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			this.previousColumns = previousColumns;
 			this.previousCuts = previousCuts;
-			this.previousNodeBound = previousNodeBound;
+			this.previousMPBound = previousNodeBound;
 			this.previousMPSolution = previousMPSolution;
 			this.previousMPObjective = previousMPObjective;
 			this.previousIncumbentSolution = previousIncumbentSolution;

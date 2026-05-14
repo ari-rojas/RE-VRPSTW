@@ -44,6 +44,8 @@ import branchAndPrice.MIPMasterEvent;
 import branchAndPrice.FinishMIPMasterEvent;
 import branchAndPrice.FixArc;
 import branchAndPrice.RemoveArc;
+import branchAndPrice.RollbackEvent;
+import branchAndPrice.FinishRollbackEvent;
 import branchAndPrice.IPRootNodeEvent;
 import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
@@ -343,6 +345,28 @@ public final class EVRPTWSolver {
 		public void finishIPRootNode(FinishIPRootNodeEvent IPRootEvent){
 			if (dataModel.print_log) {
 				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
+			}
+		}
+
+		@Override
+		public void Rollback(RollbackEvent rollbackEvent){
+			if (dataModel.print_log){
+				logger.debug("=============== SRCs ROLLBACK ===============");
+				logger.debug("Performing a rollback step due to a label explosion in the Pricing Problem.");
+				logger.debug("Baseline: " + rollbackEvent.BL + ". Generated: " + rollbackEvent.explosion);
+				logger.debug("Returning to the previous optimal RMP state before the last generation of cuts.");
+			}
+		}
+
+		@Override
+		public void finishRollback(FinishRollbackEvent rollbackEvent){
+			if (dataModel.print_log){
+				logger.debug("Objective: "+ rollbackEvent.objective);
+				logger.debug("Number of columns: " + rollbackEvent.ncols + " Number of SRC separated: " + rollbackEvent.nSRCs);
+				logger.debug("Number of vehicle branches: " + rollbackEvent.nVehicleBranches);
+				logger.debug("Columns (only non-zero columns are returned):");
+				for(Route route: rollbackEvent.solution)
+					logger.debug(route.toString());
 			}
 		}
 

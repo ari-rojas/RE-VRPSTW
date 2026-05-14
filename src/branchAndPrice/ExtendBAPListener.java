@@ -16,4 +16,8 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishIPRootNode(FinishIPRootNodeEvent var1);
 
+    void Rollback(RollbackEvent var1);
+
+    void finishRollback(FinishRollbackEvent var1);
+
 }

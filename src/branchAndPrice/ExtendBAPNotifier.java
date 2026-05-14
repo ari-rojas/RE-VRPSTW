@@ -7,6 +7,8 @@ import java.util.List;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 
+import columnGeneration.Route;
+
 public class ExtendBAPNotifier{
 
   private final AbstractBranchAndPrice<?, ?, ?> parent;
@@ -98,6 +100,31 @@ public class ExtendBAPNotifier{
         listener = (ExtendBAPListener)var3.next();
         if (IPEvent == null) {
           IPEvent = new FinishIPRootNodeEvent(this.parent, node, time);
+        }
+      }
+
+    }
+
+    public void fireRollbackEvent(int BL, int explosion){
+      RollbackEvent rbEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.Rollback(rbEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (rbEvent == null) {
+          rbEvent = new RollbackEvent(this.parent, BL, explosion);
+        }
+      }
+    }
+
+    public void fireFinishRollbackEvent(List<Route> sol, double obj, int n, int nSRCs, int nVB){
+      FinishRollbackEvent rbEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishRollback(rbEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (rbEvent == null) {
+          rbEvent = new FinishRollbackEvent(this.parent, sol, obj, n, nSRCs, nVB);
         }
       }
 

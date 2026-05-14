@@ -7,17 +7,13 @@ import columnGeneration.Route;
 
 public class RollbackEvent extends EventObject{
 
-    public final List<Route> solution;
-    public final double objective;
-    public final int nSRCs;
-    public final int nVehicleBranches;
+    public final int BL;
+    public final int explosion;
 
-    public RollbackEvent(Object source, List<Route> solution, double obj, int nSRCs, int nVB) {
+    public RollbackEvent(Object source, int BL, int explosion) {
         super(source);
-        this.solution = solution;
-        this.objective = obj;
-        this.nSRCs = nSRCs;
-        this.nVehicleBranches = nVB;
+        this.BL = BL;
+        this.explosion = explosion;
     }
 
     
