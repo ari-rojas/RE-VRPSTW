@@ -362,6 +362,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 
 			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
 				dataModel.rollbackTrigger = true;
+				this.close();
 				dataModel.rollbackExplosion = nLabels;
 				return new ArrayList<Route>(); } 
 			if(PPvertices[0].unprocessedLabels.isEmpty()) {

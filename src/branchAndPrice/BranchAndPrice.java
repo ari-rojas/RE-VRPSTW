@@ -46,6 +46,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private List<Integer> chargingNodes = new ArrayList<Integer>();
 	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
 	private long timeChargingBranching = 0;
+	private Map<Integer,Boolean> comesFromRollback = new HashMap<Integer,Boolean>();
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
@@ -235,7 +236,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier); //Solve the node
+			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {
@@ -533,6 +534,14 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 							}
 
+						}
+
+						if (dataModel.rollbackTrigger){
+							this.comesFromRollback.put(newBranches.get(0).nodeID, true);
+							this.comesFromRollback.put(newBranches.get(1).nodeID,true);
+						} else {
+							this.comesFromRollback.put(newBranches.get(0).nodeID, false);
+							this.comesFromRollback.put(newBranches.get(1).nodeID,false);
 						}
 	
 						if (!foundBranches) {

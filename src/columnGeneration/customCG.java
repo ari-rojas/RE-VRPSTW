@@ -26,7 +26,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
 	
+	public int BBnodeID;
 	public boolean needsChargingBranchingPricing;
+	public int contExact;
 
 	public OptimalSolutionMemory solutionMemory;
 
@@ -44,8 +46,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, boolean needsCB, ExtendBAPNotifier notifier) {
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
+		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
 	}
@@ -54,8 +57,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective, boolean needsCB, ExtendBAPNotifier notifier) {
+			int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue, boundOnMasterObjective);
+		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
 	}
@@ -63,10 +67,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6, boolean arg7, ExtendBAPNotifier arg8) {
+			int arg5, double arg6, int arg7, boolean arg8, ExtendBAPNotifier arg9) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-		this.needsChargingBranchingPricing = arg7;
-		this.extendedNotifier = arg8;
+		this.BBnodeID = arg7;
+		this.needsChargingBranchingPricing = arg8;
+		this.extendedNotifier = arg9;
 	}
 
 	@Override
@@ -107,6 +112,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		int cg_iterations = 0;
 
+		if (this.BBnodeID == 0) { this.contExact = 0; dataModel.rollbackBaseLine = 0; }
 		dataModel.rollbackTrigger = false;
 		dataModel.cut_iterations = 1;
 
@@ -159,7 +165,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				
 				// Saves the current CG state in case it is needed in the future for a rollback
 				List<Route> memoryColumns = new ArrayList<>();
-				for (Route column: master.getColumns(pricingProblems.get(0))) memoryColumns.add(column.clone());
+				for (Route column: master.getColumns(pricingProblems.get(0))){
+					Route newCol = column.clone(); newCol.BBnode = column.BBnode;
+					memoryColumns.add(newCol);
+				}
 
 				List<SubsetRowInequality> memorySRCs = new ArrayList<>();
 				for (SubsetRowInequality src: ((Master)master).getMasterData().subsetRowInequalities.keySet()) memorySRCs.add(src);
@@ -255,6 +264,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		if(exact) 
 			if(!newColumns.isEmpty()) this.boundOnMasterObjective =(optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			else this.boundOnMasterObjective = master.getObjective(); //update the bound before adding cuts
+
+			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
+				this.contExact ++;
+				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
+			}
 
 		notifier.fireFinishPricingEvent(newColumns);
 

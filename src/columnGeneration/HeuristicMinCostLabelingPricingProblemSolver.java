@@ -358,9 +358,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			this.runLabeling(); 										//runs the labeling algorithm
 
+			dataModel.rollbackExplosion = nLabels;
 			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
 				dataModel.rollbackTrigger = true;
-				dataModel.rollbackExplosion = nLabels;
+				this.close();
 				return new ArrayList<Route>(); }
 			if(PPvertices[0].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
