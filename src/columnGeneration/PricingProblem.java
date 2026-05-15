@@ -4,12 +4,10 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.TreeSet;
 
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import branchAndPrice.ChargingTimeInequality;
