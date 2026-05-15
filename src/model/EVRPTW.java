@@ -78,7 +78,7 @@ public final class EVRPTW implements ModelInterface {
 	public boolean rollbackTrigger;
 	public int rollbackBaseLine;
 	public int rollbackExplosion;
-	public int rollbackFactor = 30;
+	public int rollbackFactor = 5;
 	public int cut_iterations;
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
