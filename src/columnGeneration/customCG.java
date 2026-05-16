@@ -160,7 +160,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			if (dataModel.rollbackTrigger){
 				this.perform_rollback(solutionMemory);
 				break;
-			} else if (dataModel.cut_iterations > 1) {
+			//} else if (dataModel.cut_iterations > 1) {
 				// TODO
 				// Check if the gap reduction was good, and if not, break
 
