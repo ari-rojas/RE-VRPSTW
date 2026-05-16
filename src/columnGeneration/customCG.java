@@ -17,6 +17,7 @@ import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolv
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 
 import branchAndPrice.ExtendBAPNotifier;
+import branchAndPrice.NumberVehiclesInequalities;
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
@@ -276,9 +277,21 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			if(!newColumns.isEmpty()) this.boundOnMasterObjective =(optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			else { // The RMP bound is optimal
 				
-				// Look for an integer solution if i) the rollback was not triggered, ii) the current MP solution is NOT integer, and iii) the current gap is greater than 5%
-				if (!dataModel.rollbackTrigger && !masterSolutionIsInteger){
-
+				// Look for an integer solution if
+				// i) the rollback was not triggered
+				// ii) the current MP solution is NOT integer, and
+				// iii) the current gap is greater than 5%
+				if (!dataModel.rollbackTrigger && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.05){
+					
+					Master mMaster = (Master) master;
+					VRPMasterData masterData = mMaster.getMasterData();
+					
+					double IPtime = System.currentTimeMillis();
+					extendedNotifier.fireIPRootNodeEvent();
+					try { this.solveIP(master.getColumns(pricingProblems.get(0)), masterData.subsetRowInequalities.keySet(), masterData.branchingNumberOfVehicles.keySet()); } 
+					catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
+					extendedNotifier.fireFinishIPRootNodeEvent(System.currentTimeMillis() - IPtime);
+				
 				}
 
 
@@ -318,7 +331,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	
 	}
 
-	public void solveIPAtRootNode(BAPNode<EVRPTW, Route> node) throws IloException {
+	public void solveIP(Set<Route> columns, Set<SubsetRowInequality> subsetRowInequalities, Set<NumberVehiclesInequalities> vehiclesInequalities) throws IloException {
 
 		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
 		IloCplex cplex = new IloCplex();
@@ -329,6 +342,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		// Define the objective
 		IloObjective obj= cplex.addMinimize();
+
 		// Routing set partitioning constraints
 		IloRange[] visitCustomerConstraints=new IloRange[dataModel.C];
 		for(int i=0; i< dataModel.C; i++)
@@ -340,13 +354,15 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
 
 		// Subset Row Cuts
-		Set<SubsetRowInequality> subsetRowInequalities = ((Master)master).getMasterData().subsetRowInequalities.keySet();
 		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
 		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
 			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
 			ix ++;
+		
+		// Number of vehicles branches
+			
 
-		for (Route route: node.getInitialColumns()) {
+		for (Route route: columns) {
 
 			if (route.isArtificialColumn) continue;
 			Route column = route.clone();

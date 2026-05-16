@@ -46,8 +46,8 @@ import branchAndPrice.FixArc;
 import branchAndPrice.RemoveArc;
 import branchAndPrice.RollbackEvent;
 import branchAndPrice.FinishRollbackEvent;
-import branchAndPrice.IPRootNodeEvent;
-import branchAndPrice.FinishIPRootNodeEvent;
+import branchAndPrice.IPSolutionEvent;
+import branchAndPrice.FinishIPSolutionEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.CBHeuristicSecondPricingProblemSolver;
@@ -335,14 +335,14 @@ public final class EVRPTWSolver {
 		}
 
 		@Override
-		public void IPRootNode(IPRootNodeEvent IPRootEvent){
+		public void IPRootNode(IPSolutionEvent IPRootEvent){
 			if (dataModel.print_log) {
 				logger.debug("=============== SOLVING IP ===============");
 			}
 		}
 
 		@Override
-		public void finishIPRootNode(FinishIPRootNodeEvent IPRootEvent){
+		public void finishIPRootNode(FinishIPSolutionEvent IPRootEvent){
 			if (dataModel.print_log) {
 				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
 			}

@@ -79,27 +79,27 @@ public class ExtendBAPNotifier{
       }
     }
 
-    public void fireIPRootNodeEvent(BAPNode node){
-      IPRootNodeEvent IPEvent = null;
+    public void fireIPRootNodeEvent(){
+      IPSolutionEvent IPEvent = null;
 
       ExtendBAPListener listener;
       for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.IPRootNode(IPEvent)) {
         listener = (ExtendBAPListener)var3.next();
         if (IPEvent == null) {
-          IPEvent = new IPRootNodeEvent(this.parent, node);
+          IPEvent = new IPSolutionEvent(this.parent);
         }
       }
 
     }
 
-    public void fireFinishIPRootNodeEvent(BAPNode node, double time){
-      FinishIPRootNodeEvent IPEvent = null;
+    public void fireFinishIPRootNodeEvent(double time){
+      FinishIPSolutionEvent IPEvent = null;
 
       ExtendBAPListener listener;
       for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishIPRootNode(IPEvent)) {
         listener = (ExtendBAPListener)var3.next();
         if (IPEvent == null) {
-          IPEvent = new FinishIPRootNodeEvent(this.parent, node, time);
+          IPEvent = new FinishIPSolutionEvent(this.parent, time);
         }
       }
 
