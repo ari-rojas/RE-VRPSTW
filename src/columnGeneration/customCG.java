@@ -160,17 +160,18 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			if (dataModel.rollbackTrigger){
 				this.perform_rollback(solutionMemory);
 				break;
-			//} else if (dataModel.cut_iterations > 1) {
-				// TODO
-				// Check if the gap reduction was good, and if not, break
-
-
 			} else if (boundOnMasterExceedsCutoffValue())
 				break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException();
 			} else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+
+				// Check if the gap reduction was good.
+				// In case the reduction was bad, break the Column and Cut Generation to branch directly
+				if (dataModel.cut_iterations > 1 && dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine && this.gapReduction < dataModel.gapReductionRequirement){
+					extendedNotifier.fireGapReductionEvent(this.gapReduction);
+					break; }
 
 				dataModel.cut_iterations ++;
 				long time = System.currentTimeMillis();

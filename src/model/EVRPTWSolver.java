@@ -43,6 +43,7 @@ import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.MIPMasterEvent;
 import branchAndPrice.FinishMIPMasterEvent;
 import branchAndPrice.FixArc;
+import branchAndPrice.GapReductionEvent;
 import branchAndPrice.RemoveArc;
 import branchAndPrice.RollbackEvent;
 import branchAndPrice.FinishRollbackEvent;
@@ -367,6 +368,14 @@ public final class EVRPTWSolver {
 				logger.debug("Columns (only non-zero columns are returned):");
 				for(Route route: rollbackEvent.solution)
 					logger.debug(route.toString());
+			}
+		}
+
+		@Override
+		public void gapReduction(GapReductionEvent gapEvent){
+			if (dataModel.print_log){
+				logger.debug("Stopping to add more cuts in the current node.");
+				logger.debug("Gap Reduction: "+(Math.floor(gapEvent.gapReduction*100)/100)+" < "+dataModel.gapReductionRequirement);
 			}
 		}
 

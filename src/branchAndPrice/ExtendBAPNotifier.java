@@ -130,5 +130,18 @@ public class ExtendBAPNotifier{
 
     }
 
+    public void fireGapReductionEvent(double gR){
+      GapReductionEvent gapEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.gapReduction(gapEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (gapEvent == null) {
+          gapEvent = new GapReductionEvent(this.parent, gR);
+        }
+      }
+
+    }
+
 
 }

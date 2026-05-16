@@ -20,4 +20,6 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishRollback(FinishRollbackEvent var1);
 
+    void gapReduction(GapReductionEvent var1);
+
 }
