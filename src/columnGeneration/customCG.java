@@ -167,7 +167,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				throw new TimeLimitExceededException();
 			} else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
 
-				// Check if the gap reduction was good.
+				// Check if the gap reduction was enough.
 				// In case the reduction was bad, break the Column and Cut Generation to branch directly
 				if (dataModel.cut_iterations > 1 && dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine && this.gapReduction < dataModel.gapReductionRequirement){
 					extendedNotifier.fireGapReductionEvent(this.gapReduction);
