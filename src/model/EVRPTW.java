@@ -81,7 +81,7 @@ public final class EVRPTW implements ModelInterface {
 	public int rollbackFactor = 100;
 	public int cut_iterations;
 	public int pricingSoftFactor = 10;
-	public double gapReductionRequirement = 0.05;
+	public double gapReductionRequirement = 0.2;
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
 	public static final byte C0 = 0; 	 	// Customer depot nodes

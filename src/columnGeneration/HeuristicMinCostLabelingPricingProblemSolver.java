@@ -436,8 +436,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//if (PPvertices[0].unprocessedLabels.size() < numCols) pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
-				logger.debug("Finished exact pricing: "+PPvertices[0].processedLabels.size()+" processed, "+PPvertices[0].unprocessedLabels.size()+" unprocessed.");
-				logger.debug("Found " + newRoutes.size() + " columns");
+			logger.debug("Finished exact pricing: "+PPvertices[0].processedLabels.size()+" processed, "+PPvertices[0].unprocessedLabels.size()+" unprocessed.");
+			logger.debug("Found " + newRoutes.size() + " columns");
 		}
 		
 		close();

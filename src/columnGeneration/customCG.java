@@ -257,6 +257,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			exact = true;
 		}
 		
+		notifier.fireFinishPricingEvent(newColumns);
+
+		pricingSolveTime+=(System.currentTimeMillis()-time);
+		nrGeneratedColumns+=newColumns.size();
+		
+		// Update of Lower Bound
 		if(exact) 
 			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
 			
@@ -290,11 +296,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
 			}
 
-		notifier.fireFinishPricingEvent(newColumns);
-
-		pricingSolveTime+=(System.currentTimeMillis()-time);
-		nrGeneratedColumns+=newColumns.size();
-		//Add columns to the master problem
+		// Add columns to the master problem
 		if(!newColumns.isEmpty()){
 			for(Route column : newColumns){
 				master.addColumn(column);
