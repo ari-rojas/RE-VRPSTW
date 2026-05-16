@@ -42,6 +42,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public OptimalSolutionMemory solutionMemory;
 	private boolean masterSolutionIsInteger;
+	private double gapReduction = 0;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
 	static {
@@ -160,7 +161,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				this.perform_rollback(solutionMemory);
 				break;
 			} else if (dataModel.cut_iterations > 1) {
-				
+				// TODO
+				// Check if the gap reduction was good, and if not, break
 
 
 			} else if (boundOnMasterExceedsCutoffValue())
@@ -274,28 +276,27 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		}
 
 		if(exact) 
-			if(!newColumns.isEmpty()) this.boundOnMasterObjective =(optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
+			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			else { // The RMP bound is optimal
 				
 				// Look for an integer solution if
-				// i) the rollback was not triggered
-				// ii) the current MP solution is NOT integer, and
-				// iii) the current gap is greater than 5%
-				if (!dataModel.rollbackTrigger && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.05){
+				// i) the current MP solution is NOT integer, and
+				// ii) the current gap is greater than 5%
+				if (!masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.05){
 					
 					Master mMaster = (Master) master;
 					VRPMasterData masterData = mMaster.getMasterData();
 					
 					double IPtime = System.currentTimeMillis();
-					extendedNotifier.fireIPRootNodeEvent();
+					extendedNotifier.fireIPSolutionEvent();
 					try { this.solveIP(master.getColumns(pricingProblems.get(0)), masterData.subsetRowInequalities.keySet(), masterData.branchingNumberOfVehicles.keySet()); } 
 					catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
-					extendedNotifier.fireFinishIPRootNodeEvent(System.currentTimeMillis() - IPtime);
+					extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
 				
 				}
 
-
-				this.boundOnMasterObjective = master.getObjective(); //update the bound before adding cuts
+				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
+				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 			}
 			
 
@@ -355,32 +356,38 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		// Subset Row Cuts
 		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
-		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
+		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities){
 			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
-			ix ++;
+			ix ++; }
 		
 		// Number of vehicles branches
-			
+		IloRange[] NumVehiclesBranches = new IloRange[vehiclesInequalities.size()]; ix = 0;
+		for (NumberVehiclesInequalities branch: vehiclesInequalities){
+			if (branch.lessThanOrEqual) NumVehiclesBranches[ix] = cplex.addLe(cplex.linearNumExpr(), branch.coefficient, "branching_"+branch.toString());
+			else NumVehiclesBranches[ix] = cplex.addGe(cplex.linearNumExpr(), branch.coefficient, "branching_"+branch.toString());
+			ix ++; }
 
 		for (Route route: columns) {
 
 			if (route.isArtificialColumn) continue;
 			Route column = route.clone();
-			//Register column with objective
-			IloColumn iloColumn= cplex.column(obj,column.cost);
+			IloColumn iloColumn = cplex.column(obj,column.cost);
 
-			//Register column with partitioning constraint
 			for(int i: route.route.keySet())
-				iloColumn=iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
+				iloColumn = iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
 
-			//Register column with chargers capacity constraints
 			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
-				iloColumn=iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
+				iloColumn = iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
 
 			ix = 0;
-			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
-				iloColumn=iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
-				ix ++;
+			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities) {
+				iloColumn = iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
+				ix ++; }
+
+			ix = 0;
+			for (NumberVehiclesInequalities branch: vehiclesInequalities) {
+				iloColumn = iloColumn.and(cplex.column(NumVehiclesBranches[ix],1));
+				ix ++; }
 
 			//Create the variable and store it
 			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
@@ -391,27 +398,38 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		//Set time limit
 		cplex.setParam(IloCplex.Param.TimeLimit, 60.0); //set time limit in seconds (in this case 10 seconds)
 		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal){
-			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
-			upperBoundOnObjective = objectiveIncumbentSolution;
-			//retrieve solution
-			List<Route> optimalSolution = new ArrayList<Route>();
-			if (dataModel.print_log) logger.debug("Found integer solution. Objective: "+objectiveIncumbentSolution);
-			for (Route route: solution.keySet()) {
-				double value = cplex.getValue(solution.get(route));
-				if(value > 0.5){
-					Route newRoute = route.clone();
-					newRoute.value = 1;
-					optimalSolution.add(newRoute);
+			int objVal = (int) (cplex.getObjValue()+0.05);
 
-					if (dataModel.print_log) logger.debug(newRoute.toString());
+			if (objVal < this.cutoffValue){ // Found a better solution, update current incumbent
+				this.cutoffValue = objVal;
+				this.incumbentSolutionObjective = objVal;
+				
+				ArrayList<Route> optimalSolution = new ArrayList<Route>();
+				if (dataModel.print_log) logger.debug("Found integer solution. Objective: "+this.incumbentSolutionObjective);
+				for (Route route: solution.keySet()) {
+					double value = cplex.getValue(solution.get(route));
+					if(value > 0.5){
+						Route newRoute = route.clone();
+						newRoute.value = 1;
+						optimalSolution.add(newRoute);
+
+						if (dataModel.print_log) logger.debug(newRoute.toString());
+					}
 				}
+
+				this.incumbentSolution = optimalSolution;
 			}
-			incumbentSolution = optimalSolution;
 		} else {
 			if (dataModel.print_log) logger.debug("Did not find an integer solution");
 		}
 		cplex.close();
 		cplex.end();
+	}
+
+	public int getSRCCoefficient(Route route, SubsetRowInequality subsetRowInequality) {
+		int visits = 0;
+		for(int i: subsetRowInequality.cutSet) visits+=route.route.getOrDefault(i, 0);
+		return (int) Math.floor(0.5*visits);
 	}
 
 	public class OptimalSolutionMemory{

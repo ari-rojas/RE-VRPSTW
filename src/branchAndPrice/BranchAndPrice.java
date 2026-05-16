@@ -126,13 +126,13 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		//Inherit the cuts generated (not necessary)
 
 		//Solve MIP at root node (optional)
-		if(bapNode.nodeID == 0) {
+		/* if(bapNode.nodeID == 0) {
 			double time = System.currentTimeMillis();
-			extendedNotifier.fireIPRootNodeEvent(bapNode);
+			extendedNotifier.fireIPSolutionEvent();
 			try {solveIPAtRootNode(bapNode);} 
 			catch (IloException e) {e.printStackTrace(); logger.debug(e.getMessage());}
-			extendedNotifier.fireFinishIPRootNodeEvent(bapNode, System.currentTimeMillis() - time);
-		}
+			extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - time);
+		} */
 
 	}
 
@@ -620,8 +620,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	 */
 	public int getSRCCoefficient(Route route, SubsetRowInequality subsetRowInequality) {
 		int visits = 0;
-		for(int i: subsetRowInequality.cutSet)
-			visits+=route.route.getOrDefault(i, 0);
+		for(int i: subsetRowInequality.cutSet) visits+=route.route.getOrDefault(i, 0);
 		return (int) Math.floor(0.5*visits);
 	}
 

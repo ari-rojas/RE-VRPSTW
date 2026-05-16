@@ -79,7 +79,7 @@ public class ExtendBAPNotifier{
       }
     }
 
-    public void fireIPRootNodeEvent(){
+    public void fireIPSolutionEvent(){
       IPSolutionEvent IPEvent = null;
 
       ExtendBAPListener listener;
@@ -92,7 +92,7 @@ public class ExtendBAPNotifier{
 
     }
 
-    public void fireFinishIPRootNodeEvent(double time){
+    public void fireFinishIPSolutionEvent(double time){
       FinishIPSolutionEvent IPEvent = null;
 
       ExtendBAPListener listener;
