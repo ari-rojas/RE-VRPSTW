@@ -178,26 +178,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
 				
-				// Saves the current CG state in case it is needed in the future for a rollback
-				List<Route> memoryColumns = new ArrayList<>();
-				for (Route column: master.getColumns(pricingProblems.get(0))){
-					Route newCol = column.clone(); newCol.BBnode = column.BBnode;
-					memoryColumns.add(newCol);
-				}
-
-				List<SubsetRowInequality> memorySRCs = new ArrayList<>();
-				for (SubsetRowInequality src: ((Master)master).getMasterData().subsetRowInequalities.keySet()) memorySRCs.add(src);
-
-				List<Route> memoryIncumbent = new ArrayList<>();
-				for (Route column: this.incumbentSolution){
-					Route newCol = column.clone(); newCol.value = column.value;
-					memoryIncumbent.add(newCol);
-				}
-				
-				List<Route> memorySolution = master.getSolution();
-
-				this.solutionMemory = new OptimalSolutionMemory(memoryColumns, memorySRCs, this.boundOnMasterObjective, memorySolution, this.objectiveMasterProblem, memoryIncumbent, this.incumbentSolutionObjective);
-
+				this.update_solution_memory();
 				dataModel.cleanSRCs();	// MODIFICATION
 			}
 
@@ -432,6 +413,30 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		int visits = 0;
 		for(int i: subsetRowInequality.cutSet) visits+=route.route.getOrDefault(i, 0);
 		return (int) Math.floor(0.5*visits);
+	}
+
+	public void update_solution_memory(){
+
+		// Saves the current CG state in case it is needed in the future for a rollback
+		List<Route> memoryColumns = new ArrayList<>();
+		for (Route column: master.getColumns(pricingProblems.get(0))){
+			Route newCol = column.clone(); newCol.BBnode = column.BBnode;
+			memoryColumns.add(newCol);
+		}
+
+		List<SubsetRowInequality> memorySRCs = new ArrayList<>();
+		for (SubsetRowInequality src: ((Master)master).getMasterData().subsetRowInequalities.keySet()) memorySRCs.add(src);
+
+		List<Route> memoryIncumbent = new ArrayList<>();
+		for (Route column: this.incumbentSolution){
+			Route newCol = column.clone(); newCol.value = column.value;
+			memoryIncumbent.add(newCol);
+		}
+		
+		List<Route> memorySolution = master.getSolution();
+
+		this.solutionMemory = new OptimalSolutionMemory(memoryColumns, memorySRCs, this.boundOnMasterObjective, memorySolution, this.objectiveMasterProblem, memoryIncumbent, this.incumbentSolutionObjective);
+
 	}
 
 	public class OptimalSolutionMemory{
