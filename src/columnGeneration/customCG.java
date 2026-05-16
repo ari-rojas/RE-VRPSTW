@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -42,6 +41,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public OptimalSolutionMemory solutionMemory;
 	private boolean masterSolutionIsInteger;
+	private boolean hasExceededPricingSoftThreshold = false;
 	private double gapReduction = 0;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
@@ -169,7 +169,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 				// Check if the gap reduction was enough.
 				// In case the reduction was bad, break the Column and Cut Generation to branch directly
-				if (dataModel.cut_iterations > 1 && dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine && this.gapReduction < dataModel.gapReductionRequirement){
+				if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
 					extendedNotifier.fireGapReductionEvent(this.gapReduction);
 					break; }
 
@@ -256,8 +256,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 			exact = true;
 		}
-
+		
 		if(exact) 
+			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
+			
 			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			else { // The RMP bound is optimal
 				
