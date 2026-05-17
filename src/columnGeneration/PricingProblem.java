@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.HashMap;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import model.EVRPTW;
+import model.EVRPTW.Vertex;
 
 /**
  * This class defines the pricing problem. 
@@ -17,6 +18,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
 	public Map<Integer, Map<Integer,Double>> charging_bounds;
+
+	// Information for Fixing by Reduced Costs procedure
+	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
+	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
+	public int[] infeasibleArcs;
+	public Vertex[] vertices;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
