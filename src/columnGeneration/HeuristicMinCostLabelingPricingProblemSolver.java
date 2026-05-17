@@ -97,6 +97,11 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 					PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 					if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				}
+
+				////////////////////////////////////////////
+				/// Bounding Procedure
+				////////////////////////////////////////////
+				if (currentLabel.dominanceVertex == superDepotID && (currentLabel.reducedCost + pricingProblem.charging_bounds.get(currentLabel.chargingTime).get(currentLabel.remainingTime) >= -dataModel.precision)) continue;
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
@@ -240,12 +245,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		// After confirming that the label is feasible, update the remaining load
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-		
-		if (arc_type == AR0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
-
+		// Unreachable resources
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
 		boolean[] ng_path = new boolean[dataModel.C];
 		
