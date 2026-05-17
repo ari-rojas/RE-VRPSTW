@@ -8,7 +8,9 @@ import java.util.HashMap;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import model.EVRPTW;
 import model.EVRPTW.Arc;
+import model.EVRPTW.PPArc;
 import model.EVRPTW.Vertex;
+import model.EVRPTW.PPVertex;
 
 /**
  * This class defines the pricing problem. 
@@ -26,7 +28,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasibleArcs;
+	public PPVertex[] PPvertices;
 	public Vertex[] vertices;
+
+	// General information
+	private int Gamma = dataModel.gamma;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -81,6 +87,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit, double UB, double LB){
 		
 		double FRC_gap = UB - LB;
+		this.PPvertices = dataModel.PPvertices;
 		this.vertices = dataModel.vertices;
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
@@ -212,18 +219,89 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	private ArrayList<ArrayList<PartialBackwardSequence>> getBackwardSequences() {
 
-			ArrayList<ArrayList<PartialBackwardSequence>> bwSequences = new ArrayList<>();
-			for (int i = 0; i <= dataModel.C+1; i++){
-				ArrayList<PartialBackwardSequence> bwSeq = new ArrayList<>();
-				for (Label l: this.bwLabels.get(i)){ bwSeq.add(new PartialBackwardSequence(l.reducedCost, l.remainingEnergy, l.remainingLoad, l.remainingTime, l.unreachable, l.ng_path)); }
-				bwSeq.sort( Comparator.comparing(l -> l.reducedCost) );
-				bwSequences.add(bwSeq);
-			}
+		ArrayList<ArrayList<PartialBackwardSequence>> bwSequences = new ArrayList<>();
 
-			this.bwLabels.clear();
+		// (Super) Depot labels
+		ArrayList<Label> labels_to_clean = this.bwLabels.get(0);
+		ArrayList<PartialBackwardSequence> bwSeq = new ArrayList<>();
+		for (int ix = 0; ix < labels_to_clean.size(); ix++){
+			Label l1 = labels_to_clean.get(ix); boolean dominated = false;
+			for (int ix2 = ix+1; ix2 < labels_to_clean.size(); ix2++) if (isDominatedDepot(l1, labels_to_clean.get(ix2))) { dominated = true; break; }
+			if (dominated) continue;
+			else bwSeq.add(new PartialBackwardSequence(l1.reducedCost, l1.remainingEnergy, l1.remainingLoad, l1.remainingTime, l1.unreachable, l1.ng_path));
+		} bwSeq.sort(Comparator.comparing(l -> l.reducedCost));
+		bwSequences.add(bwSeq);
 
-			return bwSequences;
+		// C1 PP vertices labels
+		for (int i = 1; i <= dataModel.C; i++){
+			labels_to_clean = this.bwLabels.get(i); bwSeq = new ArrayList<>();
+			for (int ix = 0; ix < labels_to_clean.size(); ix++){
+				Label l1 = labels_to_clean.get(ix); boolean dominated = false;
+				for (int ix2 = ix+1; ix2 < labels_to_clean.size(); ix2++) if (isDominatedRouting(l1, labels_to_clean.get(ix2))) { dominated = true; break; }
+				if (dominated) continue;
+				else bwSeq.add(new PartialBackwardSequence(l1.reducedCost, l1.remainingEnergy, l1.remainingLoad, l1.remainingTime, l1.unreachable, l1.ng_path));
+			} bwSeq.sort(Comparator.comparing(l -> l.reducedCost));
+			bwSequences.add(bwSeq);
+		}
+
+		// Returning depot (unique) label
+		bwSeq = new ArrayList<>();
+		Label l1 = this.bwLabels.get(dataModel.C+1).get(0);
+		bwSeq.add(new PartialBackwardSequence(l1.reducedCost, l1.remainingEnergy, l1.remainingLoad, l1.remainingTime, l1.unreachable, l1.ng_path));
+		bwSequences.add(bwSeq);
+
+		this.bwLabels.clear();
+
+		return bwSequences;
 	}
+
+	public boolean isDominatedDepot(Label L1, Label L2) {
+
+		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
+		if (L2.remainingTime<L1.remainingTime) return false; 					//departure time
+		if (L2.chargingTime>L1.chargingTime) return false;						//charging time
+
+		return true;
+	}
+
+	public boolean isDominatedRouting(Label L1, Label L2) {
+
+		if (L2.remainingLoad<L1.remainingLoad) return false; 					//load
+		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
+		if (L2.remainingTime<L1.remainingTime) return false; 					//time
+		
+		for (int gam=0; gam<=Gamma; gam++){
+			if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false; 	//energy
+		}
+		
+		//reducedCost
+		double reducedCostL2 = 0;
+		for(int i: L2.srcIndices) {
+			if(!L1.eta[i]) {
+				SubsetRowInequality src = this.subsetRowCuts.get(i);
+				if(!L2.unreachable[src.cutSet[0]-1] || !L2.unreachable[src.cutSet[1]-1] || !L2.unreachable[src.cutSet[2]-1]) {
+					int dualIndex = dataModel.C+dataModel.last_charging_period+i;
+					reducedCostL2+=this.dualCosts[dualIndex];
+				}
+			}
+			if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
+		}
+
+		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
+
+		// Ng-paths and unreachable resources
+		Vertex currentVertex = PPvertices[L1.vertex].routing_vertex;
+		for(int i: vertices[currentVertex.node_id].neighbors) {
+			
+			//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
+			boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
+			if (other_way)  return false;
+		}
+
+		return true;
+	}
+
+
 
 	private final class PartialBackwardSequence {
 

@@ -323,6 +323,16 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	@Override
 	public void close() {
 
+		// Save information of the routing subgraph for Fixing by Reduced Cost
+		pricingProblem.bwLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
+		pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[superDepotID].processedLabels));
+		for (int i = 1; i <= dataModel.C; i++) {
+			pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
+			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
+		}
+		pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
+		pricingProblem.infeasibleArcs = infeasibleArcs.clone();
+
 		for (int i = 0; i < PPvertices.length; i++) {
 			PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
 			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(superDepotID, dataModel.T_startID)); }
@@ -550,17 +560,15 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		
 		//reducedCost
 		double reducedCostL2 = 0;
-		if (L1.vertex>0) {
-			for(int i: L2.srcIndices) {
-				if(!L1.eta[i]) {
-					SubsetRowInequality src = pricingProblem.subsetRowCuts.get(i);
-					if(!L2.unreachable[src.cutSet[0]-1] || !L2.unreachable[src.cutSet[1]-1] || !L2.unreachable[src.cutSet[2]-1]) {
-						int dualIndex = dataModel.C+dataModel.last_charging_period+i;
-						reducedCostL2+=pricingProblem.dualCosts[dualIndex];
-					}
+		for(int i: L2.srcIndices) {
+			if(!L1.eta[i]) {
+				SubsetRowInequality src = pricingProblem.subsetRowCuts.get(i);
+				if(!L2.unreachable[src.cutSet[0]-1] || !L2.unreachable[src.cutSet[1]-1] || !L2.unreachable[src.cutSet[2]-1]) {
+					int dualIndex = dataModel.C+dataModel.last_charging_period+i;
+					reducedCostL2+=pricingProblem.dualCosts[dualIndex];
 				}
-				if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
 			}
+			if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
 		}
 
 		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
