@@ -16,6 +16,10 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishIPRootNode(FinishIPSolutionEvent var1);
 
+    void fixingByReducedCost(CGFixingByReducedCostEvent var1);
+
+    void finishFixingByReducedCost(CGFinishFixingByReducedCostEvent var1);
+
     void Rollback(RollbackEvent var1);
 
     void finishRollback(FinishRollbackEvent var1);

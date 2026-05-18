@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -15,6 +17,7 @@ import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 
+import branchAndPrice.RemoveArc;
 import branchAndPrice.ExtendBAPNotifier;
 import branchAndPrice.NumberVehiclesInequalities;
 import ilog.concert.IloColumn;
@@ -158,14 +161,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
 			if (dataModel.rollbackTrigger){
-				this.perform_rollback(solutionMemory);
-				break;
-			} else if (boundOnMasterExceedsCutoffValue())
-				break;
+				this.perform_rollback(solutionMemory); break; }
+			else if (boundOnMasterExceedsCutoffValue()) break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
-				throw new TimeLimitExceededException();
-			} else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+				throw new TimeLimitExceededException(); }
+			else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
 
 				// Check if the gap reduction was enough.
 				// In case the reduction was bad, break the Column and Cut Generation to branch directly
@@ -322,6 +323,31 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		VRPMasterData mData = mMaster.getMasterData();
 		this.extendedNotifier.fireFinishRollbackEvent(mMaster.getSolution(), mData.objectiveValue, mData.getNrColumns(), mData.subsetRowInequalities.size(), mData.branchingNumberOfVehicles.size());
 	
+	}
+
+	protected void perform_fixing_by_reduced_cost(BAPNode bapNode, long timeLimit){
+
+		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
+
+		extendedNotifier.fireFixingByReducedCostEvent(this.cutoffValue, this.boundOnMasterObjective);
+		PricingProblem pricingProblem = (PricingProblem)pricingProblems.get(0);
+		Map<Integer, Double> arcsToRemove = pricingProblem.fixByReducedCosts(timeLimit, this.cutoffValue, this.boundOnMasterObjective);
+		
+		// Deleting columns containing the eliminated arcs
+		Master mMaster = (Master) master;
+		Set<Route> columns = mMaster.getColumns(pricingProblem); List<Route> filtered_columns = new ArrayList<>();
+		for (Route col: columns) if (!col.PParcs.stream().anyMatch(arcsToRemove.keySet()::contains)) filtered_columns.add(col);
+		
+		// Creating fake branching decisions
+		List<BranchingDecision> removals = new ArrayList();
+		for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel.PParcs[arcID].arc_type, dataModel, bapNode.getInequalities(), 0));}
+		
+		for (BranchingDecision bd: removals) { master.branchingDecisionPerformed(bd); pricingProblem.branchingDecisionPerformed(bd); }
+		master.addColumns(filtered_columns);
+
+		// Fire the fake branching events for the listeners to update
+		extendedNotifier.fireFinishFixingByReducedCostEvent(arcsToRemove, pricingProblem.bestReducedCost);
+		
 	}
 
 	public void solveIP(Set<Route> columns, Set<SubsetRowInequality> subsetRowInequalities, Set<NumberVehiclesInequalities> vehiclesInequalities) throws IloException {

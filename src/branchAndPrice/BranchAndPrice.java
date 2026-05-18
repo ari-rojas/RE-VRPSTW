@@ -126,15 +126,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		bapNode.addInitialColumns(routesToAdd);
 		//Inherit the cuts generated (not necessary)
 
-		//Solve MIP at root node (optional)
-		/* if(bapNode.nodeID == 0) {
-			double time = System.currentTimeMillis();
-			extendedNotifier.fireIPSolutionEvent();
-			try {solveIPAtRootNode(bapNode);} 
-			catch (IloException e) {e.printStackTrace(); logger.debug(e.getMessage());}
-			extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - time);
-		} */
-
 	}
 
 	/**
@@ -268,7 +259,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
-	protected void perform_fixing_by_reduced_cost(BAPNode bapNode, long timeLimit){
+	protected void perform_fixing_by_reduced_cost(BAPNode bapNode, List<BranchingDecision> removals, long timeLimit){
 
 		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
 
@@ -279,17 +270,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
 		for(Route route: (List<Route>) bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
 		
-		// Deleting columns containing the eliminated arcs
-		List<Route> columns = new ArrayList<>(bapNode.getInitialColumns()); Set<Integer> arcIDsToRemove = arcsToRemove.keySet();
-		columns.removeIf(col ->  col.arcs.stream().anyMatch(arcIDsToRemove::contains));
-		columns.removeIf(col -> col.isArtificialColumn);
-		
-		// Removing the arcs via fake branching decisions
-		List<BranchingDecision> removals = new ArrayList();
-		//for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel, bapNode.getInequalities(),0));}
-		
 		// Destroy and re-create the rootNode
-		bapNode = new BAPNode(0, rootPath, columns, bapNode.getInequalities(), bapNode.getBound(), removals);
+		bapNode = new BAPNode(0, rootPath, bapNode.getInitialColumns(), bapNode.getInequalities(), bapNode.getBound(), removals);
 		bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
 		
 		// Fire the fake branching events for the listeners to update

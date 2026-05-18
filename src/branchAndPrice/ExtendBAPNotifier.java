@@ -3,6 +3,7 @@ package branchAndPrice;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
@@ -103,6 +104,30 @@ public class ExtendBAPNotifier{
         }
       }
 
+    }
+
+    public void fireFixingByReducedCostEvent(double UB, double LB) {
+      CGFixingByReducedCostEvent frcEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.fixingByReducedCost(frcEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (frcEvent == null) {
+          frcEvent = new CGFixingByReducedCostEvent(this.parent, UB, LB);
+        }
+      }
+    }
+
+    public void fireFinishFixingByReducedCostEvent(Map<Integer, Double> arcs, double best_rc) {
+      CGFinishFixingByReducedCostEvent frcEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishFixingByReducedCost(frcEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (frcEvent == null) {
+          frcEvent = new CGFinishFixingByReducedCostEvent(this.parent, arcs, best_rc);
+        }
+      }
     }
 
     public void fireRollbackEvent(int BL, int explosion){
