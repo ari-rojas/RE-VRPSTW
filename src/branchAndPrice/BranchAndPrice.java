@@ -113,7 +113,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 	protected void updateNodeGeneratedColumns(BAPNode<EVRPTW, Route> bapNode){
 
-		//Inherit the routes generated
+		// Inherit the routes generated
 		List<Route> routesToAdd = new ArrayList<Route>();
 		for(Route column: master.getColumns(this.pricingProblem)) {
 			if(column.BBnode==-1) {
@@ -122,7 +122,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			}
 		}
 		bapNode.addInitialColumns(routesToAdd);
-		//Inherit the cuts generated (not necessary)
 
 	}
 
