@@ -423,6 +423,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int routing_vertex_id = PPvertices[L1.vertex].routing_vertex.node_id;
 		for(Arc arc: dataModel.graph.incomingEdgesOf(routing_vertex_id)) {
 			int i = arc.tail;
+			if (i == 0) continue;
 			if (!L1.unreachable[i-1] && L2.unreachable[i-1])  return false;
 		}
 
