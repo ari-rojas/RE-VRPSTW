@@ -76,6 +76,10 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
 		this.pricingProblemManager.close();
 
+		ArrayList<Integer> rootP = new ArrayList<>(); rootP.add(0);
+		this.rootPaths.put(0, rootP);
+		this.branchingDecisions.put(0, new ArrayList<BranchingDecision>());
+
 		this.setNodeOrdering(new Comparator<BAPNode>() {
 
 			@Override
@@ -176,6 +180,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		ArrayList<Route> solution = new ArrayList<Route>(cg.getSolution().size()); //if not, it overwrites the value
 		for(Route route: cg.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
 		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts());
+
+		dataModel.infeasiblePPArcs = pricingProblem.infeasiblePPArcs;
 
 		return new CGResult(cg.incumbentSolution, cg.incumbentSolutionObjective, cg.branchingFRC);
 	}

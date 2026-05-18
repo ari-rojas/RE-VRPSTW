@@ -74,6 +74,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 				ArrayList<Integer> PParcs = route.PParcs;
 				for(int ix = 1; ix < PParcs.size(); ix++){ // Skip the first (ix = 0), as it is the AC1 arc of the column
 					int arcID = PParcs.get(ix);
+					if (dataModel.infeasiblePPArcs[arcID] > 0) continue;
 					PPArc arc = dataModel.PParcs[arcID];
 					Double arcValue = arcValues[arc.arc_type].get(arcID);
 
