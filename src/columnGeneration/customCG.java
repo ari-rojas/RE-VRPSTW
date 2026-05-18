@@ -14,7 +14,10 @@ import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
 import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
+import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
+import org.jorlib.frameworks.columnGeneration.pricing.DefaultPricingProblemSolverFactory;
+import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 
 import branchAndPrice.RemoveArc;
@@ -47,6 +50,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	private boolean hasExceededPricingSoftThreshold = false;
 	private double gapReduction = 0;
 
+	public List<BranchingDecision> branchingFRC;
+
+	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
+	private final customPricingProblemManager cPricingProblemManager;
+
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
 	static {
 		solverCapabilities.put(HeuristicLabelingThirdPricingProblemSolver.class, false);
@@ -66,6 +74,18 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
+		this.branchingFRC = new ArrayList<BranchingDecision>();
+		
+		this.pricingProblemManager.close();
+		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
+
+		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
+			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
+			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
+			pricingProblemBundles.put(solverClass, bundle);
+		}
+
+		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
@@ -77,6 +97,18 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
+		this.branchingFRC = new ArrayList<BranchingDecision>();
+
+		this.pricingProblemManager.close();
+		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
+
+		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
+			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
+			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
+			pricingProblemBundles.put(solverClass, bundle);
+		}
+
+		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
@@ -87,6 +119,18 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		this.BBnodeID = arg7;
 		this.needsChargingBranchingPricing = arg8;
 		this.extendedNotifier = arg9;
+		this.branchingFRC = new ArrayList<BranchingDecision>();
+		
+		this.pricingProblemManager.close();
+		this.pricingProblemBundles =  new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
+
+		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
+			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
+			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
+			pricingProblemBundles.put(solverClass, bundle);
+		}
+
+		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
 	}
 
 	@Override
@@ -117,7 +161,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	@Override
 	public void solve(long timeLimit) throws TimeLimitExceededException{
 		//Set time limit pricing problems
-		pricingProblemManager.setTimeLimit(timeLimit);
+		cPricingProblemManager.setTimeLimit(timeLimit);
 		colGenSolveTime=System.currentTimeMillis();
 		this.incumbentSolutionObjective = this.cutoffValue;
 
@@ -230,6 +274,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	 */
 	@Override
 	protected List<Route> invokePricingProblems(long timeLimit) throws TimeLimitExceededException {
+		
 		//Solve the pricing problem
 		List<Route> newColumns=new ArrayList<Route>();
 		long time=System.currentTimeMillis();
@@ -241,13 +286,13 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		//Solve pricing problems in the order of the pricing algorithms
 		notifier.fireStartPricingEvent();
-		pricingProblemManager.setTimeLimit(timeLimit);
+		cPricingProblemManager.setTimeLimit(timeLimit);
 		((PricingProblem) pricingProblems.get(0)).compute_charging_bounds();
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			
 			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
-				newColumns = pricingProblemManager.solvePricingProblems(solver);
+				newColumns = cPricingProblemManager.solvePricingProblems(solver);
 				if (dataModel.rollbackTrigger) break;
 			}
 
@@ -325,9 +370,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	
 	}
 
-	protected void perform_fixing_by_reduced_cost(BAPNode bapNode, long timeLimit){
+	protected void perform_fixing_by_reduced_cost(long timeLimit){
 
-		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
+		/////////////////////////// PERFORM VARIABLE FIXING BY REDUCED COST //////////////////////////////
 
 		extendedNotifier.fireFixingByReducedCostEvent(this.cutoffValue, this.boundOnMasterObjective);
 		PricingProblem pricingProblem = (PricingProblem)pricingProblems.get(0);
@@ -339,13 +384,22 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		for (Route col: columns) if (!col.PParcs.stream().anyMatch(arcsToRemove.keySet()::contains)) filtered_columns.add(col);
 		
 		// Creating fake branching decisions
-		List<BranchingDecision> removals = new ArrayList();
-		for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel.PParcs[arcID].arc_type, dataModel, bapNode.getInequalities(), 0));}
-		
+		List<BranchingDecision> removals = new ArrayList<BranchingDecision>();
+		List<AbstractInequality> cuts = new ArrayList<>(mMaster.getMasterData().subsetRowInequalities.keySet());
+		for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel.PParcs[arcID].arc_type, dataModel, cuts, 0));}
+		this.branchingFRC.addAll(removals);
+
+		// Updating the Master and Pricing Problem using the fake branches
 		for (BranchingDecision bd: removals) { master.branchingDecisionPerformed(bd); pricingProblem.branchingDecisionPerformed(bd); }
 		master.addColumns(filtered_columns);
 
-		// Fire the fake branching events for the listeners to update
+		// Updating the Pricing Problem Solvers using the fake branches
+		for (Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver: solvers){
+			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle =  this.pricingProblemBundles.get(solver);
+			AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> solverInstance = bundle.solverInstances.get(0);
+			for (BranchingDecision bd: removals) solverInstance.branchingDecisionPerformed(bd);
+		}
+
 		extendedNotifier.fireFinishFixingByReducedCostEvent(arcsToRemove, pricingProblem.bestReducedCost);
 		
 	}
@@ -473,6 +527,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		this.solutionMemory = new OptimalSolutionMemory(memoryColumns, memorySRCs, this.boundOnMasterObjective, memorySolution, this.objectiveMasterProblem, memoryIncumbent, this.incumbentSolutionObjective);
 
 	}
+
+	@Override
+	public void close() {
+    	this.master.close();
+		this.cPricingProblemManager.close();
+   	}
 
 	public class OptimalSolutionMemory{
 

@@ -49,6 +49,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private long timeChargingBranching = 0;
 	private Map<Integer,Boolean> comesFromRollback = new HashMap<Integer,Boolean>();
 
+	private Map<Integer, List<Integer>> rootPaths = new HashMap<>();
+	private Map<Integer, List<BranchingDecision>> branchingDecisions = new HashMap<>();
+
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
@@ -129,90 +132,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	}
 
 	/**
-	 * To have a stronger upper bound, we solve the MIP at the root (with the generated columns)
-	 */
-	public void solveIPAtRootNode(BAPNode<EVRPTW, Route> node) throws IloException {
-
-		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
-		IloCplex cplex =new IloCplex();
-		cplex.setOut(null); 			//disable CPLEX output
-		//cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
-		//cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
-		cplex.setParam(IloCplex.Param.RandomSeed, 30);
-		cplex.setParam(IloCplex.Param.Threads, 1);
-		cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 1e-4);
-
-		//Define the objective
-		IloObjective obj= cplex.addMinimize();
-		//Define partitioning constraints
-		IloRange[] visitCustomerConstraints=new IloRange[dataModel.C];
-		for(int i=0; i< dataModel.C; i++)
-			visitCustomerConstraints[i] = cplex.addEq(cplex.linearNumExpr(), 1, "visitCustomer_"+(i+1));
-
-		//define constrains (capacitated station)
-		IloRange[]  chargersCapacityConstraints = new IloRange[dataModel.last_charging_period];
-		for (int t = 0; t < dataModel.last_charging_period; t++)
-			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
-
-		Set<SubsetRowInequality> subsetRowInequalities = ((Master)master).getMasterData().subsetRowInequalities.keySet();
-		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
-		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
-			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
-			ix ++;
-
-		for(Route route: node.getInitialColumns()) {
-
-			if (route.isArtificialColumn) continue;
-			Route column = route.clone();
-			//Register column with objective
-			IloColumn iloColumn= cplex.column(obj,column.cost);
-
-			//Register column with partitioning constraint
-			for(int i: route.route.keySet())
-				iloColumn=iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
-
-			//Register column with chargers capacity constraints
-			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
-				iloColumn=iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
-
-			ix = 0;
-			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
-				iloColumn=iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
-				ix ++;
-
-			//Create the variable and store it
-			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
-			cplex.add(var);
-			solution.put(column, var);
-		}
-
-		//Set time limit
-		cplex.setParam(IloCplex.Param.TimeLimit, 60.0); //set time limit in seconds (in this case 10 seconds)
-		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal){
-			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
-			upperBoundOnObjective = objectiveIncumbentSolution;
-			//retrieve solution
-			List<Route> optimalSolution = new ArrayList<Route>();
-			if (dataModel.print_log) logger.debug("Found integer solution. Objective: "+objectiveIncumbentSolution);
-			for (Route route: solution.keySet()) {
-				double value = cplex.getValue(solution.get(route));
-				if(value > 0.5){
-					Route newRoute = route.clone();
-					newRoute.value = 1;
-					optimalSolution.add(newRoute);
-
-					if (dataModel.print_log) logger.debug(newRoute.toString());
-				}
-			}
-			incumbentSolution = optimalSolution;
-		} else {
-			if (dataModel.print_log) logger.debug("Did not find an integer solution");
-		}
-		cplex.close();
-		cplex.end();
-	}
-
-	/**
 	 * Solve a given Branch-and-Price node
 	 * @param bapNode node in Branch-and-Price tree
 	 * @param timeLimit future point in time by which the method must be finished
@@ -265,7 +184,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		//extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
 
-		Map<Integer, Double> arcsToRemove = ((PricingProblem)pricingProblems.get(0)).fixByReducedCosts(timeLimit);
+		Map<Integer, Double> arcsToRemove = new HashMap<>();
 		
 		List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
 		for(Route route: (List<Route>) bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
@@ -429,6 +348,87 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
         return integer_solution;
     }
 
+
+	private List<BAPNode<EVRPTW, Route>> process_branching(BAPNode bapNode){
+		
+		List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
+
+		// Initialize Branch Creator
+		BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
+		
+		double time;
+		if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
+		// Look for Number of Vehicles or Customers Arc Flow branching
+		boolean foundBranches = false;
+		foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+		if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }
+		if (foundBranches){
+			if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
+			this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+			newBranches.addAll(bc.getFirstBranches(bapNode));
+
+			if (bc.branchOnCustomerArcs || this.arcFlowNodes.contains(bapNode.nodeID)){
+				this.arcFlowNodes.add(newBranches.get(0).nodeID);
+				this.arcFlowNodes.add(newBranches.get(1).nodeID);
+			}
+
+			if (this.chargingNodes.contains(bapNode.nodeID)) { 
+				timeChargingBranching += (System.currentTimeMillis()-time);
+				this.chargingNodes.add(newBranches.get(0).nodeID);
+				this.chargingNodes.add(newBranches.get(1).nodeID);
+			}
+		} else {
+			
+			time = System.currentTimeMillis();
+
+			//foundBranches = this.findIntegerSolution(bapNode);
+			foundBranches = false;
+
+			if (foundBranches){
+				
+				this.processIntegerNode(bapNode);
+
+			} else {
+			
+				foundBranches = bc.canPerformBranching(bapNode.getSolution());
+				if (foundBranches){
+					this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
+					newBranches.addAll(bc.getBranches(bapNode));
+				}
+
+				if (this.arcFlowNodes.contains(bapNode.nodeID)){
+					this.arcFlowNodes.add(newBranches.get(0).nodeID);
+					this.arcFlowNodes.add(newBranches.get(1).nodeID);
+				}
+
+				timeChargingBranching += (System.currentTimeMillis()-time);
+				this.chargingNodes.add(newBranches.get(0).nodeID);
+				this.chargingNodes.add(newBranches.get(1).nodeID);
+
+			}
+
+		}
+
+		if (dataModel.rollbackTrigger){
+			this.comesFromRollback.put(newBranches.get(0).nodeID, true);
+			this.comesFromRollback.put(newBranches.get(1).nodeID,true);
+		} else {
+			this.comesFromRollback.put(newBranches.get(0).nodeID, false);
+			this.comesFromRollback.put(newBranches.get(1).nodeID,false);
+		}
+
+		if (!foundBranches) {
+			throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
+		}
+		
+		if (!newBranches.isEmpty()){
+			this.queue.addAll(newBranches);
+			this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+		}
+
+		return newBranches;
+	}
+
 	/**
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
@@ -494,79 +494,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						}
 
 						this.updateNodeGeneratedColumns(bapNode);
-						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
+						this.process_branching(bapNode);
 						
-						// Initialize Branch Creator
-						BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
-						
-						if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
-						// Look for Number of Vehicles or Customers Arc Flow branching
-						boolean foundBranches = false;
-						foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
-						if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }
-						if (foundBranches){
-							if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
-							this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-							newBranches.addAll(bc.getFirstBranches(bapNode));
-
-							if (bc.branchOnCustomerArcs || this.arcFlowNodes.contains(bapNode.nodeID)){
-								this.arcFlowNodes.add(newBranches.get(0).nodeID);
-								this.arcFlowNodes.add(newBranches.get(1).nodeID);
-							}
-
-							if (this.chargingNodes.contains(bapNode.nodeID)) { 
-								timeChargingBranching += (System.currentTimeMillis()-time);
-								this.chargingNodes.add(newBranches.get(0).nodeID);
-								this.chargingNodes.add(newBranches.get(1).nodeID);
-							}
-						} else {
-							
-							time = System.currentTimeMillis();
-
-							//foundBranches = this.findIntegerSolution(bapNode);
-							foundBranches = false;
-
-							if (foundBranches){
-								
-								this.processIntegerNode(bapNode);
-
-							} else {
-							
-								foundBranches = bc.canPerformBranching(bapNode.getSolution());
-								if (foundBranches){
-									this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-									newBranches.addAll(bc.getBranches(bapNode));
-								}
-
-								if (this.arcFlowNodes.contains(bapNode.nodeID)){
-									this.arcFlowNodes.add(newBranches.get(0).nodeID);
-									this.arcFlowNodes.add(newBranches.get(1).nodeID);
-								}
-
-								timeChargingBranching += (System.currentTimeMillis()-time);
-								this.chargingNodes.add(newBranches.get(0).nodeID);
-								this.chargingNodes.add(newBranches.get(1).nodeID);
-
-							}
-
-						}
-
-						if (dataModel.rollbackTrigger){
-							this.comesFromRollback.put(newBranches.get(0).nodeID, true);
-							this.comesFromRollback.put(newBranches.get(1).nodeID,true);
-						} else {
-							this.comesFromRollback.put(newBranches.get(0).nodeID, false);
-							this.comesFromRollback.put(newBranches.get(1).nodeID,false);
-						}
-	
-						if (!foundBranches) {
-							throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
-						}
-						
-						if (!newBranches.isEmpty()){
-							this.queue.addAll(newBranches);
-							this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
-						}
 					}
 	
 				++this.nodesProcessed;

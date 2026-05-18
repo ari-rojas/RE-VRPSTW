@@ -476,9 +476,4 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		return masterData;
 	}
 
-	public Master copy(){
-
-		return new Master(this.dataModel, this.pricingProblems.get(0), this.cutHandler);
-	}
-
 }
