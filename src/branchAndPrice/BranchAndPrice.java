@@ -16,6 +16,8 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
+import org.jorlib.frameworks.columnGeneration.pricing.DefaultPricingProblemSolverFactory;
+import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 
 import columnGeneration.Master;
@@ -23,6 +25,7 @@ import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import columnGeneration.SubsetRowInequality;
 import columnGeneration.customCG;
+import columnGeneration.customPricingProblemManager;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
 import ilog.concert.IloLinearNumExpr;
@@ -47,6 +50,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private Map<Integer, ArrayList<Integer>> rootPaths = new HashMap<>();
 	private Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = new HashMap<>();
 
+	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
+	private final customPricingProblemManager cPricingProblemManager;
+
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
 			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
@@ -58,6 +64,17 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.pricingProblem = pricingProblem;
 
 		this.extendedNotifier = new ExtendBAPNotifier(this);
+
+		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
+
+		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
+			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
+			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
+			pricingProblemBundles.put(solverClass, bundle);
+		}
+
+		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
+		this.pricingProblemManager.close();
 
 		this.setNodeOrdering(new Comparator<BAPNode>() {
 
@@ -141,7 +158,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier); //Solve the node
+			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier, this.pricingProblemBundles, this.cPricingProblemManager); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {
@@ -549,6 +566,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		//		System.out.println(Math.ceil(node.getBound()-config.PRECISION) + " >= " + this.objectiveIncumbentSolution);
 		return Math.ceil(Math.floor(node.getBound()*10000)/10000) >= (this.objectiveIncumbentSolution-config.PRECISION);
 	}
+
+	@Override
+	public void close() {
+		this.master.close();
+		this.cPricingProblemManager.close();
+   	}
 
 	public void addExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.addExtendBAPListener(listener);

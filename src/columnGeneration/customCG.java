@@ -69,68 +69,47 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier) {
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier,
+			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager cPricingProblemManager) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
 		this.branchingFRC = new ArrayList<BranchingDecision>();
 		
-		this.pricingProblemManager.close();
-		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
-
-		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
-			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
-			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
-			pricingProblemBundles.put(solverClass, bundle);
-		}
-
-		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
+		this.pricingProblemBundles = pricingProblemBundles;
+		this.cPricingProblemManager = cPricingProblemManager;
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier) {
+			int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier,
+			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager cPricingProblemManager) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue, boundOnMasterObjective);
 		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
 		this.branchingFRC = new ArrayList<BranchingDecision>();
 
-		this.pricingProblemManager.close();
-		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
-
-		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
-			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
-			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
-			pricingProblemBundles.put(solverClass, bundle);
-		}
-
-		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
+		this.pricingProblemBundles = pricingProblemBundles;
+		this.cPricingProblemManager = cPricingProblemManager;
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6, int arg7, boolean arg8, ExtendBAPNotifier arg9) {
+			int arg5, double arg6, int arg7, boolean arg8, ExtendBAPNotifier arg9,
+			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> arg10, customPricingProblemManager arg11) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		this.BBnodeID = arg7;
 		this.needsChargingBranchingPricing = arg8;
 		this.extendedNotifier = arg9;
 		this.branchingFRC = new ArrayList<BranchingDecision>();
 		
-		this.pricingProblemManager.close();
-		this.pricingProblemBundles =  new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
-
-		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
-			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
-			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
-			pricingProblemBundles.put(solverClass, bundle);
-		}
-
-		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
+		this.pricingProblemBundles = arg10;
+		this.cPricingProblemManager = arg11;
 	}
 
 	@Override
@@ -530,6 +509,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public void close() {
     	this.master.close();
 		this.cPricingProblemManager.close();
+		this.pricingProblemBundles.clear();
    	}
 
 	public class OptimalSolutionMemory{
