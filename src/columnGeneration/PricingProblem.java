@@ -153,8 +153,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			Label extendedLabel = null;
 			extendedLabel = extendLabel(currentLabel, routing_arc, AR1, mod_cost);
-
+			
 			if (extendedLabel == null) continue; // Skip if the extension if not feasible
+			extendedLabel.vertex = arc.tail_vertex_id;
 
 			// ---------- Compute reduced-cost proxy ----------
 			
@@ -202,8 +203,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			Label extendedLabel = null;
 			extendedLabel = extendLabel(currentLabel, routing_arc, AR0, mod_cost);
-
+			
 			if (extendedLabel == null) continue; // Skip if the extension if not feasible
+			extendedLabel.vertex = arc.tail_vertex_id;
 
 			// ---------- Compute reduced-cost proxy ----------
 			
@@ -418,8 +420,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
 
 		// Unreachable resources
-		int vertex = PPvertices[L1.vertex].routing_vertex.node_id;
-		for(Arc arc: dataModel.graph.incomingEdgesOf(vertex)) {
+		int routing_vertex_id = PPvertices[L1.vertex].routing_vertex.node_id;
+		for(Arc arc: dataModel.graph.incomingEdgesOf(routing_vertex_id)) {
 			int i = arc.tail;
 			if (!L1.unreachable[i-1] && L2.unreachable[i-1])  return false;
 		}
