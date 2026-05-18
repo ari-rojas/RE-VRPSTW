@@ -1,14 +1,12 @@
 package branchAndPrice;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Iterator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
@@ -25,13 +23,10 @@ import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import columnGeneration.SubsetRowInequality;
 import columnGeneration.customCG;
-import ilog.concert.IloColumn;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
-import ilog.concert.IloObjective;
-import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
 
@@ -49,8 +44,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private long timeChargingBranching = 0;
 	private Map<Integer,Boolean> comesFromRollback = new HashMap<Integer,Boolean>();
 
-	private Map<Integer, List<Integer>> rootPaths = new HashMap<>();
-	private Map<Integer, List<BranchingDecision>> branchingDecisions = new HashMap<>();
+	private Map<Integer, ArrayList<Integer>> rootPaths = new HashMap<>();
+	private Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = new HashMap<>();
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
@@ -166,7 +161,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		for(Route route: cg.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
 		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts());
 
-		return new CGResult(cg.incumbentSolution, cg.incumbentSolutionObjective);
+		return new CGResult(cg.incumbentSolution, cg.incumbentSolutionObjective, cg.branchingFRC);
 	}
 
 	protected void processIntegerNode(BAPNode<EVRPTW, Route> bapNode){
@@ -178,24 +173,20 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.incumbentSolution = bapNode.getSolution();
 	}
 
-	protected void perform_fixing_by_reduced_cost(BAPNode bapNode, List<BranchingDecision> removals, long timeLimit){
-
-		//////////////////////// PERFORM FIXING BY REDUCED COSTS /////////////////////
-
-		//extendedNotifier.fireFixingByReducedCostEvent(bapNode, this.objectiveIncumbentSolution, bapNode.getBound());
-
-		Map<Integer, Double> arcsToRemove = new HashMap<>();
+	protected void update_node_rootPath_FRC(BAPNode<EVRPTW, Route> bapNode, List<BranchingDecision> removals){
 		
-		List<Integer> rootPath = List.of(0); List<Route> solution = new ArrayList<>(); 
-		for(Route route: (List<Route>) bapNode.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
+		List<Route> solution = new ArrayList<>();
+		for (Route col: bapNode.getSolution()){
+			Route newCol = col.clone(); newCol.value = col.value; newCol.BBnode = col.BBnode;
+			solution.add(newCol);
+		}
+
+		ArrayList<BranchingDecision> brDecisions = branchingDecisions.get(bapNode.nodeID);
+		brDecisions.addAll(removals);
 		
 		// Destroy and re-create the rootNode
-		bapNode = new BAPNode(0, rootPath, bapNode.getInitialColumns(), bapNode.getInequalities(), bapNode.getBound(), removals);
+		bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), bapNode.getInitialColumns(), bapNode.getInequalities(), bapNode.getBound(), brDecisions);
 		bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
-		
-		// Fire the fake branching events for the listeners to update
-		this.graphManipulator.next(bapNode);
-		//extendedNotifier.fireFinishFixingByReducedCostEvent(bapNode, arcsToRemove, pricingProblem.bestReducedCost);
 		
 		this.arcFlowNodes.add(0);
 		
@@ -348,15 +339,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
         return integer_solution;
     }
 
-
-	private List<BAPNode<EVRPTW, Route>> process_branching(BAPNode bapNode){
-		
-		List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList();
+	private void process_branching(BAPNode bapNode, List<BAPNode<EVRPTW, Route>> newBranches, long time){
 
 		// Initialize Branch Creator
 		BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
 		
-		double time;
 		if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
 		// Look for Number of Vehicles or Customers Arc Flow branching
 		boolean foundBranches = false;
@@ -419,14 +406,20 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		if (!foundBranches) {
 			throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
-		}
-		
-		if (!newBranches.isEmpty()){
-			this.queue.addAll(newBranches);
-			this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+		} else {
+
+			ArrayList<Integer> parentRootPath = rootPaths.get(bapNode.nodeID);
+			ArrayList<BranchingDecision> parentBranchingDecisions = branchingDecisions.get(bapNode.nodeID);
+
+			for (BAPNode n1: newBranches){
+				ArrayList<Integer> rp = new ArrayList<>(parentRootPath); rp.add(n1.nodeID);
+				ArrayList<BranchingDecision> bds = new ArrayList<>(parentBranchingDecisions); bds.add(n1.getBranchingDecision());
+				rootPaths.put(n1.nodeID, rp);
+				branchingDecisions.put(n1.nodeID, bds);
+			}
+
 		}
 
-		return newBranches;
 	}
 
 	/**
@@ -494,7 +487,16 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 						}
 
 						this.updateNodeGeneratedColumns(bapNode);
-						this.process_branching(bapNode);
+
+						if (!cgIncumbent.branchingFRC.isEmpty()) this.update_node_rootPath_FRC(bapNode, cgIncumbent.branchingFRC);;
+
+						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList<>();
+						this.process_branching(bapNode, newBranches, time);
+
+						if (!newBranches.isEmpty()){
+							this.queue.addAll(newBranches);
+							this.notifier.fireBranchEvent(bapNode, Collections.unmodifiableList(newBranches));
+						}
 						
 					}
 	
@@ -573,9 +575,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		public List<Route> cgIncumbentSolution;
 		public double cgIncumbentObjective;
 
-		public CGResult(List<Route> incumbentSolution, double primalBound){
+		public List<BranchingDecision> branchingFRC;
+
+		public CGResult(List<Route> incumbentSolution, double primalBound, List<BranchingDecision> branchingFRC){
 			this.cgIncumbentSolution = incumbentSolution;
 			this.cgIncumbentObjective = primalBound;
+			this.branchingFRC = branchingFRC;
 		}
 	}
 }
