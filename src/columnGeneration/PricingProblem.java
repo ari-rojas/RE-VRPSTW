@@ -425,4 +425,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return true;
 	}
 
+	public double getTimeInSeconds(double time) {
+		double realTime = time*0.001;
+		realTime = Math.floor(realTime*100)/100; //two decimals
+		return realTime;
+	}
+
 }
