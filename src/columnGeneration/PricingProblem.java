@@ -444,7 +444,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasiblePPArcs[infeasibleArc] ++;
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasiblePPArcs[removeArcDecision.arcID] ++;
+			this.infeasiblePPArcs[removeArcDecision.arcID] ++;
 		}
 	}
 
@@ -459,7 +459,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasiblePPArcs[infeasibleArc] --;
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasiblePPArcs[removeArcDecision.arcID] --;
+			this.infeasiblePPArcs[removeArcDecision.arcID] --;
 		}
 	}
 
