@@ -35,8 +35,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<ArrayList<Label>> bwLabels = new ArrayList<>();
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasiblePPArcs;
-	public PPVertex[] PPvertices;
-	public Vertex[] vertices;
+	public PPVertex[] PPvertices = dataModel.PPvertices;
+	public Vertex[] vertices = dataModel.vertices;
 
 	// General information
 	private int Gamma = dataModel.gamma;
@@ -101,8 +101,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit, double UB, double LB){
 		
 		double FRC_gap = UB - LB;
-		this.PPvertices = dataModel.PPvertices;
-		this.vertices = dataModel.vertices;
 
 		cleanBackwardLabels();
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
