@@ -386,9 +386,9 @@ public final class EVRPTWSolver {
 			if (dataModel.print_log) {
 				logger.debug("Removing {} arcs.",frcEvent.arcs.size());
 				for(Map.Entry<Integer, Double> entry: frcEvent.arcs.entrySet()){
-					int arcID = entry.getKey(); Arc arc = dataModel.arcs[arcID];
+					int arcID = entry.getKey(); PPArc arc = dataModel.PParcs[arcID];
 					double rc = entry.getValue();
-					logger.debug("Arc {} ({},{}): RC - RC* = {} - {} = {}",new Object[]{arcID, arc.tail, arc.head, Math.round(rc*1e4)/1e4, Math.round(frcEvent.best_rc*1e4)/1e4, Math.round((rc-frcEvent.best_rc)*1e4)/1e4});
+					logger.debug("{}: RC - RC* = {} - {} = {}",new Object[]{arc.toString(), Math.round(rc*1e4)/1e4, Math.round(frcEvent.best_rc*1e4)/1e4, Math.round((rc-frcEvent.best_rc)*1e4)/1e4});
 				}
 			}
 		}
