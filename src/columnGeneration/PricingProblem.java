@@ -8,7 +8,11 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
+
+import branchAndPrice.FixArc;
+import branchAndPrice.RemoveArc;
 import model.EVRPTW;
 import model.EVRPTW.Arc;
 import model.EVRPTW.PPArc;
@@ -45,6 +49,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
+		this.infeasiblePPArcs = new int[dataModel.numArcs];
 	}
 
 	public void compute_charging_bounds(){
@@ -428,6 +433,36 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		double realTime = time*0.001;
 		realTime = Math.floor(realTime*100)/100; //two decimals
 		return realTime;
+	}
+
+	/**
+	 * Listen to branching decisions. The pricing problem is changed by the branching decisions.
+	 * @param bd BranchingDecision
+	 */
+	@Override
+	public void branchingDecisionPerformed(BranchingDecision bd) {
+		if(bd instanceof FixArc) { 			//Fixing one arc
+			FixArc fixArcDecision = (FixArc) bd;
+			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasiblePPArcs[infeasibleArc] ++;
+		}else if(bd instanceof RemoveArc) {//Removing one arc
+			RemoveArc removeArcDecision= (RemoveArc) bd;
+			infeasiblePPArcs[removeArcDecision.arcID] ++;
+		}
+	}
+
+	/**
+	 * When the Branch-and-Price algorithm backtracks, branching decisions are reversed.
+	 * @param bd BranchingDecision
+	 */
+	@Override
+	public void branchingDecisionReversed(BranchingDecision bd) {
+		if(bd instanceof FixArc) { 			//Fixing one arc
+			FixArc fixArcDecision = (FixArc) bd;
+			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasiblePPArcs[infeasibleArc] --;
+		}else if(bd instanceof RemoveArc) {//Removing one arc
+			RemoveArc removeArcDecision= (RemoveArc) bd;
+			infeasiblePPArcs[removeArcDecision.arcID] --;
+		}
 	}
 
 }
