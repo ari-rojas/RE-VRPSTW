@@ -209,7 +209,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			// ---------- Compute reduced-cost proxy ----------
 			
-			double newReducedCost = currentLabel.reducedCost;
+			double newReducedCost = extendedLabel.reducedCost;
 			
 			boolean foundDominatingSet = false;
 			for (int q = 0; q < max_q; q++) {
