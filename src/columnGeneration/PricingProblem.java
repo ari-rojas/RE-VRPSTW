@@ -36,7 +36,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	// General information
 	private int Gamma = dataModel.gamma;
-	private int depotID = dataModel.T_startID;
 
 	// Identifiers for the differnt types of vertices and arcs in the Pricing Problem Routing SubGraph
 	public static final byte C0 = EVRPTW.C0; 	 	// Customer depot nodes
