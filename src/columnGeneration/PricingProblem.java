@@ -26,7 +26,7 @@ import model.EVRPTW.PPVertex;
 public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public ArrayList<SubsetRowInequality> subsetRowCuts; 				//subset row cuts considered
-	public double bestReducedCost = -Double.MAX_VALUE; 					//best reduced cost found by the exact labeling
+	public double bestReducedCost; 										//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
 
 	public Map<Integer, Map<Integer,Double>> charging_bounds;
@@ -125,7 +125,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				}
 
 				if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > FRC_gap + dataModel.precision) {
-					arcsToRemove.put(arc.id, min_rc); this.infeasiblePPArcs[arc.id] ++; }
+					arcsToRemove.put(arc.id, min_rc);
+				}
 
 			}
 		}
@@ -159,7 +160,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			// ---------- Compute reduced-cost proxy ----------
 			
-			double newReducedCost = currentLabel.reducedCost;
+			double newReducedCost = extendedLabel.reducedCost;
 			BitSet ng_reachable = new BitSet();
 			for (int i = 0; i < dataModel.C; i++) if (!extendedLabel.ng_path[i]) ng_reachable.set(i);
 			

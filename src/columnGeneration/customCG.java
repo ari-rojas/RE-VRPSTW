@@ -358,7 +358,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		// Deleting columns containing the eliminated arcs
 		Master mMaster = (Master) master;
 		Set<Route> columns = mMaster.getColumns(pricingProblem); List<Route> filtered_columns = new ArrayList<>();
-		for (Route col: columns) if (!col.PParcs.stream().anyMatch(arcsToRemove.keySet()::contains)) filtered_columns.add(col);
+		for (Route col: columns) if (!col.PParcs.stream().anyMatch(arcsToRemove.keySet()::contains)) { filtered_columns.add(col);}
 		
 		// Creating fake branching decisions
 		List<BranchingDecision> removals = new ArrayList<BranchingDecision>();
@@ -367,14 +367,16 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		this.branchingFRC.addAll(removals);
 
 		// Updating the Master and Pricing Problem using the fake branches
-		for (BranchingDecision bd: removals) { master.branchingDecisionPerformed(bd); pricingProblem.branchingDecisionPerformed(bd); }
-		master.addColumns(filtered_columns);
+		if (!removals.isEmpty()){
+			for (BranchingDecision bd: removals) { master.branchingDecisionPerformed(bd); pricingProblem.branchingDecisionPerformed(bd); }
+			master.addColumns(filtered_columns);
 
-		// Updating the Pricing Problem Solvers using the fake branches
-		for (Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver: solvers){
-			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle =  this.pricingProblemBundles.get(solver);
-			AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> solverInstance = bundle.solverInstances.get(0);
-			for (BranchingDecision bd: removals) solverInstance.branchingDecisionPerformed(bd);
+			// Updating the Pricing Problem Solvers using the fake branches
+			for (Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver: solvers){
+				PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle =  this.pricingProblemBundles.get(solver);
+				AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> solverInstance = bundle.solverInstances.get(0);
+				for (BranchingDecision bd: removals) solverInstance.branchingDecisionPerformed(bd);
+			}
 		}
 
 		extendedNotifier.fireFinishFixingByReducedCostEvent(arcsToRemove, pricingProblem.bestReducedCost);
