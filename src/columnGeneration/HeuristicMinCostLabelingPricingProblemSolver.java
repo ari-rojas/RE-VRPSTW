@@ -329,7 +329,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
 		}
 		pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
-		pricingProblem.infeasibleArcs = infeasibleArcs.clone();
+		pricingProblem.infeasiblePPArcs = infeasibleArcs.clone();
 		
 		// Clean the labeling information
 		for (int i = 0; i < PPvertices.length; i++) {
