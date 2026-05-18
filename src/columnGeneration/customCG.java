@@ -285,6 +285,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				
 				}
 
+				if (!masterSolutionIsInteger &&  (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+
+					
+				}
+
 				// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
 				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
 				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
