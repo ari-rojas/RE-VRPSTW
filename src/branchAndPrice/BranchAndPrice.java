@@ -13,8 +13,10 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreat
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecisionListener;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
+import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.DefaultPricingProblemSolverFactory;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
@@ -47,11 +49,12 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	private long timeChargingBranching = 0;
 	private Map<Integer,Boolean> comesFromRollback = new HashMap<Integer,Boolean>();
 
-	private Map<Integer, ArrayList<Integer>> rootPaths = new HashMap<>();
-	private Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = new HashMap<>();
+	public final Map<Integer, ArrayList<Integer>> rootPaths = new HashMap<>();
+	public final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = new HashMap<>();
 
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
 	private final customPricingProblemManager cPricingProblemManager;
+	private final customGraphManipulator cGraphManipulator;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
@@ -61,12 +64,17 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		
 		super(modelData, master, pricingProblem, solvers, branchCreators, 0, objectiveInitialSolution);
 		this.warmStart(objectiveInitialSolution, initialSolution);
+		this.pricingProblemManager.close();
+		
 		this.pricingProblem = pricingProblem;
-
 		this.extendedNotifier = new ExtendBAPNotifier(this);
-
+		
+		ArrayList<Integer> rootP = new ArrayList<>(); rootP.add(0);
+		this.rootPaths.put(0, rootP);
+		this.branchingDecisions.put(0, new ArrayList<BranchingDecision>());
+		
+		this.cGraphManipulator = new customGraphManipulator(rootNode, rootPaths, branchingDecisions);
 		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
-
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
 			DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem> factory = new DefaultPricingProblemSolverFactory<EVRPTW, Route, PricingProblem>(solverClass, dataModel);
 			PricingProblemBundle<EVRPTW, Route, PricingProblem> bundle = new PricingProblemBundle<EVRPTW, Route, PricingProblem>(solverClass, pricingProblems, factory);
@@ -74,12 +82,15 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		}
 
 		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
-		this.pricingProblemManager.close();
-
-		ArrayList<Integer> rootP = new ArrayList<>(); rootP.add(0);
-		this.rootPaths.put(0, rootP);
-		this.branchingDecisions.put(0, new ArrayList<BranchingDecision>());
-
+		
+		// ADD THE BRANCHING DECISION LISTENERS
+		
+		this.addCBranchingDecisionListener(master);
+		for(PricingProblem pProblem : pricingProblems) this.addCBranchingDecisionListener(pProblem);
+		for(PricingProblemBundle<EVRPTW, Route, PricingProblem> bunddle : pricingProblemBundles.values()) {
+			for(AbstractPricingProblemSolver solverInstance : bunddle.solverInstances)  this.addCBranchingDecisionListener(solverInstance); }
+		
+		// NODE PRIORITY RULE
 		this.setNodeOrdering(new Comparator<BAPNode>() {
 
 			@Override
@@ -88,9 +99,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				else return 1;
 			}
 			
-		}); //Best Node First (BNF)
-		//		this.setNodeOrdering(new BFSbapNodeComparator()); //Breadth-First Search (BFS)
-		//		this.setNodeOrdering(new DFSbapNodeComparator()); //Depth-First Search (DFS)
+		});
 	}
 
 	/**
@@ -141,25 +150,26 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			columnsToAdd.add(column);
 		}
 
-		// Updating the 
-		if (removals.isEmpty()) bapNode.addInitialColumns(columnsToAdd);
-		else {
-
-			List<Route> solution = new ArrayList<>();
-			for (Route col: bapNode.getSolution()){
-				Route newCol = col.clone(); newCol.value = col.value; newCol.BBnode = col.BBnode;
-				solution.add(newCol);
-			}
-
-			ArrayList<BranchingDecision> brDecisions = branchingDecisions.get(bapNode.nodeID);
-			brDecisions.addAll(removals);
-			
-			// Destroy and re-create the rootNode
-			bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), columnsToAdd, bapNode.getInequalities(), bapNode.getBound(), brDecisions);
-			bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
-			
-			if (!this.arcFlowNodes.contains(bapNode.nodeID)) this.arcFlowNodes.add(bapNode.nodeID);
+		List<Route> solution = new ArrayList<>();
+		for (Route col: bapNode.getSolution()){
+			Route newCol = col.clone(); newCol.value = col.value; newCol.BBnode = col.BBnode;
+			solution.add(newCol);
 		}
+
+		List<AbstractInequality> inequalities = new ArrayList<>(bapNode.getInequalities());
+
+		ArrayList<BranchingDecision> brDecisions = branchingDecisions.get(bapNode.nodeID);
+		brDecisions.addAll(removals);
+
+		double bound = bapNode.getBound();
+		
+		// Destroy and re-create the rootNode
+		bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), columnsToAdd, bapNode.getInitialInequalities(), bound, brDecisions);
+		bapNode.storeSolution(bound, bound, solution, inequalities);
+
+		if (!this.arcFlowNodes.contains(bapNode.nodeID) && !removals.isEmpty()) this.arcFlowNodes.add(bapNode.nodeID);
+
+		//this.graphManipulator.next(bapNode);
 
 		return bapNode;
 
@@ -428,18 +438,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		if (!foundBranches) {
 			throw new RuntimeException("BAP encountered fractional solution, but none of the BranchCreators produced any new branches?");
-		} else {
-
-			ArrayList<Integer> parentRootPath = rootPaths.get(bapNode.nodeID);
-			ArrayList<BranchingDecision> parentBranchingDecisions = branchingDecisions.get(bapNode.nodeID);
-
-			for (BAPNode n1: newBranches){
-				ArrayList<Integer> rp = new ArrayList<>(parentRootPath); rp.add(n1.nodeID);
-				ArrayList<BranchingDecision> bds = new ArrayList<>(parentBranchingDecisions); bds.add(n1.getBranchingDecision());
-				rootPaths.put(n1.nodeID, rp);
-				branchingDecisions.put(n1.nodeID, bds);
-			}
-
 		}
 
 	}
@@ -577,12 +575,24 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.cPricingProblemManager.close();
    	}
 
+	public void addCBranchingDecisionListener(BranchingDecisionListener listener) {
+		this.cGraphManipulator.addBranchingDecisionListener(listener);
+	}
+
+	public void removeCBranchingDecisionListener(BranchingDecisionListener listener) {
+		this.cGraphManipulator.removeBranchingDecisionListener(listener);
+	}
+
 	public void addExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.addExtendBAPListener(listener);
 	}
 
 	public void removeExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.removeExtendBAPListener(listener);
+	}
+
+	public Integer getNewChildNodeID() {
+		return this.nodeCounter++;
 	}
 
 	/**

@@ -6,8 +6,13 @@ import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
+import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
+
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import model.EVRPTW;
@@ -35,6 +40,9 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 
 	private double PRECISION = 0.001;
 	private final int depotID;
+
+	private final Map<Integer, ArrayList<Integer>> rootPaths = ((BranchAndPrice)bap).rootPaths;
+	private final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = ((BranchAndPrice)bap).branchingDecisions;
 
 	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
 		super(dataModel, pricingProblem);
@@ -154,17 +162,17 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		if(branchingOnVehicles) {
 			//Branch 1: number of vehicles down
 			BranchVehiclesDown branchingDecision1 = new BranchVehiclesDown(this.pricingProblems.get(0), (int) Math.floor(vehiclesForBranching), parentNode.getInequalities());
-			node1=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node1 = this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: number of vehicles up
 			BranchVehiclesUp branchingDecision2 = new BranchVehiclesUp(this.pricingProblems.get(0), (int) Math.ceil(vehiclesForBranching), parentNode.getInequalities());
-			node2=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node2 = this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		} else {
 			//Branch 1: remove the edge:
 			RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
-			node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node2 = this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 			//Branch 2: fix the edge:
 			FixArc branchingDecision2 = new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
-			node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+			node1 = this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		}
 		
 		return Arrays.asList(node1,node2);
@@ -185,13 +193,35 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		
 		//Branch 1: remove the edge:
 		RemoveArc branchingDecision1 = new RemoveArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
-		node2=this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
+		node2 = this.createBranch(parentNode, branchingDecision1, parentNode.getInitialColumns(), parentNode.getInequalities());
 		//Branch 2: fix the edge:
 		FixArc branchingDecision2 = new FixArc(this.pricingProblems.get(0), arcForBranching, arcType, dataModel, parentNode.getInequalities(), bestArcValue);
-		node1=this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
+		node1 = this.createBranch(parentNode, branchingDecision2, parentNode.getInitialColumns(), parentNode.getInequalities());
 		
 		return Arrays.asList(node1,node2);
 	}
+
+	@Override
+	protected <B extends BranchingDecision<EVRPTW, Route>> BAPNode<EVRPTW, Route> createBranch(BAPNode<EVRPTW, Route> parentNode, B branchingDecision, List<Route> solution, List<AbstractInequality> inequalities) {
+		
+		Integer childNodeID = ((BranchAndPrice)this.bap).getNewChildNodeID();
+		
+		ArrayList<Integer> rootPath1 = new ArrayList<Integer>(rootPaths.get(parentNode.nodeID));
+		rootPath1.add(childNodeID);
+		
+		List<Route> initSolution = (List<Route>)solution.stream().filter((column) -> !column.isArtificialColumn && branchingDecision.columnIsCompatibleWithBranchingDecision(column)).collect(Collectors.toList());
+		
+		List<AbstractInequality> initCuts = (List<AbstractInequality>)inequalities.stream().filter((inequality) -> branchingDecision.inEqualityIsCompatibleWithBranchingDecision(inequality)).collect(Collectors.toList());
+
+		ArrayList<BranchingDecision> brDecisions = new ArrayList<BranchingDecision>(); brDecisions.add(branchingDecision);
+
+		rootPaths.put(childNodeID, rootPath1);
+		branchingDecisions.put(childNodeID, brDecisions);
+		
+		return new BAPNode<EVRPTW, Route>(childNodeID, rootPath1, initSolution, initCuts, parentNode.getBound(), brDecisions);
+	}
+
+
 
 	private boolean isFractional(double value) {
 		return Math.abs(value - (double)Math.round(value)) > this.PRECISION;
