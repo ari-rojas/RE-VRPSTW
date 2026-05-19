@@ -37,8 +37,8 @@ public class customGraphManipulator{
         ArrayList<Integer> previous_rootPath = rootPaths.get(previous_node.nodeID);
         ArrayList<Integer> next_rootPath = rootPaths.get(next_node.nodeID);
 
-        for(int i = 0; i < Math.min(previous_rootPath.size(), next_rootPath.size()) && previous_rootPath.get(i) == next_rootPath.get(i); ++i) {
-            ++mutualNodesOnPath;
+        for(int i = 0; i < Math.min(previous_rootPath.size(), next_rootPath.size()) && previous_rootPath.get(i) == next_rootPath.get(i); i++) {
+            mutualNodesOnPath++;
         }
 
         // Removing the branching decisions of the non-mutual nodes
