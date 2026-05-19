@@ -169,8 +169,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		if (!this.arcFlowNodes.contains(bapNode.nodeID) && !removals.isEmpty()) this.arcFlowNodes.add(bapNode.nodeID);
 
-		//this.graphManipulator.next(bapNode);
-
 		return bapNode;
 
 	}
@@ -464,7 +462,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				this.notifier.firePruneNodeEvent(bapNode, bapNode.getBound());
 				++this.nodesProcessed;
 			} else {
-				this.graphManipulator.next(bapNode);
+				this.cGraphManipulator.next(bapNode);
 				if (bapNode.nodeID != 0) { bapNode.addInitialColumns(this.generateInitialFeasibleSolution(bapNode)); }
 				
 				long time = 0;

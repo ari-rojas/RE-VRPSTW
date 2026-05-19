@@ -31,7 +31,7 @@ public class customGraphManipulator{
         this.branchingDecisions = branchingDecisions;
     }
 
-    public void next_node(BAPNode<EVRPTW, Route> next_node){
+    public void next(BAPNode<EVRPTW, Route> next_node){
         
         int mutualNodesOnPath = 0;
         ArrayList<Integer> previous_rootPath = rootPaths.get(previous_node.nodeID);
