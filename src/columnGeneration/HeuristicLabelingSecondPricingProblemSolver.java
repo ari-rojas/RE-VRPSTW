@@ -71,9 +71,13 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	 */
 	public void runLabeling() {
 
-		int cont = 0;
-		for (int ix = 0; ix < infeasibleArcs.length; ix++) if (infeasibleArcs[ix] > 0) cont ++;
+		/* int cont = 0; int cont1 = 0;
+		for (int ix = 0; ix < infeasibleArcs.length; ix++) {
+			if (infeasibleArcs[ix] > 0) cont ++;
+			if (infeasibleArcs[ix] > 1) cont1++;
+		}
 		logger.debug("Number of infeasible arcs: "+cont);
+		logger.debug("Number of infeasible arcs wiht >1: "+cont1); */
 
 		dataModel.rollbackTrigger = false;
 
