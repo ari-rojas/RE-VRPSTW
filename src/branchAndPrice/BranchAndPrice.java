@@ -132,17 +132,36 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		return true;
 	}
 
-	protected void updateNodeGeneratedColumns(BAPNode<EVRPTW, Route> bapNode){
+	protected BAPNode<EVRPTW, Route> updateNodeGeneratedColumns(BAPNode<EVRPTW, Route> bapNode, List<BranchingDecision> removals){
 
 		// Inherit the routes generated
-		List<Route> routesToAdd = new ArrayList<Route>();
+		List<Route> columnsToAdd = new ArrayList<Route>();
 		for(Route column: master.getColumns(this.pricingProblem)) {
-			if(column.BBnode==-1) {
-				column.BBnode=bapNode.nodeID;
-				routesToAdd.add(column);
-			}
+			if(column.BBnode==-1)  column.BBnode=bapNode.nodeID;
+			columnsToAdd.add(column);
 		}
-		bapNode.addInitialColumns(routesToAdd);
+
+		// Updating the 
+		if (removals.isEmpty()) bapNode.addInitialColumns(columnsToAdd);
+		else {
+
+			List<Route> solution = new ArrayList<>();
+			for (Route col: bapNode.getSolution()){
+				Route newCol = col.clone(); newCol.value = col.value; newCol.BBnode = col.BBnode;
+				solution.add(newCol);
+			}
+
+			ArrayList<BranchingDecision> brDecisions = branchingDecisions.get(bapNode.nodeID);
+			brDecisions.addAll(removals);
+			
+			// Destroy and re-create the rootNode
+			bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), columnsToAdd, bapNode.getInequalities(), bapNode.getBound(), brDecisions);
+			bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
+			
+			if (!this.arcFlowNodes.contains(bapNode.nodeID)) this.arcFlowNodes.add(bapNode.nodeID);
+		}
+
+		return bapNode;
 
 	}
 
@@ -193,25 +212,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		this.objectiveIncumbentSolution = integerObjective;
 		this.upperBoundOnObjective = (double)integerObjective;
 		this.incumbentSolution = bapNode.getSolution();
-	}
-
-	protected void update_node_rootPath_FRC(BAPNode<EVRPTW, Route> bapNode, List<BranchingDecision> removals){
-		
-		List<Route> solution = new ArrayList<>();
-		for (Route col: bapNode.getSolution()){
-			Route newCol = col.clone(); newCol.value = col.value; newCol.BBnode = col.BBnode;
-			solution.add(newCol);
-		}
-
-		ArrayList<BranchingDecision> brDecisions = branchingDecisions.get(bapNode.nodeID);
-		brDecisions.addAll(removals);
-		
-		// Destroy and re-create the rootNode
-		bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), bapNode.getInitialColumns(), bapNode.getInequalities(), bapNode.getBound(), brDecisions);
-		bapNode.storeSolution(bapNode.getBound(), bapNode.getBound(), solution, bapNode.getInequalities());
-		
-		this.arcFlowNodes.add(0);
-		
 	}
 
 	protected boolean findIntegerSolution(BAPNode<EVRPTW, Route> bapNode){
@@ -508,9 +508,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							this.incumbentSolution = cgIncumbent.cgIncumbentSolution;
 						}
 
-						this.updateNodeGeneratedColumns(bapNode);
-
-						if (!cgIncumbent.branchingFRC.isEmpty()) this.update_node_rootPath_FRC(bapNode, cgIncumbent.branchingFRC);;
+						bapNode = this.updateNodeGeneratedColumns(bapNode, cgIncumbent.branchingFRC);
 
 						List<BAPNode<EVRPTW, Route>> newBranches = new ArrayList<>();
 						this.process_branching(bapNode, newBranches, time);

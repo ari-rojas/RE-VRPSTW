@@ -130,6 +130,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 						logger.debug(subsetRowInequality.toString() + ": " + dual);
 					}
 					} */
+
+					/* logger.debug("---------------- PRINTING COLUMNS ----------------");
+					for (Route col: this.getColumns(pricingProblems.get(0))){
+						logger.debug(col.toString()+" BBNode: "+col.BBnode);
+					} */
 					
 				}
 			}
