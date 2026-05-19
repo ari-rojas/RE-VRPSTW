@@ -314,8 +314,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
 				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 				
-				if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
-					perform_fixing_by_reduced_cost(timeLimit);}
+				//if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+				//	perform_fixing_by_reduced_cost(timeLimit);}
 			}
 			
 
