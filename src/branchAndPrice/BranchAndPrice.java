@@ -90,6 +90,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		for(PricingProblemBundle<EVRPTW, Route, PricingProblem> bunddle : pricingProblemBundles.values()) {
 			for(AbstractPricingProblemSolver solverInstance : bunddle.solverInstances)  this.addCBranchingDecisionListener(solverInstance); }
 		
+		((BranchingRules)this.branchCreators.get(0)).register_rootPaths_branchingDs();
+
 		// NODE PRIORITY RULE
 		this.setNodeOrdering(new Comparator<BAPNode>() {
 

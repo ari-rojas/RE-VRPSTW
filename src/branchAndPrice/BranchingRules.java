@@ -41,13 +41,18 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private double PRECISION = 0.001;
 	private final int depotID;
 
-	private final Map<Integer, ArrayList<Integer>> rootPaths = ((BranchAndPrice)bap).rootPaths;
-	private final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = ((BranchAndPrice)bap).branchingDecisions;
+	private Map<Integer, ArrayList<Integer>> rootPaths;
+	private Map<Integer, ArrayList<BranchingDecision>> branchingDecisions;
 
 	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
 		super(dataModel, pricingProblem);
 		this.dataModel = dataModel;
 		this.depotID = dataModel.T_startID;
+	}
+
+	public void register_rootPaths_branchingDs(){
+		this.rootPaths = ((BranchAndPrice)this.bap).rootPaths;
+		this.branchingDecisions = ((BranchAndPrice)this.bap).branchingDecisions;
 	}
 
 	/**
