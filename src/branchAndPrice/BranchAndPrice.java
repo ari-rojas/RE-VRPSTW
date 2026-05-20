@@ -40,20 +40,22 @@ import model.EVRPTW;
  */
 public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,PricingProblem> {
 
-	PricingProblem pricingProblem; 					//pricing problem
-	public static final double PRECISION=0.001; 	//precision considered for the fractional solutions (nodes)
+	PricingProblem pricingProblem; 										//pricing problem
+	public static final double PRECISION=0.001; 						//precision considered for the fractional solutions (nodes)
 	private final ExtendBAPNotifier extendedNotifier;
 
+	// Tracking of different features of the BPC tree nodes
 	private List<Integer> chargingNodes = new ArrayList<Integer>();
 	private List<Integer> arcFlowNodes = new ArrayList<Integer>();
 	private long timeChargingBranching = 0;
 	private Map<Integer,Boolean> comesFromRollback = new HashMap<Integer,Boolean>();
 
+	// Tracking of the BPC tree nodes Root Path and Branching Decisions
 	public final Map<Integer, ArrayList<Integer>> rootPaths = new HashMap<>();
 	public final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = new HashMap<>();
 
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
-	private final customPricingProblemManager cPricingProblemManager;
+	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 	private final customGraphManipulator cGraphManipulator;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
