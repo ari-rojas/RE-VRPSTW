@@ -379,7 +379,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				this.close();
 				return new ArrayList<Route>(); }
 			if(PPvertices[0].unprocessedLabels.isEmpty()) {
-				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
+				existsElementaryRoute = true; pricingProblemInfeasible=false; this.objective=this.bestReducedCost;
 			} else {
 				this.pricingProblemInfeasible=false;
 				for (Label label: PPvertices[0].unprocessedLabels) {

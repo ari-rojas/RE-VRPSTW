@@ -52,7 +52,9 @@ import branchAndPrice.FinishRollbackEvent;
 import branchAndPrice.IPSolutionEvent;
 import branchAndPrice.FinishIPSolutionEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
+import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
+import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.CBHeuristicSecondPricingProblemSolver;
 import columnGeneration.CBHeuristicMinCostPricingProblemSolver;
 import columnGeneration.Master;
@@ -95,6 +97,8 @@ public final class EVRPTWSolver {
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
 	
+		//solvers.add(HeuristicLabelingThirdPricingProblemSolver.class);
+		//solvers.add(HeuristicLabelingPricingProblemSolver.class);
 		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 
