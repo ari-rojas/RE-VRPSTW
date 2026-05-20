@@ -35,6 +35,8 @@ public final class EVRPTW implements ModelInterface {
 	public PrintStream fileOut;
 	public final String en_dev;
 
+	public Configuration config;
+
 	//Basic information
 	public int C; 											//number of customers
 	public int Q; 											//load capacity
@@ -118,6 +120,7 @@ public final class EVRPTW implements ModelInterface {
 		Properties properties = new Properties();
 		properties.setProperty("MAXTHREADS", "1"); //only one thread
 		Configuration.readFromFile(properties);
+		this.config = Configuration.getConfiguration();
 
 		this.en_dev = en_dev;
 		

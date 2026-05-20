@@ -10,21 +10,19 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.jorlib.frameworks.columnGeneration.colgenMain.AbstractColumn;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
-import org.jorlib.frameworks.columnGeneration.util.Configuration;
 
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
 
 public class customPricingProblemManager<T, U extends AbstractColumn<T,V>, V extends AbstractPricingProblem<T>> {
-    private static final Configuration config = Configuration.getConfiguration();
     private final Map<Class<? extends AbstractPricingProblemSolver<T, U, V>>, PricingProblemBundle<T, U, V>> pricingProblemBundles;
     private final ExecutorService executor;
     private final List<Future<Void>> futures;
 
     public customPricingProblemManager(List<V> pricingProblems, Map<Class<? extends AbstractPricingProblemSolver<T, U, V>>, PricingProblemBundle<T, U, V>> pricingProblemBundles) {
         this.pricingProblemBundles = pricingProblemBundles;
-        this.executor = Executors.newFixedThreadPool(config.MAXTHREADS);
+        this.executor = Executors.newFixedThreadPool(1);
         this.futures = new ArrayList<Future<Void>>(pricingProblems.size());
     }
 
