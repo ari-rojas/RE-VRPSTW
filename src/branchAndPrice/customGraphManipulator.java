@@ -22,7 +22,7 @@ public class customGraphManipulator{
     private final Set<BranchingDecisionListener> listeners;
 
     public final Map<Integer, ArrayList<Integer>> rootPaths;
-	public final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions;
+	public final Map<Integer, ArrayList<BranchingDecision<EVRPTW, Route>>> branchingDecisions;
 
     public customGraphManipulator(BAPNode<EVRPTW, Route> rootNode, Map<Integer, ArrayList<Integer>> rootPaths, Map<Integer, ArrayList<BranchingDecision<EVRPTW,Route>>> branchingDecisions){
         this.previous_node = rootNode;
@@ -44,13 +44,13 @@ public class customGraphManipulator{
         // Removing the branching decisions of the non-mutual nodes
         for (int n = mutualNodesOnPath; n < previous_rootPath.size(); n++){
             int nodeID = previous_rootPath.get(n);
-            for (BranchingDecision bd: branchingDecisions.get(nodeID)) this.rewindBranchingDecision(bd);
+            for (BranchingDecision<EVRPTW, Route> bd: branchingDecisions.get(nodeID)) this.rewindBranchingDecision(bd);
         }
 
         // Adding the remaining branching decisions following the new root path
         for (int n = mutualNodesOnPath; n < next_rootPath.size(); n++){
             int nodeID = next_rootPath.get(n);
-            for (BranchingDecision bd: branchingDecisions.get(nodeID)) this.performBranchingDecision(bd);
+            for (BranchingDecision<EVRPTW, Route> bd: branchingDecisions.get(nodeID)) this.performBranchingDecision(bd);
         }
 
         this.previous_node = next_node;
@@ -59,7 +59,7 @@ public class customGraphManipulator{
     public void restore() {
 
         for (int nodeID: rootPaths.get(previous_node.nodeID)){
-            for (BranchingDecision bd: branchingDecisions.get(nodeID)) this.rewindBranchingDecision(bd);
+            for (BranchingDecision<EVRPTW, Route> bd: branchingDecisions.get(nodeID)) this.rewindBranchingDecision(bd);
         }
     }
 
@@ -71,14 +71,14 @@ public class customGraphManipulator{
         this.listeners.remove(listener);
     }
 
-    private void performBranchingDecision(BranchingDecision bd) {
+    private void performBranchingDecision(BranchingDecision<EVRPTW, Route> bd) {
         for(BranchingDecisionListener listener : this.listeners) {
             listener.branchingDecisionPerformed(bd);
         }
 
     }
 
-    private void rewindBranchingDecision(BranchingDecision bd) {
+    private void rewindBranchingDecision(BranchingDecision<EVRPTW, Route> bd) {
         for(BranchingDecisionListener listener : this.listeners) {
             listener.branchingDecisionReversed(bd);
         }

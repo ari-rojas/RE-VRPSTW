@@ -20,6 +20,7 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.GraphManipulator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BranchEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishProcessingNodeEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsFractionalEvent;
@@ -74,7 +75,6 @@ public final class BranchAndPrice {
 	protected final Configuration config;
 	protected final EVRPTW dataModel;
 	protected Master master;
-	protected final List<BranchingRules> branchCreators;
 	protected List<PricingProblem> pricingProblems;
 	protected List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers;
 	protected final OptimizationSense optimizationSenseMaster;
@@ -97,7 +97,7 @@ public final class BranchAndPrice {
 	/// CUSTOM FIELDS
 	///////////////////////////////////////////
 
-	PricingProblem pricingProblem; 										//pricing problem
+	private PricingProblem pricingProblem; 										//pricing problem
 	public static final double PRECISION=0.001; 						//precision considered for the fractional solutions (nodes)
 	private final ExtendBAPNotifier extendedNotifier;
 
@@ -114,10 +114,11 @@ public final class BranchAndPrice {
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
 	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 	private final customGraphManipulator cGraphManipulator;
+	protected final BranchingRules branchCreator;
 
 	public BranchAndPrice(EVRPTW modelData, Master master, List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
-			List<BranchingRules> branchCreators, int objectiveInitialSolution, List<Route> initialSolution){
+			BranchingRules branchCreator, int objectiveInitialSolution, List<Route> initialSolution){
 		
 		this.logger = LoggerFactory.getLogger(AbstractBranchAndPrice.class);
 		this.config = Configuration.getConfiguration();
@@ -135,12 +136,12 @@ public final class BranchAndPrice {
 		this.dataModel = modelData;
 		this.master = master;
 		this.optimizationSenseMaster = master.getOptimizationSense();
-		this.branchCreators = branchCreators;
+		this.branchCreator = branchCreator;
 		this.pricingProblems = pricingProblems;
 		this.solvers = solvers;
 		this.queue = new PriorityQueue<BAPNode<EVRPTW, Route>>(new DFSbapNodeComparator());
 		this.objectiveIncumbentSolution = this.optimizationSenseMaster == OptimizationSense.MINIMIZE ? Integer.MAX_VALUE : -2147483647;
-		this.lowerBoundOnObjective = objectiveInitialSolution;
+		this.lowerBoundOnObjective = 0;
 		this.upperBoundOnObjective = objectiveInitialSolution;
 		List<Integer> rootPath = new ArrayList<Integer>();
 		int nodeID = this.nodeCounter++;
@@ -155,15 +156,19 @@ public final class BranchAndPrice {
 
 		this.warmStart(objectiveInitialSolution, initialSolution);
 		
-		this.pricingProblem = pricingProblem;
+		this.pricingProblem = pricingProblems.get(0);
 		this.notifier = new BAPNotifier();
-      	this.columnGenerationEventListeners = new LinkedHashSet();
 		this.extendedNotifier = new ExtendBAPNotifier(this);
+      	this.columnGenerationEventListeners = new LinkedHashSet<CGListener>();
 		
+		// INITIALIZE TRACKERS WITH THE ROOT NODE INFORMATION
+
 		ArrayList<Integer> rootP = new ArrayList<>(); rootP.add(0);
 		this.rootPaths.put(0, rootP);
 		this.branchingDecisions.put(0, new ArrayList<BranchingDecision<EVRPTW, Route>>());
 		
+		// CREATE CUSTOM GRAPH MANIPULATOR AND PRICING PROBLEM MANAGER
+
 		this.cGraphManipulator = new customGraphManipulator(rootNode, rootPaths, branchingDecisions);
 		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solverClass : solvers) {
@@ -181,11 +186,11 @@ public final class BranchAndPrice {
 		for(PricingProblemBundle<EVRPTW, Route, PricingProblem> bunddle : pricingProblemBundles.values()) {
 			for(AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> solverInstance : bunddle.solverInstances)  this.addCBranchingDecisionListener(solverInstance); }
 		
-		this.branchCreators.get(0).registerBAP(this);
-		this.branchCreators.get(0).register_rootPaths_branchingDs();
+		this.branchCreator.registerBAP(this);
+		this.branchCreator.register_rootPaths_branchingDs();
 
 		// NODE PRIORITY RULE
-		this.setNodeOrdering(new Comparator<BAPNode>() {
+		this.setNodeOrdering(new Comparator<BAPNode<EVRPTW, Route>>() {
 
 			@Override
 			public int compare(BAPNode node1, BAPNode node2) {
@@ -196,13 +201,26 @@ public final class BranchAndPrice {
 		});
 	}
 
+	public void warmStart(int objectiveInitialSolution, List<Route> initialSolution) {
+		this.rootNode = (BAPNode<EVRPTW, Route>)this.queue.peek();
+		if (this.rootNode.nodeID != 0) {
+			throw new RuntimeException("This method can only be invoked at the start of the Branch-and-Price procedure, before runBranchAndPrice is invoked");
+		} else {
+			this.rootNode.addInitialColumns(initialSolution);
+			this.objectiveIncumbentSolution = objectiveInitialSolution;
+			this.incumbentSolution = new ArrayList<Route>(initialSolution);
+			if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE)  this.upperBoundOnObjective = (double)objectiveInitialSolution;
+			else this.lowerBoundOnObjective = (double)objectiveInitialSolution;
+
+		}
+	}
+
 	/**
 	 * Generates an artificial solution. Columns in the artificial solution are of high cost such that they never end up in the final solution
 	 * if a feasible solution exists, since any feasible solution is assumed to be cheaper than the artificial solution. The artificial solution is used
 	 * to guarantee that the master problem has a feasible solution.
 	 * @return artificial solution
 	 */
-	@Override
 	protected List<Route> generateInitialFeasibleSolution(BAPNode<EVRPTW,Route> node) {	
 		//Dummy (artificial) routes to identify infeasibility
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
@@ -211,31 +229,7 @@ public final class BranchAndPrice {
 		return Collections.singletonList(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), new ArrayList<Integer>(), 0, 0)); //dummy 
 	}
 
-	/**
-	 * Checks whether the given node is integer
-	 * @param node Node in the Branch-and-Price tree
-	 * @return true if the solution is an integer solution
-	 */
-	@Override
-	protected boolean isIntegerNode(BAPNode<EVRPTW, Route> node) {
-
-		if(node.nodeID == 0) { //stores the information for the root node
-			dataModel.columnsRootNode=master.getColumns(this.pricingProblem).size();
-			dataModel.cutsRootNode=node.getInequalities().size();
-		}
-
-		return isIntegerSolution(node.getSolution());
-	}
-
-	protected boolean isIntegerSolution(List<Route> solution){
-
-		for(Route route: solution)
-			if(route.value>0+PRECISION && route.value<1-PRECISION) {return false;}
-
-		return true;
-	}
-
-	protected BAPNode<EVRPTW, Route> updateNodeGeneratedColumns(BAPNode<EVRPTW, Route> bapNode, List<BranchingDecision> removals){
+	protected BAPNode<EVRPTW, Route> updateNodeGeneratedColumns(BAPNode<EVRPTW, Route> bapNode, List<BranchingDecision<EVRPTW, Route>> removals){
 
 		// Inherit the routes generated
 		List<Route> columnsToAdd = new ArrayList<Route>();
@@ -252,30 +246,19 @@ public final class BranchAndPrice {
 
 		List<AbstractInequality> inequalities = new ArrayList<>(bapNode.getInequalities());
 
-		ArrayList<BranchingDecision> brDecisions = branchingDecisions.get(bapNode.nodeID);
+		ArrayList<BranchingDecision<EVRPTW, Route>> brDecisions = branchingDecisions.get(bapNode.nodeID);
 		brDecisions.addAll(removals);
 
 		double bound = bapNode.getBound();
 		
 		// Destroy and re-create the rootNode
-		bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), columnsToAdd, bapNode.getInitialInequalities(), bound, brDecisions);
+		bapNode = new BAPNode<EVRPTW, Route>(bapNode.nodeID, rootPaths.get(bapNode.nodeID), columnsToAdd, bapNode.getInitialInequalities(), bound, new ArrayList<BranchingDecision>(brDecisions));
 		bapNode.storeSolution(bound, bound, solution, inequalities);
 
 		if (!this.arcFlowNodes.contains(bapNode.nodeID) && !removals.isEmpty()) this.arcFlowNodes.add(bapNode.nodeID);
 
 		return bapNode;
 
-	}
-
-	/**
-	 * Solve a given Branch-and-Price node
-	 * @param bapNode node in Branch-and-Price tree
-	 * @param timeLimit future point in time by which the method must be finished
-	 * @throws TimeLimitExceededException TimeLimitExceededException
-	 */
-	@Override
-	protected void solveBAPNode(BAPNode<EVRPTW,Route> bapNode, long timeLimit) throws TimeLimitExceededException {
-		// I want to override it with my method
 	}
 
 	protected CGResult solveNode(BAPNode<EVRPTW,Route> bapNode, long timeLimit) throws TimeLimitExceededException {
@@ -538,7 +521,6 @@ public final class BranchAndPrice {
 	 * Run the BAP algorithm
 	 * @param timeLimit time limit for the algorithm
 	 */
-	@Override
 	public void runBranchAndPrice(long timeLimit) {
 		this.notifier.fireStartBAPEvent();
 		this.runtime = System.currentTimeMillis();
@@ -650,22 +632,64 @@ public final class BranchAndPrice {
 
 	}
 
+	/////////////////////////////////////////////
+	/// NODE SOLUTION CLASSIFIERS
+	////////////////////////////////////////////
+
 	/**
 	 * Test whether the given node can be pruned based on this bounds
 	 * @param node node
 	 * @return true if the node can be pruned
 	 */
-	@Override
 	protected boolean nodeCanBePruned(BAPNode<EVRPTW,Route> node){
 		//		System.out.println(Math.ceil(node.getBound()-config.PRECISION) + " >= " + this.objectiveIncumbentSolution);
 		return Math.ceil(Math.floor(node.getBound()*10000)/10000) >= (this.objectiveIncumbentSolution-config.PRECISION);
 	}
 
-	@Override
+	protected boolean isInfeasibleNode(BAPNode<EVRPTW, Route> node) {
+		for(Route column : node.getSolution()) {
+			if (column.isArtificialColumn)  return true; }
+
+		return false;
+	}
+
+	/**
+	 * Checks whether the given node is integer
+	 * @param node Node in the Branch-and-Price tree
+	 * @return true if the solution is an integer solution
+	 */
+	protected boolean isIntegerNode(BAPNode<EVRPTW, Route> node) {
+
+		if(node.nodeID == 0) { //stores the information for the root node
+			dataModel.columnsRootNode=master.getColumns(this.pricingProblem).size();
+			dataModel.cutsRootNode=node.getInequalities().size();
+		}
+
+		return isIntegerSolution(node.getSolution());
+	}
+
+	protected boolean isIntegerSolution(List<Route> solution){
+
+		for(Route route: solution)
+			if(route.value>0+PRECISION && route.value<1-PRECISION) {return false;}
+
+		return true;
+	}
+
+	public void setNodeOrdering(Comparator<BAPNode<EVRPTW, Route>> comparator) {
+		Queue<BAPNode<EVRPTW, Route>> newQueue = new PriorityQueue<BAPNode<EVRPTW, Route>>(comparator);
+		newQueue.addAll(this.queue);
+		this.queue = newQueue;
+	}
+
 	public void close() {
 		this.master.close();
 		this.cPricingProblemManager.close();
    	}
+
+	////////////////////////////////////////
+	/// ADD AND REMOVE EVENT LISTENERS
+	///////////////////////////////////////
 
 	public void addCBranchingDecisionListener(BranchingDecisionListener listener) {
 		this.cGraphManipulator.addBranchingDecisionListener(listener);
@@ -675,12 +699,28 @@ public final class BranchAndPrice {
 		this.cGraphManipulator.removeBranchingDecisionListener(listener);
 	}
 
+	public void addBranchAndPriceEventListener(BAPListener listener) {
+		this.notifier.addListener(listener);
+	}
+
+	public void removeBranchAndPriceEventListener(BAPListener listener) {
+		this.notifier.removeListener(listener);
+	}
+
 	public void addExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.addExtendBAPListener(listener);
 	}
 
 	public void removeExtendCGEventListener(ExtendBAPListener listener) {
 		this.extendedNotifier.removeExtendBAPListener(listener);
+	}
+
+	public void addColumnGenerationEventListener(CGListener listener) {
+		this.columnGenerationEventListeners.add(listener);
+	}
+
+	public void removeColumnGenerationEventListener(CGListener listener) {
+		this.columnGenerationEventListeners.add(listener);
 	}
 
 	public Integer getNewChildNodeID() {
@@ -712,8 +752,68 @@ public final class BranchAndPrice {
 		}
 	}
 
+	////////////////////////////////////////////////
+	/// GETTER METHODS
+	////////////////////////////////////////////////
+	
+	protected int getUniqueNodeID() {
+		return this.nodeCounter++;
+	}
+
+	public int getObjective() {
+		return this.objectiveIncumbentSolution;
+	}
+
+	public double getBoundRootNode() {
+		return this.rootNode.getBound();
+	}
+
+	public boolean hasSolution() {
+		return !this.incumbentSolution.isEmpty();
+	}
+
+	public boolean isOptimal() {
+		return this.isOptimal;
+	}
+
+	public double getBound() {
+		return this.optimizationSenseMaster == OptimizationSense.MINIMIZE ? this.lowerBoundOnObjective : this.upperBoundOnObjective;
+	}
+
+	public int getNumberOfProcessedNodes() {
+		return this.nodesProcessed;
+	}
+
+	public long getSolveTime() {
+		return this.runtime;
+	}
+
+	public long getMasterSolveTime() {
+		return this.timeSolvingMaster;
+	}
+
+	public long getPricingSolveTime() {
+		return this.timeSolvingPricing;
+	}
+
+	public int getTotalGeneratedColumns() {
+		return this.totalGeneratedColumns;
+	}
+
+	public int getTotalNrIterations() {
+		return this.totalNrIterations;
+	}
+
+	public List<Route> getSolution() {
+		return this.incumbentSolution;
+	}
+
+	/////////////////////////////////////
+	/// BAP NOTIFIER
+	////////////////////////////////////
+
 	protected class BAPNotifier {
-		private Set<BAPListener> listeners = new LinkedHashSet();
+		private Set<BAPListener> listeners = new LinkedHashSet<BAPListener>();
 
 		public BAPNotifier() {
 		}
@@ -752,7 +852,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireNodeIsFractionalEvent(BAPNode node, double nodeBound, double nodeValue) {
+		public void fireNodeIsFractionalEvent(BAPNode<EVRPTW, Route> node, double nodeBound, double nodeValue) {
 			NodeIsFractionalEvent nodeIsFractionalEvent = null;
 
 			for(BAPListener listener : this.listeners) {
@@ -765,7 +865,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireNodeIsIntegerEvent(BAPNode node, double nodeBound, int nodeValue) {
+		public void fireNodeIsIntegerEvent(BAPNode<EVRPTW, Route> node, double nodeBound, int nodeValue) {
 			NodeIsIntegerEvent nodeIsIntegerEvent = null;
 
 			for(BAPListener listener : this.listeners) {
@@ -778,7 +878,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireNodeIsInfeasibleEvent(BAPNode node) {
+		public void fireNodeIsInfeasibleEvent(BAPNode<EVRPTW, Route> node) {
 			NodeIsInfeasibleEvent nodeIsInfeasibleEvent = null;
 
 			for(BAPListener listener : this.listeners) {
@@ -791,7 +891,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void firePruneNodeEvent(BAPNode node, double nodeBound) {
+		public void firePruneNodeEvent(BAPNode<EVRPTW, Route> node, double nodeBound) {
 			PruneNodeEvent pruneNodeEvent = null;
 
 			for(BAPListener listener : this.listeners) {
@@ -804,7 +904,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireNextNodeEvent(BAPNode node) {
+		public void fireNextNodeEvent(BAPNode<EVRPTW, Route> node) {
 			ProcessingNextNodeEvent processingNextNodeEvent = null;
 
 			for(BAPListener listener : this.listeners) {
@@ -817,7 +917,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireFinishCGEvent(BAPNode node, double nodeBound, double nodeValue, int numberOfCGIterations, long masterSolveTime, long pricingSolveTime, int nrGeneratedColumns) {
+		public void fireFinishCGEvent(BAPNode<EVRPTW, Route> node, double nodeBound, double nodeValue, int numberOfCGIterations, long masterSolveTime, long pricingSolveTime, int nrGeneratedColumns) {
 			FinishProcessingNodeEvent finishProcessingNodeEvent = null;
 
 			for(BAPListener listener : this.listeners) {
@@ -830,12 +930,12 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireBranchEvent(BAPNode parentNode, List<BAPNode> childNodes) {
+		public void fireBranchEvent(BAPNode<EVRPTW, Route> parentNode, List<BAPNode<EVRPTW, Route>> childNodes) {
 			BranchEvent branchEvent = null;
 
 			for(BAPListener listener : this.listeners) {
 				if (branchEvent == null) {
-				branchEvent = new BranchEvent(BranchAndPrice.this, childNodes.size(), parentNode, childNodes);
+				branchEvent = new BranchEvent(BranchAndPrice.this, childNodes.size(), parentNode, new ArrayList<BAPNode>(childNodes));
 				}
 
 				listener.branchCreated(branchEvent);
@@ -843,7 +943,7 @@ public final class BranchAndPrice {
 
 		}
 
-		public void fireTimeOutEvent(BAPNode node) {
+		public void fireTimeOutEvent(BAPNode<EVRPTW, Route> node) {
 			TimeLimitExceededEvent timeLimitExceededEvent = null;
 
 			for(BAPListener listener : this.listeners) {
