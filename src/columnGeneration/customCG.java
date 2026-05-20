@@ -297,7 +297,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				// Look for an integer solution if
 				// i) the current MP solution is NOT integer, and
 				// ii) the current gap is greater than 5%
-				if (!masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.05){
+				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.05){
 					
 					Master mMaster = (Master) master;
 					VRPMasterData masterData = mMaster.getMasterData();
