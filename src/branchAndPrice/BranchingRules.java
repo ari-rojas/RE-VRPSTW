@@ -1,14 +1,13 @@
 package branchAndPrice;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
@@ -17,6 +16,9 @@ import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import model.EVRPTW;
 import model.EVRPTW.PPArc;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Class which creates new branches in the Branch-and-Price tree. 
@@ -28,7 +30,18 @@ import model.EVRPTW.PPArc;
  *  2. getBranches creates the actual branches
  */
 
-public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>{
+public final class BranchingRules{
+
+
+
+	protected final Logger logger;
+	protected final EVRPTW dataModel;
+	protected final List<PricingProblem> pricingProblems;
+	protected BranchAndPrice bap;
+
+	//////////////////////////////////////////////
+	/// EVRPTW Fields
+	//////////////////////////////////////////////
 
 	private double vehiclesForBranching=0; 				//number of vehicles used in a solution
 	public boolean branchingOnVehicles; 				//true if the branching is on the number of vehicles
@@ -36,23 +49,33 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	private int arcForBranching=-1; 					//arc to branch on
 	private byte arcType;
 	private double bestArcValue = 0; 					//current flow value of the arc to branch on
-	private EVRPTW dataModel; 							//model data
 
 	private double PRECISION = 0.001;
 	private final int depotID;
 
 	private Map<Integer, ArrayList<Integer>> rootPaths;
-	private Map<Integer, ArrayList<BranchingDecision>> branchingDecisions;
+	private Map<Integer, ArrayList<BranchingDecision<EVRPTW, Route>>> branchingDecisions;
 
-	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
-		super(dataModel, pricingProblem);
+	public BranchingRules(EVRPTW dataModel, List<PricingProblem> pricingProblems) {
+		this.logger = LoggerFactory.getLogger(BranchingRules.class);
+		this.bap = null;
 		this.dataModel = dataModel;
+		this.pricingProblems = pricingProblems;
+
 		this.depotID = dataModel.T_startID;
 	}
 
-	public void register_rootPaths_branchingDs(){
-		this.rootPaths = ((BranchAndPrice)this.bap).rootPaths;
-		this.branchingDecisions = ((BranchAndPrice)this.bap).branchingDecisions;
+	public BranchingRules(EVRPTW dataModel, PricingProblem pricingProblem){
+		this(dataModel, Collections.singletonList(pricingProblem));
+	}
+
+	protected void registerBAP(BranchAndPrice bap) {
+		if (this.bap != null)  throw new RuntimeException("This class can only be associated with a Branch-and-Price problem once!");
+		else {
+			this.bap = bap;
+			this.rootPaths = this.bap.rootPaths;
+			this.branchingDecisions = this.bap.branchingDecisions;
+		}
 	}
 
 	/**
@@ -62,7 +85,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	 * @param solution Fractional column generation solution
 	 * @return true if a fractional number of vehicles is used or a fractional arc exists
 	 */
-	public boolean canPerformFirstBranching(List<Route> solution) {
+	public boolean canPerformRoutingBranching(List<Route> solution) {
 
 		//Reset values
 		this.vehiclesForBranching = 0;
@@ -123,8 +146,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		return false;
 	}
 
-	@Override
-	public boolean canPerformBranching(List<Route> solution) {
+	public boolean canPerformChargingBranching(List<Route> solution) {
 
 		this.arcForBranching = -1;
 		this.arcType = 2;
@@ -159,7 +181,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		return false;
 	}
 
-	public List<BAPNode<EVRPTW,Route>> getFirstBranches(BAPNode<EVRPTW,Route> parentNode) {
+	public List<BAPNode<EVRPTW,Route>> getRoutingBranches(BAPNode<EVRPTW,Route> parentNode) {
 		
 		BAPNode<EVRPTW,Route> node2; 		//one child node
 		BAPNode<EVRPTW,Route> node1; 		//other child node
@@ -190,8 +212,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 	 * @param parentNode Fractional node on which we branch
 	 * @return List of child nodes
 	 */
-	@Override
-	public List<BAPNode<EVRPTW,Route>> getBranches(BAPNode<EVRPTW,Route> parentNode) {
+	public List<BAPNode<EVRPTW,Route>> getChargingBranches(BAPNode<EVRPTW,Route> parentNode) {
 		
 		BAPNode<EVRPTW,Route> node2; 		//one child node
 		BAPNode<EVRPTW,Route> node1; 		//other child node
@@ -206,8 +227,7 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		return Arrays.asList(node1,node2);
 	}
 
-	@Override
-	protected <B extends BranchingDecision<EVRPTW, Route>> BAPNode<EVRPTW, Route> createBranch(BAPNode<EVRPTW, Route> parentNode, B branchingDecision, List<Route> solution, List<AbstractInequality> inequalities) {
+	protected BAPNode<EVRPTW, Route> createBranch(BAPNode<EVRPTW, Route> parentNode, BranchingDecision<EVRPTW, Route> branchingDecision, List<Route> solution, List<AbstractInequality> inequalities) {
 		
 		Integer childNodeID = ((BranchAndPrice)this.bap).getNewChildNodeID();
 		
@@ -218,12 +238,12 @@ public final class BranchingRules extends AbstractBranchCreator<EVRPTW, Route, P
 		
 		List<AbstractInequality> initCuts = (List<AbstractInequality>)inequalities.stream().filter((inequality) -> branchingDecision.inEqualityIsCompatibleWithBranchingDecision(inequality)).collect(Collectors.toList());
 
-		ArrayList<BranchingDecision> brDecisions = new ArrayList<BranchingDecision>(); brDecisions.add(branchingDecision);
+		ArrayList<BranchingDecision<EVRPTW, Route>> brDecisions = new ArrayList<BranchingDecision<EVRPTW, Route>>(); brDecisions.add(branchingDecision);
 
 		rootPaths.put(childNodeID, rootPath1);
 		branchingDecisions.put(childNodeID, brDecisions);
 		
-		return new BAPNode<EVRPTW, Route>(childNodeID, rootPath1, initSolution, initCuts, parentNode.getBound(), brDecisions);
+		return new BAPNode<EVRPTW, Route>(childNodeID, rootPath1, initSolution, initCuts, parentNode.getBound(), new ArrayList<BranchingDecision>(brDecisions));
 	}
 
 

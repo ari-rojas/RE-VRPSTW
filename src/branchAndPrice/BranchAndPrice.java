@@ -187,7 +187,6 @@ public final class BranchAndPrice {
 			for(AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> solverInstance : bunddle.solverInstances)  this.addCBranchingDecisionListener(solverInstance); }
 		
 		this.branchCreator.registerBAP(this);
-		this.branchCreator.register_rootPaths_branchingDs();
 
 		// NODE PRIORITY RULE
 		this.setNodeOrdering(new Comparator<BAPNode<EVRPTW, Route>>() {
@@ -266,7 +265,7 @@ public final class BranchAndPrice {
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier, this.pricingProblemBundles, this.cPricingProblemManager); //Solve the node
+			cg = new customCG(dataModel, master, pricingProblems, solvers, null, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier, this.pricingProblemBundles, this.cPricingProblemManager); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {
@@ -446,20 +445,20 @@ public final class BranchAndPrice {
         return integer_solution;
     }
 
-	private void process_branching(BAPNode bapNode, List<BAPNode<EVRPTW, Route>> newBranches, long time){
+	private void process_branching(BAPNode<EVRPTW, Route> bapNode, List<BAPNode<EVRPTW, Route>> newBranches, long time){
 
 		// Initialize Branch Creator
-		BranchingRules bc = (BranchingRules)this.branchCreators.iterator().next();
+		BranchingRules bc = this.branchCreator;
 		
 		if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
 		// Look for Number of Vehicles or Customers Arc Flow branching
 		boolean foundBranches = false;
-		foundBranches = bc.canPerformFirstBranching(bapNode.getSolution());
+		foundBranches = bc.canPerformRoutingBranching(bapNode.getSolution());
 		if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }
 		if (foundBranches){
 			if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }
 			this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-			newBranches.addAll(bc.getFirstBranches(bapNode));
+			newBranches.addAll(bc.getRoutingBranches(bapNode));
 
 			if (bc.branchOnCustomerArcs || this.arcFlowNodes.contains(bapNode.nodeID)){
 				this.arcFlowNodes.add(newBranches.get(0).nodeID);
@@ -484,10 +483,10 @@ public final class BranchAndPrice {
 
 			} else {
 			
-				foundBranches = bc.canPerformBranching(bapNode.getSolution());
+				foundBranches = bc.canPerformChargingBranching(bapNode.getSolution());
 				if (foundBranches){
 					this.notifier.fireNodeIsFractionalEvent(bapNode, bapNode.getBound(), bapNode.getObjective());
-					newBranches.addAll(bc.getBranches(bapNode));
+					newBranches.addAll(bc.getChargingBranches(bapNode));
 				}
 
 				if (this.arcFlowNodes.contains(bapNode.nodeID)){
@@ -743,9 +742,9 @@ public final class BranchAndPrice {
 		public List<Route> cgIncumbentSolution;
 		public double cgIncumbentObjective;
 
-		public List<BranchingDecision> branchingFRC;
+		public List<BranchingDecision<EVRPTW, Route>> branchingFRC;
 
-		public CGResult(List<Route> incumbentSolution, double primalBound, List<BranchingDecision> branchingFRC){
+		public CGResult(List<Route> incumbentSolution, double primalBound, List<BranchingDecision<EVRPTW, Route>> branchingFRC){
 			this.cgIncumbentSolution = incumbentSolution;
 			this.cgIncumbentObjective = primalBound;
 			this.branchingFRC = branchingFRC;

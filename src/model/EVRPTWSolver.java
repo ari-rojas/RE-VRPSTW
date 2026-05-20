@@ -16,11 +16,15 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPr
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BranchEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CHListener;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishGeneratingCutsEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishMasterEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishPricingEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishProcessingNodeEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsFractionalEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsInfeasibleEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsIntegerEvent;
@@ -29,6 +33,7 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.Prune
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartGeneratingCutsEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartMasterEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartPricingEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.TimeLimitExceededEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.colgenMain.AbstractColumn;
 import org.jorlib.frameworks.columnGeneration.io.SimpleDebugger;
@@ -65,6 +70,9 @@ import columnGeneration.SubsetRowInequalityGenerator;
 import columnGeneration.VRPMasterData;
 import model.EVRPTW.Arc;
 import model.EVRPTW.PPArc;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Solver class for the mE-VRSPTW (BPC algorithm).
@@ -109,10 +117,10 @@ public final class EVRPTWSolver {
 		List<Route> initSolution = this.getInitialSolution(pricingProblem, initialColumns);
 
 		//Define Branch creators
-		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
+		BranchingRules branchCreator = new BranchingRules(dataModel, pricingProblem);
 
 		//Create a Branch-and-Price instance
-		this.bap = new BranchAndPrice(dataModel, master, pricingProblem, solvers, branchCreators, upperBound.intValue(), initSolution);
+		this.bap = new BranchAndPrice(dataModel, master, Collections.singletonList(pricingProblem), solvers, branchCreator, upperBound.intValue(), initSolution);
 
 		//OPTIONAL: Attach a debugger
 		PersonalizedDebbuger debugger = new PersonalizedDebbuger(this.bap, this.cutHandler, false);
@@ -291,71 +299,32 @@ public final class EVRPTWSolver {
 
 
 	/** Defines a personalized debbuger (for the log files). */
-	public class PersonalizedDebbuger extends SimpleDebugger implements ExtendBAPListener{
+	public class PersonalizedDebbuger implements ExtendBAPListener, BAPListener, CGListener, CHListener{
+		
+		protected final Logger logger;
+		protected String instanceName;
+   		protected int bestIntegerSolution;
 
-		public PersonalizedDebbuger(AbstractBranchAndPrice bap, CutHandler cutHandler, boolean captureColumnGenerationEventsBAP) {
-			super(bap, cutHandler, true);
+		public PersonalizedDebbuger(BranchAndPrice bap, CutHandler cutHandler, boolean captureColumnGenerationEventsBAP) {
+			this.logger = LoggerFactory.getLogger(SimpleDebugger.class);
 		}
 
-		@Override
-		public void startBAP(StartEvent startEvent) {
-			this.instanceName = startEvent.instanceName;
-			this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
-			if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
-		}
+		////////////////////////////////
+		/// Extended BAP Listener
+		////////////////////////////////
 
-		@Override
-		public void startMaster(StartMasterEvent startMasterEvent) {
-      		if (dataModel.print_log) logger.debug("=============== MASTER {} ===============", startMasterEvent.columnGenerationIteration);
-   		}
-
-		@Override
-		public void finishMaster(FinishMasterEvent finishMasterEvent) {
-			if (dataModel.print_log) {
-				logger.debug("Finished master -> RMP objective: {}, LB: {}, UB: {}", new Object[]{finishMasterEvent.objective, finishMasterEvent.boundOnMasterObjective, finishMasterEvent.cutoffValue});
-				logger.debug("Total running time (s): " + getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
-			}
-		}
-
-		@Override
-		public void CGMasterIsInfeasible(CGMasterIsInfeasibleEvent cgMasterIsInfeasibleEvent){
-			if (dataModel.print_log) {
-				logger.debug("CPLEX found the RMP to be infeasible.");
-			}
-		}
-
-		@Override
-		public void startPricing(StartPricingEvent startPricing) {
-      		
-			if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
-   		}
-
-		@Override
-		public void finishPricing(FinishPricingEvent finishPricingEvent) {
-			if (dataModel.print_log){
-				String solver = (finishPricingEvent.columns.size()==0) ? "exactLabeling": finishPricingEvent.columns.get(0).creator;
-				logger.debug("Finished pricing ({}, {} columns generated) -> CG objective: {}, CG bound: {}, CG cutoff: {}", new Object[]{solver, finishPricingEvent.columns.size(), finishPricingEvent.objective, finishPricingEvent.boundOnMasterObjective, finishPricingEvent.cutoffValue});
-				for(AbstractColumn<?, ?> column : finishPricingEvent.columns){
-					logger.debug(column.toString());
-				}
-			}
-		}
-
-		@Override
 		public void IPRootNode(IPSolutionEvent IPRootEvent){
 			if (dataModel.print_log) {
 				logger.debug("=============== SOLVING IP ===============");
 			}
 		}
 
-		@Override
 		public void finishIPRootNode(FinishIPSolutionEvent IPRootEvent){
 			if (dataModel.print_log) {
 				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
 			}
 		}
 
-		@Override
 		public void Rollback(RollbackEvent rollbackEvent){
 			if (dataModel.print_log){
 				logger.debug("=============== SRCs ROLLBACK ===============");
@@ -365,7 +334,6 @@ public final class EVRPTWSolver {
 			}
 		}
 
-		@Override
 		public void finishRollback(FinishRollbackEvent rollbackEvent){
 			if (dataModel.print_log){
 				logger.debug("Objective: "+ rollbackEvent.objective);
@@ -377,7 +345,6 @@ public final class EVRPTWSolver {
 			}
 		}
 
-		@Override
 		public void fixingByReducedCost(CGFixingByReducedCostEvent frcEvent){
 			if (dataModel.print_log) {
 				logger.debug("================ FIXING BY REDUCED COST ================");
@@ -385,7 +352,6 @@ public final class EVRPTWSolver {
 			}
 		}
 
-		@Override
 		public void finishFixingByReducedCost(CGFinishFixingByReducedCostEvent frcEvent){
 			if (dataModel.print_log) {
 				logger.debug("Removing {} arcs.",frcEvent.arcs.size());
@@ -397,7 +363,6 @@ public final class EVRPTWSolver {
 			}
 		}
 
-		@Override
 		public void gapReduction(GapReductionEvent gapEvent){
 			if (dataModel.print_log){
 				logger.debug("Stopping to add more cuts in the current node.");
@@ -405,19 +370,185 @@ public final class EVRPTWSolver {
 			}
 		}
 
-		@Override
 		public void CGProblemsLB(CGProblemsLBEvent cgProblemsLBEvent){
 			if (dataModel.print_log) {
 				logger.debug("Check problems with LB!");
 			}
 		}
 
-		@Override
+		public void startMIPMaster(MIPMasterEvent mipEvent){
+			if (dataModel.print_log) {
+
+				logger.debug("================ MASTER - FINDING INTEGER SOLUTION ================");
+
+			}
+		}
+
+		public void finishMIPMaster(FinishMIPMasterEvent MIPEvent){
+			if (dataModel.print_log) {
+
+				if (MIPEvent.found_integer_solution){
+					logger.debug("Found integer solution:");
+					List<Route> solution = MIPEvent.node.getSolution();
+					for (Route column : solution){
+						logger.debug(column.toString());
+					}
+				} else {
+					logger.debug("Did not find integer solution, charging branching proceeds.");
+				}
+
+			}
+		}
+
+		public void CGMasterIsInfeasible(CGMasterIsInfeasibleEvent cgMasterIsInfeasibleEvent){
+			if (dataModel.print_log) {
+				logger.debug("CPLEX found the RMP to be infeasible.");
+			}
+		}
+
+		////////////////////////////////
+		/// BAP Listener
+		////////////////////////////////
+
+		public void startBAP(StartEvent startEvent) {
+			this.instanceName = startEvent.instanceName;
+			this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
+			if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
+		}
+
+		public void finishedColumnGenerationForNode(FinishProcessingNodeEvent finishProcessingNodeEvent) {}
+
+		public void branchCreated(BranchEvent branchEvent) {
+			if (dataModel.print_log) {
+				logger.debug("================ BRANCHING ================");
+				logger.debug("Branching - {} new nodes: ",branchEvent.nrBranches);
+				for(BAPNode childNode : branchEvent.childNodes){
+
+					BranchingDecision bd = childNode.getBranchingDecision();
+					logger.debug("ChildNode {} - {}",childNode.nodeID, bd.toString());
+					
+					if (bd instanceof FixArc){
+						FixArc fixArcBranch = (FixArc) bd;
+						for (int arcID: fixArcBranch.infeasiblePPArcs) logger.debug(dataModel.PParcs[arcID].toString());
+					} else if (bd instanceof RemoveArc) {
+						RemoveArc removeArcBranch = (RemoveArc) bd;
+						logger.debug(dataModel.PParcs[removeArcBranch.arcID].toString());
+
+					}
+					
+				}
+			}
+		}
+
+		public void processNextNode(ProcessingNextNodeEvent processingNextNodeEvent) {
+			if (dataModel.print_log) {
+				logger.debug("================ PROCESSING NODE {} ================", processingNextNodeEvent.node.nodeID);
+				logger.debug("Nodes remaining in queue: {} - Node bound: {} - Incumbent solution: {}",new Object[]{processingNextNodeEvent.nodesInQueue, processingNextNodeEvent.node.getBound(), processingNextNodeEvent.objectiveIncumbentSolution});
+			}
+		}
+
+		public void pruneNode(PruneNodeEvent pruneNodeEvent) {
+			if (dataModel.print_log) {
+				logger.debug("Pruning node {}. Bound: {}, best integer solution: {}", new Object[]{pruneNodeEvent.node.nodeID, pruneNodeEvent.nodeBound, pruneNodeEvent.bestIntegerSolution});
+			}
+		}
+
+		public void nodeIsInfeasible(NodeIsInfeasibleEvent nodeIsInfeasibleEvent) {
+			if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
+		}
+
+		public void nodeIsInteger(NodeIsIntegerEvent nodeIsIntegerEvent) {
+			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
+			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
+		}
+
+		public void nodeIsFractional(NodeIsFractionalEvent nodeIsFractionalEvent) {
+			if (dataModel.print_log) logger.debug("Node {} is fractional. Objective: {}, bound: {}", new Object[]{nodeIsFractionalEvent.node.nodeID, nodeIsFractionalEvent.nodeValue, nodeIsFractionalEvent.nodeBound});
+		}
+
+		public void timeLimitExceeded(TimeLimitExceededEvent timeLimitExceededEvent) {
+			if (timeLimitExceededEvent.node != null) {
+				this.logger.debug("Caught timeout exception while processing node {}", timeLimitExceededEvent.node.nodeID);
+			}
+		}
+
+		public void finishBAP(FinishEvent finishEvent) {
+
+			if (dataModel.print_log) {
+				logger.debug("================ SOLUTION BPC - " + instanceName +" ================");
+				logger.debug("BAP terminated with objective: "+getScaledObjective(bap.getObjective()));
+				logger.debug("Total Number of iterations: "+bap.getTotalNrIterations());
+				logger.debug("Total Number of processed nodes: "+bap.getNumberOfProcessedNodes());
+				logger.debug("Total Time spent on master problems (s): "+getTimeInSeconds(bap.getMasterSolveTime())+" Total time spent on pricing problems (s): "+getTimeInSeconds(bap.getPricingSolveTime()));
+				logger.debug("Total running time (s): "+ getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
+				if(bap.hasSolution()) {
+					logger.debug("Solution is optimal: "+bap.isOptimal());
+					logger.debug("Columns (only non-zero columns are returned):");
+					List<Route> solution = bap.getSolution();
+					for (Route column : solution){
+						logger.debug(column.toString());
+					}
+				}
+			} else {
+
+				logger.debug("B = "+dataModel.B+", Objective = "+getScaledObjective(bap.getObjective())+", K = "+bap.getSolution().size()+", Optimal: "+bap.isOptimal());
+			}
+
+		}
+		
+		////////////////////////////
+		/// CG Listener
+		////////////////////////////
+
+		public void startCG(StartEvent startEvent) {
+			if (dataModel.print_log) {
+				this.instanceName = startEvent.instanceName;
+				this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
+				this.logger.debug("CG solving {} - Initial upper bound: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
+			}
+
+		}
+
+		public void finishCG(FinishEvent finishEvent) {
+			if (dataModel.print_log) {
+				this.logger.debug("Finished Column Generation for instance {}", this.instanceName);
+			}
+
+		}
+
+		public void startMaster(StartMasterEvent startMasterEvent) {
+      		if (dataModel.print_log) logger.debug("=============== MASTER {} ===============", startMasterEvent.columnGenerationIteration);
+   		}
+
+		public void finishMaster(FinishMasterEvent finishMasterEvent) {
+			if (dataModel.print_log) {
+				logger.debug("Finished master -> RMP objective: {}, LB: {}, UB: {}", new Object[]{finishMasterEvent.objective, finishMasterEvent.boundOnMasterObjective, finishMasterEvent.cutoffValue});
+				logger.debug("Total running time (s): " + getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
+			}
+		}
+
+		public void startPricing(StartPricingEvent startPricing) {
+			if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
+   		}
+
+		public void finishPricing(FinishPricingEvent finishPricingEvent) {
+			if (dataModel.print_log){
+				String solver = (finishPricingEvent.columns.size()==0) ? "exactLabeling": finishPricingEvent.columns.get(0).creator;
+				logger.debug("Finished pricing ({}, {} columns generated) -> CG objective: {}, CG bound: {}, CG cutoff: {}", new Object[]{solver, finishPricingEvent.columns.size(), finishPricingEvent.objective, finishPricingEvent.boundOnMasterObjective, finishPricingEvent.cutoffValue});
+				for(AbstractColumn<?, ?> column : finishPricingEvent.columns){
+					logger.debug(column.toString());
+				}
+			}
+		}
+
+		//////////////////////////////
+		/// 
+		/////////////////////////////
+		
 		public void startGeneratingCuts(StartGeneratingCutsEvent startGenerateCutsEvent) {
       		if (dataModel.print_log) this.logger.debug("=============== GENERATING CUTS ===============");
    		}
 
-		@Override
 		public void finishGeneratingCuts(FinishGeneratingCutsEvent finishGenerateCutsEvent) {
 			if (dataModel.print_log) {
 				Map<AbstractCutGenerator, Integer> cutSummary = new LinkedHashMap();
@@ -444,109 +575,5 @@ public final class EVRPTWSolver {
 			}
 		}
 
-		@Override
-		public void startMIPMaster(MIPMasterEvent mipEvent){
-			if (dataModel.print_log) {
-
-				logger.debug("================ MASTER - FINDING INTEGER SOLUTION ================");
-
-			}
-		}
-
-		@Override
-		public void finishMIPMaster(FinishMIPMasterEvent MIPEvent){
-			if (dataModel.print_log) {
-
-				if (MIPEvent.found_integer_solution){
-					logger.debug("Found integer solution:");
-					List<Route> solution = MIPEvent.node.getSolution();
-					for (Route column : solution){
-						logger.debug(column.toString());
-					}
-				} else {
-					logger.debug("Did not find integer solution, charging branching proceeds.");
-				}
-
-			}
-		}
-
-		@Override
-		public void branchCreated(BranchEvent branchEvent) {
-			if (dataModel.print_log) {
-				logger.debug("================ BRANCHING ================");
-				logger.debug("Branching - {} new nodes: ",branchEvent.nrBranches);
-				for(BAPNode childNode : branchEvent.childNodes){
-
-					BranchingDecision bd = childNode.getBranchingDecision();
-					logger.debug("ChildNode {} - {}",childNode.nodeID, bd.toString());
-					
-					if (bd instanceof FixArc){
-						FixArc fixArcBranch = (FixArc) bd;
-						for (int arcID: fixArcBranch.infeasiblePPArcs) logger.debug(dataModel.PParcs[arcID].toString());
-					} else if (bd instanceof RemoveArc) {
-						RemoveArc removeArcBranch = (RemoveArc) bd;
-						logger.debug(dataModel.PParcs[removeArcBranch.arcID].toString());
-
-					}
-					
-				}
-			}
-		}
-
-		@Override
-		public void processNextNode(ProcessingNextNodeEvent processingNextNodeEvent) {
-			if (dataModel.print_log) {
-				logger.debug("================ PROCESSING NODE {} ================", processingNextNodeEvent.node.nodeID);
-				logger.debug("Nodes remaining in queue: {} - Node bound: {} - Incumbent solution: {}",new Object[]{processingNextNodeEvent.nodesInQueue, processingNextNodeEvent.node.getBound(), processingNextNodeEvent.objectiveIncumbentSolution});
-			}
-		}
-
-		@Override
-		public void pruneNode(PruneNodeEvent pruneNodeEvent) {
-			if (dataModel.print_log) {
-				logger.debug("Pruning node {}. Bound: {}, best integer solution: {}", new Object[]{pruneNodeEvent.node.nodeID, pruneNodeEvent.nodeBound, pruneNodeEvent.bestIntegerSolution});
-			}
-		}
-
-		@Override
-		public void nodeIsInfeasible(NodeIsInfeasibleEvent nodeIsInfeasibleEvent) {
-			if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
-		}
-
-		@Override
-		public void nodeIsInteger(NodeIsIntegerEvent nodeIsIntegerEvent) {
-			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
-			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
-		}
-
-		@Override
-		public void nodeIsFractional(NodeIsFractionalEvent nodeIsFractionalEvent) {
-			if (dataModel.print_log) logger.debug("Node {} is fractional. Objective: {}, bound: {}", new Object[]{nodeIsFractionalEvent.node.nodeID, nodeIsFractionalEvent.nodeValue, nodeIsFractionalEvent.nodeBound});
-		}
-
-		@Override
-		public void finishBAP(FinishEvent finishEvent) {
-
-			if (dataModel.print_log) {
-				logger.debug("================ SOLUTION BPC - " + instanceName +" ================");
-				logger.debug("BAP terminated with objective: "+getScaledObjective(bap.getObjective()));
-				logger.debug("Total Number of iterations: "+bap.getTotalNrIterations());
-				logger.debug("Total Number of processed nodes: "+bap.getNumberOfProcessedNodes());
-				logger.debug("Total Time spent on master problems (s): "+getTimeInSeconds(bap.getMasterSolveTime())+" Total time spent on pricing problems (s): "+getTimeInSeconds(bap.getPricingSolveTime()));
-				logger.debug("Total running time (s): "+ getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
-				if(bap.hasSolution()) {
-					logger.debug("Solution is optimal: "+bap.isOptimal());
-					logger.debug("Columns (only non-zero columns are returned):");
-					List<Route> solution = bap.getSolution();
-					for (Route column : solution){
-						logger.debug(column.toString());
-					}
-				}
-			} else {
-
-				logger.debug("B = "+dataModel.B+", Objective = "+getScaledObjective(bap.getObjective())+", K = "+bap.getSolution().size()+", Optimal: "+bap.isOptimal());
-			}
-
-		}
 	}
 }

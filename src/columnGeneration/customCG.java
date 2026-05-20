@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
@@ -16,7 +15,6 @@ import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
-import org.jorlib.frameworks.columnGeneration.pricing.DefaultPricingProblemSolverFactory;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 
@@ -50,10 +48,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	private boolean hasExceededPricingSoftThreshold = false;
 	private double gapReduction = 0;
 
-	public List<BranchingDecision> branchingFRC;
+	public List<BranchingDecision<EVRPTW, Route>> branchingFRC;
 
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
-	private final customPricingProblemManager cPricingProblemManager;
+	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
 	static {
@@ -70,12 +68,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier,
-			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager cPricingProblemManager) {
+			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
-		this.branchingFRC = new ArrayList<BranchingDecision>();
+		this.branchingFRC = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 		
 		this.pricingProblemBundles = pricingProblemBundles;
 		this.cPricingProblemManager = cPricingProblemManager;
@@ -86,12 +84,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
 			int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier,
-			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager cPricingProblemManager) {
+			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue, boundOnMasterObjective);
 		this.BBnodeID = nodeID;
 		this.needsChargingBranchingPricing = needsCB;
 		this.extendedNotifier = notifier;
-		this.branchingFRC = new ArrayList<BranchingDecision>();
+		this.branchingFRC = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 
 		this.pricingProblemBundles = pricingProblemBundles;
 		this.cPricingProblemManager = cPricingProblemManager;
@@ -101,12 +99,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
 			int arg5, double arg6, int arg7, boolean arg8, ExtendBAPNotifier arg9,
-			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> arg10, customPricingProblemManager arg11) {
+			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> arg10, customPricingProblemManager<EVRPTW, Route, PricingProblem> arg11) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		this.BBnodeID = arg7;
 		this.needsChargingBranchingPricing = arg8;
 		this.extendedNotifier = arg9;
-		this.branchingFRC = new ArrayList<BranchingDecision>();
+		this.branchingFRC = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 		
 		this.pricingProblemBundles = arg10;
 		this.cPricingProblemManager = arg11;
@@ -361,7 +359,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		for (Route col: columns) if (!col.PParcs.stream().anyMatch(arcsToRemove.keySet()::contains)) { filtered_columns.add(col);}
 		
 		// Creating fake branching decisions
-		List<BranchingDecision> removals = new ArrayList<BranchingDecision>();
+		List<BranchingDecision<EVRPTW, Route>> removals = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 		List<AbstractInequality> cuts = new ArrayList<>(mMaster.getMasterData().subsetRowInequalities.keySet());
 		for (int arcID: arcsToRemove.keySet()){ removals.add(new RemoveArc(pricingProblem, arcID, dataModel.PParcs[arcID].arc_type, dataModel, cuts, 0));}
 		this.branchingFRC.addAll(removals);
