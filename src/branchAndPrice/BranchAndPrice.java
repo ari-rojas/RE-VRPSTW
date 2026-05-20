@@ -5,22 +5,43 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
 import java.util.Iterator;
+
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.GraphManipulator;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BranchEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.FinishProcessingNodeEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsFractionalEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsInfeasibleEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.NodeIsIntegerEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.ProcessingNextNodeEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.PruneNodeEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.TimeLimitExceededEvent;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.bapNodeComparators.DFSbapNodeComparator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecisionListener;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
+import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
+import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.DefaultPricingProblemSolverFactory;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
+import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
+import org.jorlib.frameworks.columnGeneration.util.Configuration;
 
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
@@ -35,10 +56,46 @@ import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
 import model.EVRPTW;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Branch-and-Price class
  */
-public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,PricingProblem> {
+public final class BranchAndPrice {
+
+	///////////////////////////////////////////
+	/// Fields from AbstractBranchAndPrice
+	///////////////////////////////////////////
+
+	protected final Logger logger;
+	protected final BranchAndPrice.BAPNotifier notifier;
+	protected final Set<CGListener> columnGenerationEventListeners;
+	protected final Configuration config;
+	protected final EVRPTW dataModel;
+	protected Master master;
+	protected final List<BranchingRules> branchCreators;
+	protected List<PricingProblem> pricingProblems;
+	protected List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers;
+	protected final OptimizationSense optimizationSenseMaster;
+	protected int objectiveIncumbentSolution;
+	protected List<Route> incumbentSolution;
+	protected boolean isOptimal;
+	protected Queue<BAPNode<EVRPTW, Route>> queue;
+	protected int nodeCounter;
+	protected BAPNode<EVRPTW, Route> rootNode;
+	protected double upperBoundOnObjective;
+	protected double lowerBoundOnObjective;
+	protected int nodesProcessed;
+	protected long timeSolvingMaster;
+	protected long timeSolvingPricing;
+	protected long runtime;
+	protected int totalGeneratedColumns;
+	protected int totalNrIterations;
+
+	///////////////////////////////////////////
+	/// CUSTOM FIELDS
+	///////////////////////////////////////////
 
 	PricingProblem pricingProblem; 										//pricing problem
 	public static final double PRECISION=0.001; 						//precision considered for the fractional solutions (nodes)
@@ -52,28 +109,60 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 	// Tracking of the BPC tree nodes Root Path and Branching Decisions
 	public final Map<Integer, ArrayList<Integer>> rootPaths = new HashMap<>();
-	public final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions = new HashMap<>();
+	public final Map<Integer, ArrayList<BranchingDecision<EVRPTW, Route>>> branchingDecisions = new HashMap<>();
 
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
 	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 	private final customGraphManipulator cGraphManipulator;
 
-	public BranchAndPrice(EVRPTW modelData, Master master, PricingProblem pricingProblem,
+	public BranchAndPrice(EVRPTW modelData, Master master, List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW,Route,PricingProblem>>> solvers,
-			List<? extends AbstractBranchCreator<EVRPTW,Route,PricingProblem>> branchCreators,
-			int objectiveInitialSolution,
-			List<Route> initialSolution){
+			List<BranchingRules> branchCreators, int objectiveInitialSolution, List<Route> initialSolution){
 		
-		super(modelData, master, pricingProblem, solvers, branchCreators, 0, objectiveInitialSolution);
+		this.logger = LoggerFactory.getLogger(AbstractBranchAndPrice.class);
+		this.config = Configuration.getConfiguration();
+		this.incumbentSolution = new ArrayList<Route>();
+		this.isOptimal = false;
+		this.nodeCounter = 0;
+		this.upperBoundOnObjective = Double.MAX_VALUE;
+		this.lowerBoundOnObjective = -Double.MAX_VALUE;
+		this.nodesProcessed = 0;
+		this.timeSolvingMaster = 0L;
+		this.timeSolvingPricing = 0L;
+		this.runtime = 0L;
+		this.totalGeneratedColumns = 0;
+		this.totalNrIterations = 0;
+		this.dataModel = modelData;
+		this.master = master;
+		this.optimizationSenseMaster = master.getOptimizationSense();
+		this.branchCreators = branchCreators;
+		this.pricingProblems = pricingProblems;
+		this.solvers = solvers;
+		this.queue = new PriorityQueue<BAPNode<EVRPTW, Route>>(new DFSbapNodeComparator());
+		this.objectiveIncumbentSolution = this.optimizationSenseMaster == OptimizationSense.MINIMIZE ? Integer.MAX_VALUE : -2147483647;
+		this.lowerBoundOnObjective = objectiveInitialSolution;
+		this.upperBoundOnObjective = objectiveInitialSolution;
+		List<Integer> rootPath = new ArrayList<Integer>();
+		int nodeID = this.nodeCounter++;
+		rootPath.add(nodeID);
+		if (this.optimizationSenseMaster == OptimizationSense.MINIMIZE) {
+			this.rootNode = new BAPNode<EVRPTW, Route>(nodeID, rootPath, new ArrayList<Route>(), new ArrayList<AbstractInequality>(), lowerBoundOnObjective, Collections.emptyList());
+		} else {
+			this.rootNode = new BAPNode<EVRPTW, Route>(nodeID, rootPath, new ArrayList<Route>(), new ArrayList<AbstractInequality>(), upperBoundOnObjective, Collections.emptyList());
+		}
+
+		this.queue.add(this.rootNode);
+
 		this.warmStart(objectiveInitialSolution, initialSolution);
-		this.pricingProblemManager.close();
 		
 		this.pricingProblem = pricingProblem;
+		this.notifier = new BAPNotifier();
+      	this.columnGenerationEventListeners = new LinkedHashSet();
 		this.extendedNotifier = new ExtendBAPNotifier(this);
 		
 		ArrayList<Integer> rootP = new ArrayList<>(); rootP.add(0);
 		this.rootPaths.put(0, rootP);
-		this.branchingDecisions.put(0, new ArrayList<BranchingDecision>());
+		this.branchingDecisions.put(0, new ArrayList<BranchingDecision<EVRPTW, Route>>());
 		
 		this.cGraphManipulator = new customGraphManipulator(rootNode, rootPaths, branchingDecisions);
 		this.pricingProblemBundles = new HashMap<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>>();
@@ -83,16 +172,17 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			pricingProblemBundles.put(solverClass, bundle);
 		}
 
-		this.cPricingProblemManager = new customPricingProblemManager(pricingProblems, pricingProblemBundles);
+		this.cPricingProblemManager = new customPricingProblemManager<EVRPTW, Route, PricingProblem>(pricingProblems, pricingProblemBundles);
 		
 		// ADD THE BRANCHING DECISION LISTENERS
 		
 		this.addCBranchingDecisionListener(master);
 		for(PricingProblem pProblem : pricingProblems) this.addCBranchingDecisionListener(pProblem);
 		for(PricingProblemBundle<EVRPTW, Route, PricingProblem> bunddle : pricingProblemBundles.values()) {
-			for(AbstractPricingProblemSolver solverInstance : bunddle.solverInstances)  this.addCBranchingDecisionListener(solverInstance); }
+			for(AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> solverInstance : bunddle.solverInstances)  this.addCBranchingDecisionListener(solverInstance); }
 		
-		((BranchingRules)this.branchCreators.get(0)).register_rootPaths_branchingDs();
+		this.branchCreators.get(0).registerBAP(this);
+		this.branchCreators.get(0).register_rootPaths_branchingDs();
 
 		// NODE PRIORITY RULE
 		this.setNodeOrdering(new Comparator<BAPNode>() {
@@ -619,6 +709,151 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			this.cgIncumbentSolution = incumbentSolution;
 			this.cgIncumbentObjective = primalBound;
 			this.branchingFRC = branchingFRC;
+		}
+	}
+
+	protected class BAPNotifier {
+		private Set<BAPListener> listeners = new LinkedHashSet();
+
+		public BAPNotifier() {
+		}
+
+		public void addListener(BAPListener listener) {
+			this.listeners.add(listener);
+		}
+
+		public void removeListener(BAPListener listener) {
+			this.listeners.remove(listener);
+		}
+
+		public void fireStartBAPEvent() {
+			StartEvent startEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (startEvent == null) {
+				startEvent = new StartEvent(BranchAndPrice.this, BranchAndPrice.this.dataModel.getName(), BranchAndPrice.this.objectiveIncumbentSolution);
+				}
+
+				listener.startBAP(startEvent);
+			}
+
+		}
+
+		public void fireStopBAPEvent() {
+			FinishEvent finishEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (finishEvent == null) {
+				finishEvent = new FinishEvent(BranchAndPrice.this);
+				}
+
+				listener.finishBAP(finishEvent);
+			}
+
+		}
+
+		public void fireNodeIsFractionalEvent(BAPNode node, double nodeBound, double nodeValue) {
+			NodeIsFractionalEvent nodeIsFractionalEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (nodeIsFractionalEvent == null) {
+				nodeIsFractionalEvent = new NodeIsFractionalEvent(BranchAndPrice.this, node, nodeBound, nodeValue);
+				}
+
+				listener.nodeIsFractional(nodeIsFractionalEvent);
+			}
+
+		}
+
+		public void fireNodeIsIntegerEvent(BAPNode node, double nodeBound, int nodeValue) {
+			NodeIsIntegerEvent nodeIsIntegerEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (nodeIsIntegerEvent == null) {
+				nodeIsIntegerEvent = new NodeIsIntegerEvent(BranchAndPrice.this, node, nodeBound, nodeValue);
+				}
+
+				listener.nodeIsInteger(nodeIsIntegerEvent);
+			}
+
+		}
+
+		public void fireNodeIsInfeasibleEvent(BAPNode node) {
+			NodeIsInfeasibleEvent nodeIsInfeasibleEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (nodeIsInfeasibleEvent == null) {
+				nodeIsInfeasibleEvent = new NodeIsInfeasibleEvent(BranchAndPrice.this, node);
+				}
+
+				listener.nodeIsInfeasible(nodeIsInfeasibleEvent);
+			}
+
+		}
+
+		public void firePruneNodeEvent(BAPNode node, double nodeBound) {
+			PruneNodeEvent pruneNodeEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (pruneNodeEvent == null) {
+				pruneNodeEvent = new PruneNodeEvent(BranchAndPrice.this, node, nodeBound, BranchAndPrice.this.objectiveIncumbentSolution);
+				}
+
+				listener.pruneNode(pruneNodeEvent);
+			}
+
+		}
+
+		public void fireNextNodeEvent(BAPNode node) {
+			ProcessingNextNodeEvent processingNextNodeEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (processingNextNodeEvent == null) {
+				processingNextNodeEvent = new ProcessingNextNodeEvent(BranchAndPrice.this, node, BranchAndPrice.this.queue.size(), BranchAndPrice.this.objectiveIncumbentSolution);
+				}
+
+				listener.processNextNode(processingNextNodeEvent);
+			}
+
+		}
+
+		public void fireFinishCGEvent(BAPNode node, double nodeBound, double nodeValue, int numberOfCGIterations, long masterSolveTime, long pricingSolveTime, int nrGeneratedColumns) {
+			FinishProcessingNodeEvent finishProcessingNodeEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (finishProcessingNodeEvent == null) {
+				finishProcessingNodeEvent = new FinishProcessingNodeEvent(BranchAndPrice.this, node, nodeBound, nodeValue, numberOfCGIterations, masterSolveTime, pricingSolveTime, nrGeneratedColumns);
+				}
+
+				listener.finishedColumnGenerationForNode(finishProcessingNodeEvent);
+			}
+
+		}
+
+		public void fireBranchEvent(BAPNode parentNode, List<BAPNode> childNodes) {
+			BranchEvent branchEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (branchEvent == null) {
+				branchEvent = new BranchEvent(BranchAndPrice.this, childNodes.size(), parentNode, childNodes);
+				}
+
+				listener.branchCreated(branchEvent);
+			}
+
+		}
+
+		public void fireTimeOutEvent(BAPNode node) {
+			TimeLimitExceededEvent timeLimitExceededEvent = null;
+
+			for(BAPListener listener : this.listeners) {
+				if (timeLimitExceededEvent == null) {
+				timeLimitExceededEvent = new TimeLimitExceededEvent(BranchAndPrice.this, node);
+				}
+
+				listener.timeLimitExceeded(timeLimitExceededEvent);
+			}
+
 		}
 	}
 }

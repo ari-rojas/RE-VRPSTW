@@ -24,7 +24,7 @@ public class customGraphManipulator{
     public final Map<Integer, ArrayList<Integer>> rootPaths;
 	public final Map<Integer, ArrayList<BranchingDecision>> branchingDecisions;
 
-    public customGraphManipulator(BAPNode<EVRPTW, Route> rootNode, Map<Integer, ArrayList<Integer>> rootPaths, Map<Integer, ArrayList<BranchingDecision>> branchingDecisions){
+    public customGraphManipulator(BAPNode<EVRPTW, Route> rootNode, Map<Integer, ArrayList<Integer>> rootPaths, Map<Integer, ArrayList<BranchingDecision<EVRPTW,Route>>> branchingDecisions){
         this.previous_node = rootNode;
         this.listeners = new LinkedHashSet<BranchingDecisionListener>();
         this.rootPaths = rootPaths;

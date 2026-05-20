@@ -5,17 +5,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 
 import columnGeneration.Route;
 
 public class ExtendBAPNotifier{
 
-  private final AbstractBranchAndPrice<?, ?, ?> parent;
+  private final BranchAndPrice parent;
   private final List<ExtendBAPListener> customListeners;
     
-    public ExtendBAPNotifier(AbstractBranchAndPrice<?, ?, ?> parent) {
+    public ExtendBAPNotifier(BranchAndPrice parent) {
       
       this.parent = parent;
       this.customListeners = new ArrayList<ExtendBAPListener>();
