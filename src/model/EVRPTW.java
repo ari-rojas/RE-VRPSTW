@@ -300,9 +300,9 @@ public final class EVRPTW implements ModelInterface {
 		// AC1 Charging arcs for finishing charging time periods
 		for (int head = 1; head <= this.C; head++){
 			int head_vertex_id = this.C0_startID+head;
-			PPVertex vx = PPvertices[head_vertex_id];
+			Vertex vx = vertices[head];
 
-			for (int t = vx.routing_vertex.min_chargingTime; t < vx.routing_vertex.last_departure; t++){
+			for (int t = vx.min_chargingTime; t < vx.last_departure; t++){
 				int tail_vertex_id = this.T_startID + t;
 				PPArc newArc = new PPArc(id, AC1, tail_vertex_id, head_vertex_id); this.PParcs[id] = newArc;
 				PPgraph.addEdge(tail_vertex_id, head_vertex_id, newArc); id ++;
