@@ -106,8 +106,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				if (currentLabel.dominanceVertex == superDepotID){
 					double min_rc = currentLabel.reducedCost + pricingProblem.charging_bounds.get(currentLabel.chargingTime).get(currentLabel.remainingTime);
 					if (min_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_rc;
-					if (min_rc >= -dataModel.precision) continue;
 					if (System.currentTimeMillis()>=timeLimit) break;
+					if (min_rc >= -dataModel.precision) continue;
 				}
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
