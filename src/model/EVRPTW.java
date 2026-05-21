@@ -302,7 +302,7 @@ public final class EVRPTW implements ModelInterface {
 			int head_vertex_id = this.C0_startID+head;
 			PPVertex vx = PPvertices[head_vertex_id];
 
-			for (int t = 1; t < vx.routing_vertex.last_departure; t++){
+			for (int t = vx.routing_vertex.min_chargingTime; t < vx.routing_vertex.last_departure; t++){
 				int tail_vertex_id = this.T_startID + t;
 				PPArc newArc = new PPArc(id, AC1, tail_vertex_id, head_vertex_id); this.PParcs[id] = newArc;
 				PPgraph.addEdge(tail_vertex_id, head_vertex_id, newArc); id ++;
@@ -408,7 +408,8 @@ public final class EVRPTW implements ModelInterface {
 				int last_departure = Integer.parseInt(customElement.getElementsByTagName("last_departure").item(0).getTextContent());
 				boolean feasible_nonfirst = customElement.getElementsByTagName("non_first_feasible").item(0).getTextContent().equals("true");
 				int open_tw_nonfirst = Integer.parseInt(customElement.getElementsByTagName("tw1_start").item(0).getTextContent());
-				vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw, last_departure, feasible_nonfirst, open_tw_nonfirst);
+				int min_b = Integer.parseInt(customElement.getElementsByTagName("min_chargingTime").item(0).getTextContent());
+				vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw, last_departure, feasible_nonfirst, open_tw_nonfirst, min_b);
 			} else  vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw); // Depot nodes
 
 			graph.addVertex(id);
@@ -506,6 +507,7 @@ public final class EVRPTW implements ModelInterface {
 		public final int last_departure;
 		public final boolean feasible_nonfirst;
 		public final int open_tw_nonfirst;
+		public final int min_chargingTime;
 		
 		public final HashSet<Integer> unreachable; 			//(a priori) unreachable customers from this vertex
 		public HashSet<Integer> neighbors;
@@ -515,7 +517,7 @@ public final class EVRPTW implements ModelInterface {
 		 * Creates a new (customer) vertex.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
 		 */
-		public Vertex(int id, int xcoord, int ycoord, int load, int opening_tw, int closing_tw, int last_departure, boolean feas_nonfirst, int tw_nonfirst) {
+		public Vertex(int id, int xcoord, int ycoord, int load, int opening_tw, int closing_tw, int last_departure, boolean feas_nonfirst, int tw_nonfirst, int min_b) {
 			this.node_id = id;
 			this.xcoord = xcoord;
 			this.ycoord = ycoord;
@@ -525,6 +527,7 @@ public final class EVRPTW implements ModelInterface {
 			this.last_departure = last_departure;
 			this.feasible_nonfirst = feas_nonfirst;
 			this.open_tw_nonfirst = tw_nonfirst;
+			this.min_chargingTime = min_b;
 
 			this.unreachable = new HashSet<Integer>(C);
 			this.SRCIndices = new ArrayList<>();
@@ -541,6 +544,7 @@ public final class EVRPTW implements ModelInterface {
 			this.last_departure = opening_tw;
 			this.feasible_nonfirst = false;
 			this.open_tw_nonfirst = opening_tw;
+			this.min_chargingTime = 0;
 
 			this.unreachable = null;
 			this.SRCIndices = null;
