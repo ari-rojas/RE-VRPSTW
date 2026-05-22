@@ -89,7 +89,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
-			if (labelsToProcessNext.get(0).dominanceVertex==superDepotID) logger.debug("Processing SuperDepot "+getTimeInSeconds(System.currentTimeMillis()-startTime));
 			for(Label currentLabel: labelsToProcessNext) {
 				
 				boolean isDominated = checkDominance(currentLabel);
