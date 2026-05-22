@@ -89,7 +89,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
-			Set<PPArc> incomingArcs = dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex);
+			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0 || (arc.arc_type == AR1 && arc.head_vertex_id != depotID && arc.modifiedCost >= -dataModel.precision));
 			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
 			
@@ -131,7 +131,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = chargingLabelsToProcessNext();
-			Set<PPArc> incomingArcs = dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex);
+			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
 			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
 			

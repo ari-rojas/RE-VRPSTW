@@ -89,7 +89,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
-			Set<PPArc> incomingArcs = dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex);
+			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
 			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
 			
@@ -132,7 +132,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = chargingLabelsToProcessNext();
-			Set<PPArc> incomingArcs = dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex);
+			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
 			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
 			
