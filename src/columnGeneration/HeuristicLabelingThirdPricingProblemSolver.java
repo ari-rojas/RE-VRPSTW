@@ -86,13 +86,14 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
-				boolean isDominated = checkDominance(currentLabel);
-				if(isDominated) continue;
-				else {
-					currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
-					PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
-					if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
+				
+				if (currentLabel.dominanceVertex != superDepotID){
+					boolean isDominated = checkDominance(currentLabel);
+					if(isDominated) continue;
 				}
+				
+				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
@@ -139,7 +140,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 				}
 				if(!isDominated) labelsToProcessNext.add(currentLabel);
 			}
-			if(currentVertex.unprocessedLabels.isEmpty() || (vertex_type==C0 && currentVertex.unprocessedLabels.peek().chargingTime>currentLabel.chargingTime) || (vertex_type==C1 && currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
+			if(currentVertex.unprocessedLabels.isEmpty() || (vertex_type==C1 && currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
 		}
 
 		if(!currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
