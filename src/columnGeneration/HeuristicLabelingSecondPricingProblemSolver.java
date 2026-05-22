@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.function.BiPredicate;
 
 import org.jgrapht.graph.DirectedWeightedMultigraph;
@@ -72,39 +73,89 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	public void runLabeling() {
 
 		dataModel.rollbackTrigger = false;
-
 		this.bestReducedCost = Double.MAX_VALUE;
-		//Initialization
+
+		// Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
 		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.dominanceVertex = depotID; initialLabel.nextArc = depotID;
 		this.nodesToProcess.add(PPvertices[depotID]);
 		PPvertices[depotID].unprocessedLabels.add(initialLabel);
-
-		//Labeling algorithm
+		
+		////////////////////////////////////////////
+		/// Routing Labeling
+		////////////////////////////////////////////
+		
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
-			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
-			for(Label currentLabel: labelsToProcessNext) {
-
+			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
+			Set<PPArc> incomingArcs = dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex);
+			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
+			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
+			
+			for (Label currentLabel: labelsToProcessNext) {
+				
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				
-				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
-				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
-				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
+				currentLabel.index = currentVertex.processedLabels.size();
+				currentVertex.processedLabels.add(currentLabel);
 				
-				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
-					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
-					if(a.arc_type <= AR1) extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
-					else extendedLabel = extendLabelChargingTime(currentLabel, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
+				for(PPArc a: incomingArcs) {
+					Label extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
+					if (extendedLabel!=null) { // Verifies if the extension is feasible
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
+
 						if (a.arc_type == AR0) extendedLabel.dominanceVertex = superDepotID;
-						else extendedLabel.dominanceVertex = a.tail_vertex_id;
-						updateNodesToProcess(extendedLabel);
+						else {
+							extendedLabel.dominanceVertex = a.tail_vertex_id;
+							if (PPvertices[a.tail_vertex_id].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
+						}
+						PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
+					}
+				}
+			}
+		}
+
+		////////////////////////////////////////////
+		/// Bounding Procedure
+		////////////////////////////////////////////
+		
+		if (System.currentTimeMillis()>=timeLimit) PPvertices[superDepotID].unprocessedLabels.clear();
+		
+		if (!PPvertices[superDepotID].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[superDepotID]);
+
+		/////////////////////////////////////
+		/// Charging Scheduling Labeling
+		////////////////////////////////////
+		
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+			ArrayList<Label> labelsToProcessNext = chargingLabelsToProcessNext();
+			Set<PPArc> incomingArcs = dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex);
+			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
+			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
+			
+			for (Label currentLabel: labelsToProcessNext) {
+				
+				boolean isDominated = checkDominance(currentLabel);
+				if(isDominated) continue;
+				
+				currentLabel.index = currentVertex.processedLabels.size();
+				currentVertex.processedLabels.add(currentLabel);
+				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
+				
+				for (PPArc a: incomingArcs) {
+					PPVertex extendedVertex = PPvertices[a.tail_vertex_id];
+					Label extendedLabel = extendLabelChargingTime(currentLabel, extendedVertex.node_number, a.arc_type, a.modifiedCost);
+					if (extendedLabel!=null) { //verifies if the extension is feasible
+						
+						extendedLabel.vertex = a.tail_vertex_id;
+						extendedLabel.nextArc = a.id;
+						extendedLabel.dominanceVertex = a.tail_vertex_id;
+
+						if (a.arc_type < AC3 && extendedVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
+						extendedVertex.unprocessedLabels.add(extendedLabel); 
 					}
 				}
 			}
@@ -112,25 +163,18 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
+		if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
 
 
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
 	 */
-	public ArrayList<Label> labelsToProcessNext(){
+	public ArrayList<Label> routingLabelsToProcessNext(){
 
 		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
 		PPVertex currentVertex = nodesToProcess.poll();
 		
-		if (currentVertex.id == superDepotID) {
-			while (!currentVertex.unprocessedLabels.isEmpty()) labelsToProcessNext.add(currentVertex.unprocessedLabels.poll());
-			return labelsToProcessNext;
-		}
-		
-		byte vertex_type = currentVertex.vertex_type;
-		BiPredicate<Label, Label> isDominatedMethod = getDominanceChecker(vertex_type);
 		while(true) {
 			Label currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);
@@ -138,27 +182,26 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 				boolean isDominated = false;
 				for(Label L2: labelsToProcessNext) {
 					
-					isDominatedMethod.test(currentLabel, L2);
+					isDominatedRouting(currentLabel, L2);
 					if(isDominated) break;
 				}
-				if(!isDominated) labelsToProcessNext.add(currentLabel);
+				if (!isDominated) labelsToProcessNext.add(currentLabel);
 			}
-			if(currentVertex.unprocessedLabels.isEmpty() || (vertex_type==C1 && currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
+			if(currentVertex.unprocessedLabels.isEmpty() || (currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
 		}
 
 		if(!currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
 		return labelsToProcessNext;
 	}
 
+	public ArrayList<Label> chargingLabelsToProcessNext(){
 
-	/**
-	 * Given a new (non-dominated) label, updates the nodes to be processed
-	 */
-	public void updateNodesToProcess(Label extendedLabel) {
-		PPVertex currentVertex = PPvertices[extendedLabel.dominanceVertex];
-		if(currentVertex.vertex_type == Source) currentVertex.unprocessedLabels.add(extendedLabel);
-		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
-		else currentVertex.unprocessedLabels.add(extendedLabel);
+		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
+		PPVertex currentVertex = nodesToProcess.poll();
+		
+		while (!currentVertex.unprocessedLabels.isEmpty()) labelsToProcessNext.add(currentVertex.unprocessedLabels.poll());
+		return labelsToProcessNext;
+		
 	}
 
 	/**
@@ -453,8 +496,8 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 
 		switch (vx_type){
 
-			case C0: return this::isDominatedDepot;
 			case C1: return this::isDominatedRouting;
+			case C0: return this::isDominatedDepot;
 			case Tt: return this::isDominatedCharging;
 			case EVRPTW.Depot: return this::isDominatedRouting;
 
