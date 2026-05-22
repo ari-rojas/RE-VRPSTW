@@ -87,13 +87,12 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				
-				if (currentLabel.dominanceVertex != superDepotID){
-					boolean isDominated = checkDominance(currentLabel);
-					if(isDominated) continue;
-				}
+				boolean isDominated = checkDominance(currentLabel);
+				if(isDominated) continue;
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
@@ -125,9 +124,14 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
 		PPVertex currentVertex = nodesToProcess.poll();
+		
+		if (currentVertex.id == superDepotID) {
+			while (!currentVertex.unprocessedLabels.isEmpty()) labelsToProcessNext.add(currentVertex.unprocessedLabels.poll());
+			return labelsToProcessNext;
+		}
+		
 		byte vertex_type = currentVertex.vertex_type;
 		BiPredicate<Label, Label> isDominatedMethod = getDominanceChecker(vertex_type);
-
 		while(true) {
 			Label currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);

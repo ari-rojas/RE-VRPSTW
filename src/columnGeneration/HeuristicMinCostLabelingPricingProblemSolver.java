@@ -92,13 +92,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			if (labelsToProcessNext.get(0).dominanceVertex==superDepotID) logger.debug("Processing SuperDepot "+getTimeInSeconds(System.currentTimeMillis()-startTime));
 			for(Label currentLabel: labelsToProcessNext) {
 				
-				if (currentLabel.dominanceVertex != superDepotID){ // By the time we process the SuperDepot we have already discarded dominated labels
-					boolean isDominated = checkDominance(currentLabel);
-					if(isDominated) continue;
-				}
+				boolean isDominated = checkDominance(currentLabel);
+				if(isDominated) continue;
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
@@ -119,7 +118,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							 
 							// If the extendedLabel (route) won't generate any column with negative reduced cost,
 							// we move it directly to the Processed Labels bucket in case FRC is triggered.
-							if (extendedLabel.reducedCost + pricingProblem.charging_bounds.get(extendedLabel.chargingTime).get(extendedLabel.remainingTime) >= -dataModel.precision){
+							double min_col_rc = extendedLabel.reducedCost + pricingProblem.charging_bounds.get(extendedLabel.chargingTime).get(extendedLabel.remainingTime);
+							if (min_col_rc >= -dataModel.precision){
+								if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
 								PPvertices[extendedLabel.vertex].processedLabels.add(extendedLabel);
 								continue;
 							}
@@ -146,9 +147,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
 		PPVertex currentVertex = nodesToProcess.poll();
+		
+		if (currentVertex.id == superDepotID) {
+			while (!currentVertex.unprocessedLabels.isEmpty()) labelsToProcessNext.add(currentVertex.unprocessedLabels.poll());
+			return labelsToProcessNext;
+		}
+		
 		byte vertex_type = currentVertex.vertex_type;
 		BiPredicate<Label, Label> isDominatedMethod = getDominanceChecker(vertex_type);
-
 		while(true) {
 			Label currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);
@@ -303,6 +309,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			chargingTime -= 1;
 			if(chargingTime<0) return null; // If the label is extended through consecutive charging time periods and is charging more than necessary, deem it infeasible
 		} else {
+			if (reducedCost < this.bestReducedCost - dataModel.precision) this.bestReducedCost = reducedCost;
 			if (reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
