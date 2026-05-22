@@ -90,15 +90,14 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
 			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
-			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
 			
 			for (Label currentLabel: labelsToProcessNext) {
 				
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				
-				currentLabel.index = currentVertex.processedLabels.size();
-				currentVertex.processedLabels.add(currentLabel);
+				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
 				for(PPArc a: incomingArcs) {
 					Label extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
@@ -106,12 +105,14 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
 
-						if (a.arc_type == AR0) extendedLabel.dominanceVertex = superDepotID;
-						else {
+						if (a.arc_type == AR0) {
+							extendedLabel.dominanceVertex = superDepotID;
+							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
+						} else {
 							extendedLabel.dominanceVertex = a.tail_vertex_id;
-							if (PPvertices[a.tail_vertex_id].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
+							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
+							if (PPvertices[a.tail_vertex_id].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
 						}
-						PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
 					}
 				}
 			}
@@ -131,20 +132,17 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 		
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = chargingLabelsToProcessNext();
-			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
-			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
-			PPVertex currentVertex = PPvertices[labelsToProcessNext.get(0).vertex];
 			
 			for (Label currentLabel: labelsToProcessNext) {
 				
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				
-				currentLabel.index = currentVertex.processedLabels.size();
-				currentVertex.processedLabels.add(currentLabel);
+				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				
-				for (PPArc a: incomingArcs) {
+				for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					PPVertex extendedVertex = PPvertices[a.tail_vertex_id];
 					Label extendedLabel = extendLabelChargingTime(currentLabel, extendedVertex.node_number, a.arc_type, a.modifiedCost);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
@@ -153,8 +151,8 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 						extendedLabel.nextArc = a.id;
 						extendedLabel.dominanceVertex = a.tail_vertex_id;
 
-						if (a.arc_type < AC3 && extendedVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
-						extendedVertex.unprocessedLabels.add(extendedLabel); 
+						extendedVertex.unprocessedLabels.add(extendedLabel);
+						if (a.arc_type < AC3 && extendedVertex.unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
 					}
 				}
 			}
