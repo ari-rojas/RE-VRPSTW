@@ -97,7 +97,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
-
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
