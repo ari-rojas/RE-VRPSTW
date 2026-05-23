@@ -194,13 +194,16 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
 					extendedNotifier.fireGapReductionEvent(this.gapReduction);
 					break; }
-
+				
+				// The algorithm will allow for more cuts to be generated
+				// Update the solution memory before separating the cuts
+				this.update_solution_memory();
+				
 				dataModel.cut_iterations ++;
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
 				
-				this.update_solution_memory();
 				dataModel.cleanSRCs();	// MODIFICATION
 			}
 
