@@ -237,17 +237,36 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	private void cleanBackwardLabels() {
 
-		// (Super) Depot labels
+		//////////////////////////////////
+		/// SuperDepot Labels
+		//////////////////////////////////
+		
 		ArrayList<Label> labels = this.bwLabels.get(0);
+
 		ArrayList<Label> labels_to_remove = new ArrayList<Label>();
 		for (int ix = 0; ix < labels.size(); ix++){
 			Label l1 = labels.get(ix); boolean dominated = false;
-			for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedDepot(l1, labels.get(ix2))) { dominated = true; break; }
+			for (int ix2 = 0; ix2 < labels.size(); ix2++) if (ix != ix2 && isDominatedDepot(l1, labels.get(ix2))) { dominated = true; break; }
 			if (dominated) labels_to_remove.add(l1);
 		} labels.removeAll(labels_to_remove);
+
+		BitSet isDominatedLabels = new BitSet(); labels_to_remove.clear();
+		for (int ix = 0; ix < labels.size(); ix++){
+			if (isDominatedLabels.get(ix)) continue;
+			Label l1 = labels.get(ix);
+			for (int ix2 = 0; ix2 < labels.size(); ix2++) {
+				if (ix == ix2 || isDominatedLabels.get(ix2)) continue;
+				Label l2 = labels.get(ix2);
+				if (isDominatedDepot(l2, l1)) { isDominatedLabels.set(ix2); labels_to_remove.add(l2); }
+			}
+		} labels.removeAll(labels_to_remove);
+
 		labels.sort(Comparator.comparing(l -> l.reducedCost));
 
-		// C1 PP vertices labels
+		//////////////////////////////////
+		/// C1 vertices labels
+		//////////////////////////////////
+		
 		for (int i = 1; i <= dataModel.C; i++){
 			labels = this.bwLabels.get(i); labels_to_remove = new ArrayList<Label>();
 			for (int ix = 0; ix < labels.size(); ix++){

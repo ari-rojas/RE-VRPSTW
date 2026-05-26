@@ -80,10 +80,10 @@ public final class EVRPTW implements ModelInterface {
 	public boolean rollbackTrigger;
 	public int rollbackBaseLine;
 	public int rollbackExplosion;
-	public int rollbackFactor = 500;
+	public int rollbackFactor = 125;
 	public int cut_iterations;
-	public int pricingSoftFactor = 0;
-	public double gapReductionRequirement = 1;
+	public int pricingSoftFactor = 5;
+	public double gapReductionRequirement = 0.35;
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
 	public static final byte C0 = 0; 	 	// Customer depot nodes
