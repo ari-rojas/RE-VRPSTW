@@ -162,7 +162,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			double newReducedCost = extendedLabel.reducedCost;
 			BitSet ng_reachable = new BitSet();
-			for (int i = 0; i < dataModel.C; i++) if (!extendedLabel.ng_path[i]) ng_reachable.set(i);
+			//for (int i = 0; i < dataModel.C; i++) if (!extendedLabel.ng_path[i]) ng_reachable.set(i);
+			for (int i = 0; i < dataModel.C; i++) if (!extendedLabel.unreachable[i] || !extendedLabel.ng_path[i]) ng_reachable.set(i);
 			
 			boolean foundDominatingSet = false;
 			for (int q = 0; q < max_q; q++) {
@@ -174,7 +175,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				if (!dominated) continue; // Skip source labels that don't dominate the extended label
 
 				for (int c = ng_reachable.nextSetBit(0); c >= 0; c = ng_reachable.nextSetBit(c + 1)) {
-					if (!l2.ng_path[c])  ng_reachable.clear(c); }
+					//if (!l2.ng_path[c])  ng_reachable.clear(c); }
+					if (!l2.unreachable[c] || !l2.ng_path[c])  ng_reachable.clear(c); }
 
 				if (ng_reachable.isEmpty()) {
 					newReducedCost -= l2.reducedCost;
@@ -446,12 +448,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
 
 		// Unreachable resources
-		int routing_vertex_id = PPvertices[L1.vertex].routing_vertex.node_id;
+		/* int routing_vertex_id = PPvertices[L1.vertex].routing_vertex.node_id;
 		for(Arc arc: dataModel.graph.incomingEdgesOf(routing_vertex_id)) {
 			int i = arc.tail;
 			if (i == 0) continue;
 			if (!L1.unreachable[i-1] && L2.unreachable[i-1])  return false;
-		}
+		} */
 
 		return true;
 	}
