@@ -298,7 +298,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				// Look for an integer solution if
 				// i) the current MP solution is NOT integer, and
 				// ii) the current gap is greater than 5%
-				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.05){
+				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
 					
 					Master mMaster = (Master) master;
 					VRPMasterData masterData = mMaster.getMasterData();
@@ -315,8 +315,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
 				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 				
-				//if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
-				//	perform_fixing_by_reduced_cost(timeLimit);}
+				if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+					perform_fixing_by_reduced_cost(timeLimit);}
 			}
 			
 
