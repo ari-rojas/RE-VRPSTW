@@ -38,6 +38,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public PPVertex[] PPvertices = dataModel.PPvertices;
 	public Vertex[] vertices = dataModel.vertices;
 
+	private ArrayList<ArrayList<Label>> bwDepotLabels;
+
 	// General information
 	private int Gamma = dataModel.gamma;
 
@@ -118,11 +120,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				if (infeasiblePPArcs[arc.id] > 0) continue;
 
 				double min_rc = Double.POSITIVE_INFINITY;
-				if (arc.arc_type == AR0) min_rc = computeArcRCProxy_Depot(arc, backwardLabels, this.bwLabels.get(0));
-				else {
-					int i = PPvertices[arc.tail_vertex_id].node_number;
-					min_rc = computeArcRCProxy_Routing(arc, backwardLabels, this.bwLabels.get(i));
-				}
+				int i = PPvertices[arc.tail_vertex_id].node_number;
+				if (arc.arc_type == AR0) min_rc = computeArcRCProxy_Depot(arc, backwardLabels, this.bwDepotLabels.get(i));
+				else  min_rc = computeArcRCProxy_Routing(arc, backwardLabels, this.bwLabels.get(i));
 
 				if (!Double.isInfinite(min_rc) && min_rc - bestReducedCost > FRC_gap + dataModel.precision) {
 					arcsToRemove.put(arc.id, min_rc);
@@ -237,6 +237,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	private void cleanBackwardLabels() {
 
+		this.bwDepotLabels = new ArrayList<ArrayList<Label>>();
+		this.bwDepotLabels.add(null);
+		for (int i = 0; i <= dataModel.C; i++) this.bwDepotLabels.add(new ArrayList<Label>());
+
 		//////////////////////////////////
 		/// SuperDepot Labels
 		//////////////////////////////////
@@ -262,6 +266,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		} labels.removeAll(labels_to_remove);
 
 		labels.sort(Comparator.comparing(l -> l.reducedCost));
+		
+		for (Label label: labels) this.bwDepotLabels.get(PPvertices[label.vertex].node_number).add(label);
 
 		//////////////////////////////////
 		/// C1 vertices labels
