@@ -265,7 +265,7 @@ public final class EVRPTWSolver {
 		//if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
 		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "NFT-5GR35-RB125"+energy_deviation, args[2], args[3]);
-		EVRPTW evrptw = new EVRPTW("R109-50", 0, 0, true, "NF", "Debug", "");
+		EVRPTW evrptw = new EVRPTW("R106-25", 0, 0, true, "NF", "Debug", "");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
