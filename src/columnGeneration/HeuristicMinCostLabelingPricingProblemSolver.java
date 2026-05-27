@@ -36,6 +36,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public final int similarityThreshold = 5; 				//diversification of columns
 
 	public double bestReducedCost;
+	public Label bestLabel;
 	private int Gamma;
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
@@ -57,8 +58,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public boolean canTriggerRollback;
 	public int nLabels;
 	public int rollbackThreshold;
-
-	public ArrayList<Label> nonNegativeCols_routes;
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -132,15 +131,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		////////////////////////////////////////////
 		
 		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) PPvertices[superDepotID].unprocessedLabels.clear();
-
-		this.nonNegativeCols_routes = new ArrayList<>();
+		
 		Iterator<Label> it = PPvertices[superDepotID].unprocessedLabels.iterator();
 		while (it.hasNext()) {
 			Label lab = it.next();
 			double min_col_rc = lab.reducedCost + pricingProblem.charging_bounds.get(lab.chargingTime).get(lab.remainingTime);
 			if (min_col_rc >= -dataModel.precision) {
-				if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
-				this.nonNegativeCols_routes.add(lab);
+				if (min_col_rc < this.bestReducedCost - dataModel.precision) { this.bestReducedCost = min_col_rc; this.bestLabel = lab; }
 				it.remove();
 			}
 		}
@@ -346,7 +343,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			chargingTime -= 1;
 			if(chargingTime<0) return null; // If the label is extended through consecutive charging time periods and is charging more than necessary, deem it infeasible
 		} else {
-			if (reducedCost < this.bestReducedCost - dataModel.precision) this.bestReducedCost = reducedCost;
+			if (reducedCost < this.bestReducedCost - dataModel.precision) { this.bestReducedCost = reducedCost; }
 			if (reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
@@ -379,7 +376,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		// Save information of the routing subgraph for Fixing by Reduced Cost
 		pricingProblem.bwLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
-		pricingProblem.bwLabels.add(new ArrayList<>(this.nonNegativeCols_routes));
+		pricingProblem.bwLabels.add(null); pricingProblem.SRCIndices.add(null);
 		for (int i = 1; i <= dataModel.C; i++) {
 			pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
 			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
@@ -501,6 +498,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		pricingProblem.bestReducedCost = this.bestReducedCost;
+		pricingProblem.bestLabel = this.bestLabel;
 
 		if (dataModel.print_log) {
 			logger.debug("Finished exact pricing: "+PPvertices[0].processedLabels.size()+" processed, "+PPvertices[0].unprocessedLabels.size()+" unprocessed.");
