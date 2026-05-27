@@ -222,6 +222,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			remainingTime -= routeArc.time;
 			if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 		}
+
+		if ((int)(remainingTime/10)<dataModel.f_inverse[dataModel.E]){
+			logger.debug("error");
+		}
 		
 		int departure = (int)(remainingTime/10);
 		if (chargingTime >= departure) return null; 	// Charging interval feasibility
@@ -280,6 +284,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// Routing Labeling
 		////////////////////////////////////////////
 		
+		ArrayList<Integer> base_Seq = new ArrayList<>(Arrays.asList(419, 1041, 848, 229, 1008, 157, 4));
+		
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
@@ -293,6 +299,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+				
+				ArrayList<Integer> seq = get_route_arcs_sequence(currentLabel);
+				boolean is_seq = is_subset_of(seq, base_Seq);
+				if (is_seq) {
+					logger.debug("here");
+				}
 				
 				for (PPArc a: outgoingArcs) {
 					Label extendedLabel = extendForwardLabel(currentLabel, a.routing_arc, a.modifiedCost);
@@ -353,7 +365,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		ArrayList<Integer> aSeq = new ArrayList<>();
 		
 		Label currentLabel = fwL.clone();
-		while(currentLabel.vertex > dataModel.C1_startID) {
+		while(PPvertices[currentLabel.vertex].vertex_type > C0) {
 			PPArc previousArc = dataModel.PParcs[currentLabel.nextArc];
 			aSeq.add(previousArc.routing_arc.id);
 			currentLabel = PPvertices[previousArc.tail_vertex_id].processedLabels.get(currentLabel.nextLabelIndex);
@@ -416,6 +428,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int remainingTime = currentLabel.remainingTime+routing_arc.time;
 		if (remainingTime<vertices[head].opening_tw) remainingTime = vertices[head].opening_tw;
 
+		
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
 		boolean[] eta = currentLabel.eta.clone();
 		HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
@@ -436,7 +449,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		
 		// After confirming that the label is feasible, update the remaining load
 		int remainingLoad = currentLabel.remainingLoad-vertices[head].load;
-
+		
 		// Unreachable resources
 		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
 		boolean[] ng_path = new boolean[dataModel.C];
@@ -448,13 +461,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			//unreachable
 			if (remainingLoad-vertices[c.head].load<0 || remainingTime+c.min_time>vertices[c.head].closing_tw || remainingEnergy[Gamma] - c.min_energy - dataModel.graph.getEdge(c.head, dataModel.C+1).min_energy < 0) {
 				unreachable[c.head-1] = true; }
-
+				
 			//ng-path
 			if (currentLabel.ng_path[c.head-1] && vertices[head].neighbors.contains(c.head)) ng_path[c.head-1] = true;
 			else ng_path[c.head-1] = false;
 		}
-
+			
 		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, 0, unreachable, ng_path, eta, srcIndices);
+
 		return extendedLabel;
 
 	}
@@ -508,6 +522,32 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
 			boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
 			if (other_way)  return false;
+		}
+
+		return true;
+	}
+
+	public ArrayList<Integer> get_route_arcs_sequence(Label label){
+
+		ArrayList<Integer> arcs_seq = new ArrayList<Integer>();
+		Label currentLabel = label.clone();
+		while(PPvertices[currentLabel.vertex].vertex_type > C0) {
+			PPArc previousArc = dataModel.PParcs[currentLabel.nextArc];
+			arcs_seq.add(previousArc.routing_arc.id);
+			currentLabel = PPvertices[previousArc.tail_vertex_id].processedLabels.get(currentLabel.nextLabelIndex);
+		}
+		arcs_seq.add(dataModel.graph.getEdge(0,PPvertices[currentLabel.vertex].node_number).id);
+
+		return arcs_seq;
+
+	}
+
+	public boolean is_subset_of(ArrayList<Integer> list1, ArrayList<Integer> list2){
+
+		if (list1.size() > list2.size()) return false;
+
+		for (int ix = 0; ix < list1.size(); ix++){
+			if (!list1.get(ix).equals(list2.get(ix))) return false;
 		}
 
 		return true;
@@ -588,8 +628,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	private long key(int fw, int bw) {
 		return (((long) fw) << 32) | (bw & 0xffffffffL);
 	}
-
-
 
 	///////////////////////////////////////////////////
 	/// DON'T TOUCH
