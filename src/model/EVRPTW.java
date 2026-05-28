@@ -105,8 +105,8 @@ public final class EVRPTW implements ModelInterface {
 
 		//create a new file output stream.
 		if (this.print_log){
-			PrintStream fileOut = new PrintStream("./results/log/"+this.algorithm+"/"+this.experiment+"/"+this.getName()+".log");
-			System.setOut(fileOut);
+			this.fileOut = new PrintStream("./results/log/"+this.algorithm+"/"+this.experiment+"/"+this.getName()+".log");
+			System.setOut(this.fileOut);
 		}
 
 		//read the instance
