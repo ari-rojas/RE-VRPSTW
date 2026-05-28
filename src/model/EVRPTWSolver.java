@@ -46,6 +46,7 @@ import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.RollbackEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
 import branchAndPrice.FinishRollbackEvent;
+import branchAndPrice.GapReductionEvent;
 import branchAndPrice.IPSolutionEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
@@ -356,6 +357,14 @@ public final class EVRPTWSolver {
 					logger.debug(route.toString());
 			}
 		}
+
+		public void gapReduction(GapReductionEvent gapEvent){
+			if (dataModel.print_log){
+				logger.debug("Stopping to add more cuts in the current node.");
+				logger.debug("Gap Reduction: "+(Math.floor(gapEvent.gapReduction*100)/100)+" < "+dataModel.gapReductionRequirement);
+			}
+		}
+
 
 		@Override
 		public void startGeneratingCuts(StartGeneratingCutsEvent startGenerateCutsEvent) {
