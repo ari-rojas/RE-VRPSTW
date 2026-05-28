@@ -267,6 +267,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int departure = (int)(remainingTime/10);
 		if (chargingTime >= departure) return null; 	// Charging interval feasibility
 
+		double complete_rc = reducedCost + this.charging_bounds.get(chargingTime).get(departure);
+		if (complete_rc < -dataModel.precision){
+			for (int t = 1; t <= dataModel.last_charging_period; t++){
+				logger.debug("t "+t+" "+this.dualCosts[dataModel.C+t]);
+			}
+			logger.debug("Stop here");
+
+		}
+
+		
+
 		return new MergedSequence(Math.floor(reducedCost*10000)/10000, chargingTime, departure);
 	}
 
@@ -358,7 +369,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		// Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill(remain_energy, dataModel.E);
-		Label l0 = new Label(0, -this.dualCost, dataModel.Q, vertices[0].opening_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[this.subsetRowCuts.size()], new HashSet<Integer>(this.subsetRowCuts.size()));
+		Label l0 = new Label(0, 0, dataModel.Q, vertices[0].opening_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[this.subsetRowCuts.size()], new HashSet<Integer>(this.subsetRowCuts.size()));
 		for (int i = 1; i <= dataModel.C; i++){
 			PPVertex depotVertex = PPvertices[dataModel.C0_startID+i];
 			Arc routingArc = dataModel.graph.getEdge(0,i);
