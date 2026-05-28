@@ -90,6 +90,7 @@ public final class EVRPTW implements ModelInterface {
 		Properties properties = new Properties();
 		properties.setProperty("MAXTHREADS", "1"); //only one thread
 		Configuration.readFromFile(properties);
+		this.config = Configuration.getConfiguration();
 		
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
