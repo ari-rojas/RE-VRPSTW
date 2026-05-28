@@ -142,8 +142,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			foundNewColumns=!newColumns.isEmpty();
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
-			if (dataModel.rollbackTrigger){ this.perform_rollback(solutionMemory); break; }
-			else if (boundOnMasterExceedsCutoffValue()) break;
+			//if (dataModel.rollbackTrigger){ this.perform_rollback(solutionMemory); break; }
+			if (boundOnMasterExceedsCutoffValue()) break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException();
@@ -151,13 +151,13 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				
 				// Check if the gap reduction was enough.
 				// In case the reduction was bad, break the Column and Cut Generation to branch directly
-				if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
+				/* if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
 					extendedNotifier.fireGapReductionEvent(this.gapReduction);
 					break; }
 				
 				// The algorithm will allow for more cuts to be generated
 				// Update the solution memory before separating the cuts
-				this.update_solution_memory();
+				this.update_solution_memory(); */
 				
 				dataModel.cut_iterations ++;
 
@@ -267,16 +267,16 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				}
 				
 				// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
-				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
+				//this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
 				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 			
 			}
 			
 
-			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
+			/* if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
 				this.contExact ++;
 				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
-			}
+			} */
 		}
 		
 		//Add columns to the master problem

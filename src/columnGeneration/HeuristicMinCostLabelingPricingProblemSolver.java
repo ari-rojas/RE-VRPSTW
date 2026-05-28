@@ -73,7 +73,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		
 		this.nLabels = 0;
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+		//while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
 			Set<Arc> incomingArcs = new HashSet<Arc>(dataModel.graph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
@@ -106,7 +107,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		/// Middle point
 		////////////////////////////////////////////
 		
-		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) vertices[0].unprocessedLabels.clear();
+		//if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) vertices[0].unprocessedLabels.clear();
+		if (System.currentTimeMillis()>=timeLimit) vertices[0].unprocessedLabels.clear();
 		if (!vertices[0].unprocessedLabels.isEmpty()) nodesToProcess.add(vertices[0]);
 
 		/////////////////////////////////////
