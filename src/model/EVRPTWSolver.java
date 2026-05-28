@@ -231,7 +231,8 @@ public final class EVRPTWSolver {
 		//EVRPTW evrptw = new EVRPTW("C108-50", 1, 0, true, "TwoLabeling-Bound", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
-		solve(10800000L);
+		Solver.solve(10800000L); evrptw.fileOut.close();
+		Solver.close();
 
 	}
 
