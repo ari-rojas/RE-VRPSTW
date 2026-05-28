@@ -12,4 +12,14 @@ public interface ExtendBAPListener extends EventListener {
 
     void finishLexicographicMaster(FinishLexicographicMasterEvent var1);
 
+    void Rollback(RollbackEvent var1);
+
+    void finishRollback(FinishRollbackEvent var1);
+
+    void gapReduction(GapReductionEvent var1);
+
+    void IPRootNode(IPSolutionEvent var1);
+
+    void finishIPRootNode(FinishIPSolutionEvent var1);
+
 }

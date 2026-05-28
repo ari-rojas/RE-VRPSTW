@@ -7,6 +7,8 @@ import java.util.List;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 
+import columnGeneration.Route;
+
 public class ExtendBAPNotifier{
 
   private final AbstractBranchAndPrice<?, ?, ?> parent;
@@ -75,6 +77,70 @@ public class ExtendBAPNotifier{
           lexiMasterEvent = new FinishLexicographicMasterEvent(this.parent, node, found);
         }
       }
+    }
+
+    public void fireRollbackEvent(int BL, int explosion){
+      RollbackEvent rbEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.Rollback(rbEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (rbEvent == null) {
+          rbEvent = new RollbackEvent(this.parent, BL, explosion);
+        }
+      }
+    }
+
+    public void fireFinishRollbackEvent(List<Route> sol, double obj, int n, int nSRCs, int nVB){
+      FinishRollbackEvent rbEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishRollback(rbEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (rbEvent == null) {
+          rbEvent = new FinishRollbackEvent(this.parent, sol, obj, n, nSRCs, nVB);
+        }
+      }
+
+    }
+
+    public void fireGapReductionEvent(double gR){
+      GapReductionEvent gapEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.gapReduction(gapEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (gapEvent == null) {
+          gapEvent = new GapReductionEvent(this.parent, gR);
+        }
+      }
+
+    }
+
+    public void fireIPSolutionEvent(){
+      IPSolutionEvent IPEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.IPRootNode(IPEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (IPEvent == null) {
+          IPEvent = new IPSolutionEvent(this.parent);
+        }
+      }
+
+    }
+
+    public void fireFinishIPSolutionEvent(double time){
+      FinishIPSolutionEvent IPEvent = null;
+
+      ExtendBAPListener listener;
+      for(Iterator var3 = this.customListeners.iterator(); var3.hasNext(); listener.finishIPRootNode(IPEvent)) {
+        listener = (ExtendBAPListener)var3.next();
+        if (IPEvent == null) {
+          IPEvent = new FinishIPSolutionEvent(this.parent, time);
+        }
+      }
+
     }
 
 
