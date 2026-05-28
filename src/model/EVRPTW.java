@@ -32,6 +32,9 @@ import columnGeneration.Label;
 public final class EVRPTW implements ModelInterface {
 
 	public final String instanceName;						//instance name
+	public PrintStream fileOut;
+
+	public Configuration config;
 
 	//Basic information
 	public int C; 											//number of customers
