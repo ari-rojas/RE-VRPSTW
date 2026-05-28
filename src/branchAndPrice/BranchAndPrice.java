@@ -125,13 +125,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			}
 		}
 		bapNode.addInitialColumns(routesToAdd);
-		//Inherit the cuts generated (not necessary)
-
-		//Solve MIP at root node (optional)
-		if(bapNode.nodeID == 0) {
-			try {solveIPAtRootNode(bapNode);} 
-			catch (IloException e) {e.printStackTrace();}
-		}
 
 	}
 
@@ -215,7 +208,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound()); //Solve the node
+			cg = new customCG(dataModel, master, pricingProblems, solvers, pricingProblemManager, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, extendedNotifier); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {

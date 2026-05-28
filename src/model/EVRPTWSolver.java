@@ -236,7 +236,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-CS-Bound-Root", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-IP-CS-Bound-Root", args[2]);
 		//EVRPTW evrptw = new EVRPTW("C108-50", 1, 0, true, "TwoLabeling-Bound", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
