@@ -230,7 +230,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			newColumns=pricingProblemManager.solvePricingProblems(solver);
-			if (dataModel.rollbackTrigger) break;
+			//if (dataModel.rollbackTrigger) break;
 
 			//Stop when we found new columns
 			if(!newColumns.isEmpty()){

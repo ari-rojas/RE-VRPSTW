@@ -379,10 +379,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			this.runLabeling();
 
 			dataModel.rollbackExplosion = nLabels;
-			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
+			/* if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
 				dataModel.rollbackTrigger = true;
 				this.close();
-				return new ArrayList<Route>(); }
+				return new ArrayList<Route>(); } */
 
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=false; this.objective=Double.MAX_VALUE;
