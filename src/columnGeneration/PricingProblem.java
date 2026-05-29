@@ -89,7 +89,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost);
 				if (min_rc - bestReducedCost > FRC_gap) arcsToRemove.put(arc.id, min_rc);
-				if (min_rc < bestReducedCost - dataModel.precision) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
+				if (min_rc < bestReducedCost - 1) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 
 			}
 
