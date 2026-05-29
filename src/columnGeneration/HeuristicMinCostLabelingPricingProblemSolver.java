@@ -266,7 +266,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (source == 0){
 			double min_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)); 
 			if (min_rc >= -dataModel.precision) {
-				if (min_rc < this.bestReducedCost + dataModel.precision) this.bestReducedCost = min_rc;
+				if (min_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_rc;
 				return null;
 			}
 		}
@@ -457,7 +457,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public BiPredicate<Label, Label> getDominanceChecker(int vx_id){
 
 		if (vx_id == 0) return this::isDominatedDepot;
-		if (vx_id <= depotID) return this::isDominatedRouting;
+		if (vx_id <= dataModel.C) return this::isDominatedRouting;
 		
 		return this::isDominatedCharging;
 	}
