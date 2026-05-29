@@ -267,6 +267,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int departure = (int)(remainingTime/10);
 		if (chargingTime >= departure) return null; 	// Charging interval feasibility
 
+		/* double complete_rc = reducedCost + this.charging_bounds.get(chargingTime).get(departure);
+		if (complete_rc < this.bestReducedCost - dataModel.precision){
+			for (int t = 0; t<dataModel.last_charging_period; t++){
+				logger.debug("t: "+t+" "+this.dualCosts[dataModel.C+t]);
+			}
+			logger.debug("Stop here");
+		} */
+
 		return new MergedSequence(Math.floor(reducedCost*10000)/10000, chargingTime, departure);
 	}
 
@@ -321,7 +329,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		return new MergedSequence(Math.floor(reducedCost*10000)/10000, chargingTime, departure);
 	}
-
 
 	private void cleanBackwardLabels() {
 
@@ -405,39 +412,45 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// Labels cleanse
 		///////////////////////////////
 
-		this.fwDepotSequences = new ArrayList<ArrayList<PartialForwardSequence>>();
-		this.fwDepotSequences.add(null);
-		for (int i = 1; i <= dataModel.C; i++) {
-			Label label = PPvertices[dataModel.C0_startID+i].processedLabels.get(0);
-			ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
-			allSequences.add(get_forward_sequence(label));
-			this.fwDepotSequences.add(allSequences);
+		if (System.currentTimeMillis()<timeLimit){
+		
+			this.fwDepotSequences = new ArrayList<ArrayList<PartialForwardSequence>>();
+			this.fwDepotSequences.add(null);
+			for (int i = 1; i <= dataModel.C; i++) {
+				Label label = PPvertices[dataModel.C0_startID+i].processedLabels.get(0);
+				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
+				allSequences.add(get_forward_sequence(label));
+				this.fwDepotSequences.add(allSequences);
+			}
+
+			this.fwC1Sequences = new ArrayList<ArrayList<PartialForwardSequence>>();
+			this.fwC1Sequences.add(null);
+			for (int i = 1; i <= dataModel.C; i++){
+				ArrayList<Label> labels = new ArrayList<Label>(PPvertices[dataModel.C1_startID+i].processedLabels);
+				ArrayList<Label> labels_to_remove = new ArrayList<>();
+				for (int ix = 0; ix < labels.size(); ix++){
+					Label l1 = labels.get(ix);
+					for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedRouting(l1, labels.get(ix2))) {
+						labels_to_remove.add(l1); break; }
+				} labels.removeAll(labels_to_remove);
+
+				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
+				for (Label label: labels){ allSequences.add(get_forward_sequence(label)); }
+				allSequences.sort( Comparator.comparing(l -> l.reducedCost) );
+				this.fwC1Sequences.add(allSequences);
+			}
+
+			for (int i = 0; i < PPvertices.length; i++) {
+				PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
+				PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(dataModel.superDepotID, depotID)); }
+
+			long totalTime = System.currentTimeMillis()-startTime;
+			dataModel.exactPricingTime+=totalTime;
+			if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
+				
+		} else {
+			if (dataModel.print_log) logger.debug("Caught timeout while running the forward labeling algorithm");
 		}
-
-		this.fwC1Sequences = new ArrayList<ArrayList<PartialForwardSequence>>();
-		this.fwC1Sequences.add(null);
-		for (int i = 1; i <= dataModel.C; i++){
-			ArrayList<Label> labels = new ArrayList<Label>(PPvertices[dataModel.C1_startID+i].processedLabels);
-			ArrayList<Label> labels_to_remove = new ArrayList<>();
-			for (int ix = 0; ix < labels.size(); ix++){
-				Label l1 = labels.get(ix);
-				for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedRouting(l1, labels.get(ix2))) {
-					labels_to_remove.add(l1); break; }
-			} labels.removeAll(labels_to_remove);
-
-			ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
-			for (Label label: labels){ allSequences.add(get_forward_sequence(label)); }
-			allSequences.sort( Comparator.comparing(l -> l.reducedCost) );
-			this.fwC1Sequences.add(allSequences);
-		}
-
-		for (int i = 0; i < PPvertices.length; i++) {
-			PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(dataModel.superDepotID, depotID)); }
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.exactPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
 
 	}
 
