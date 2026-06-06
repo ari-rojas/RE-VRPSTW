@@ -127,7 +127,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				if (bwSeq.remainingLoad < fwSeq.cumulativeLoad) continue; 							// Load feasibility
         		
 				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta); if (route_rc - dataModel.precision > this.FRC_gap) continue;
-				pq.add(new MergeState(ixFw, ixBw, route_rc));
+				pq.add(new MergeState(ixFw, ixBw, Math.floor(route_rc*10000)/10000));
 			}
 		}
 
@@ -275,7 +275,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			logger.debug("Stop here");
 		} */
 
-		return new MergedSequence(Math.floor(reducedCost*10000)/10000, chargingTime, departure);
+		return new MergedSequence(reducedCost, chargingTime, departure);
 	}
 
 	private MergedSequence mergeLabel(PartialForwardSequence fwSequence, PartialBackwardSequence bwSeq, Arc routing_arc, double reducedCost){
