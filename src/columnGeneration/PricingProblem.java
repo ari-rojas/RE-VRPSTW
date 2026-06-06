@@ -88,7 +88,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				else forwardSequences = this.fwC1Sequences.get(i);
 
 				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost);
-				if (min_rc - bestReducedCost > FRC_gap) arcsToRemove.put(arc.id, min_rc);
+				if (min_rc - bestReducedCost - dataModel.precision > FRC_gap) arcsToRemove.put(arc.id, min_rc);
 				if (min_rc < bestReducedCost - 1) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 
 			}
@@ -119,14 +119,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int ixBw = 0; ixBw < nBw; ixBw++){
 				PartialBackwardSequence bwSeq = bwSequences.get(ixBw);
 				
-				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost; if (route_rc > this.FRC_gap) continue;
+				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost; if (route_rc - dataModel.precision > this.FRC_gap) continue;
 				
 				if (bwSeq.ng.intersects(fwSeq.ng)) continue;										// ng-Elementarity
 				if (bwSeq.remainingTime - arc.time < fwSeq.cumulativeTime) continue; 				// Time feasibility
 				if (bwSeq.worstRemainEnergy - arc.energy <  fwSeq.nominalEnergy) continue; 		// Worst-case Energy of the backwards - rest of nominal energy
 				if (bwSeq.remainingLoad < fwSeq.cumulativeLoad) continue; 							// Load feasibility
         		
-				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta); if (route_rc > this.FRC_gap) continue;
+				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta); if (route_rc - dataModel.precision > this.FRC_gap) continue;
 				pq.add(new MergeState(ixFw, ixBw, route_rc));
 			}
 		}
