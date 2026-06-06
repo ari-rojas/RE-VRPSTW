@@ -159,62 +159,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
         return min_merged_rc;
     }
 
-	private double findMinimumRCPath(ArrayList<PartialBackwardSequence> bwSequences, ArrayList<PartialForwardSequence> fwSequences, Arc arc, double modifiedCost) {
-
-        int nFw = fwSequences.size();
-        int nBw = bwSequences.size();
-
-        PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s1.rc, s2.rc) );
-        pq.add(new MergeState(0, 0, fwSequences.get(0).reducedCost + modifiedCost + bwSequences.get(0).reducedCost +  getMergeSRCs_RC(fwSequences.get(0).eta, bwSequences.get(0).eta)));
-
-        HashSet<Long> visited = new HashSet<>();
-        visited.add(key(0, 0));
-
-		double bestReducedCost = Double.POSITIVE_INFINITY;
-        while (!pq.isEmpty()) {
-            MergeState current = pq.poll();
-            
-			int fw = current.f;
-            PartialForwardSequence fwSeq = fwSequences.get(fw);
-            
-			int bw = current.b;
-            PartialBackwardSequence bwSeq = bwSequences.get(bw);
-
-			/* if (!Double.isInfinite(bestReducedCost) && bestReducedCost <= current.rc - dataModel.precision){ return bestReducedCost; }
-			else { */
-			MergedSequence mergedPath = mergeLabel(fwSeq, bwSeq, arc, current.rc);
-			if (mergedPath != null){
-				double chBound = this.charging_bounds.get(mergedPath.chargingTime).get(mergedPath.departureTime);
-				double complete_rc = mergedPath.reducedCost + chBound;
-				
-				if (complete_rc < bestReducedCost - dataModel.precision){
-					bestReducedCost = complete_rc;
-					if (bestReducedCost < this.FRC_gap)  return bestReducedCost; // If found a feasible column with lower RC than the gap, the arc won't be fixed
-					//if (chBound < dataModel.precision){ return bestReducedCost; }
-				}
-			}
-			//}
-
-            // neighbor: (i+1, j)
-            if (fw + 1 < nFw) {
-                long k = key(fw + 1, bw);
-                if (visited.add(k)) {
-                    pq.add(new MergeState(fw + 1, bw, fwSequences.get(fw+1).reducedCost + modifiedCost +  bwSeq.reducedCost + getMergeSRCs_RC(fwSequences.get(fw+1).eta, bwSeq.eta)));
-                }
-            }
-
-            // neighbor: (i, j+1)
-            if (bw + 1 < nBw) {
-                long k = key(fw, bw + 1);
-                if (visited.add(k)) {
-                    pq.add(new MergeState(fw, bw + 1, fwSeq.reducedCost + modifiedCost + bwSequences.get(bw + 1).reducedCost + getMergeSRCs_RC(fwSeq.eta, bwSequences.get(bw + 1).eta)));
-                }
-            }
-        }
-
-        return bestReducedCost;
-    }
-
 	private double getMergeSRCs_RC(boolean[] etaFw, boolean[] etaBw){
 
 		double additional_rc = 0;
@@ -276,58 +220,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		} */
 
 		return new MergedSequence(reducedCost, chargingTime, departure);
-	}
-
-	private MergedSequence mergeLabel(PartialForwardSequence fwSequence, PartialBackwardSequence bwSeq, Arc routing_arc, double reducedCost){
-		
-		///////////////////////////////////
-		/// MERGE FEASIBILITY ASSESSMENT
-		///////////////////////////////////
-		
-		// ng-Elementarity Assessment
-		boolean nonNgElementary = bwSeq.ng.intersects(fwSequence.ng);
-		if (nonNgElementary) return null;
-		
-		if (bwSeq.remainingLoad - fwSequence.cumulativeLoad < 0) return null; 					// Load feasibility
-		if (fwSequence.cumulativeTime + routing_arc.time > bwSeq.remainingTime) return null; 	// Time feasibility
-		
-		// Worst-case energy feasibility
-		int remainingEnergy = bwSeq.nominalEnergy - routing_arc.energy - fwSequence.nominalEnergy; if (remainingEnergy < 0) return null; // Nominal energy consumption
-		
-		ArrayList<Integer> fwDevs = fwSequence.worstEnergyDevs;
-		ArrayList<Integer> bwDevs = new ArrayList<>(bwSeq.worstEnergyDevs);
-		for (int g = 0; g < Gamma; g++) if (routing_arc.energy_deviation >= bwDevs.get(g)) { bwDevs.add(g, routing_arc.energy_deviation); break; }
-
-		int ixFw = 0; int ixBw = 0;
-		for (int g = 1; g <= Gamma; g++){
-			if (fwDevs.get(ixFw) >= bwDevs.get(ixBw)) { remainingEnergy -= fwDevs.get(ixFw); ixFw ++; }
-			else { remainingEnergy -= bwDevs.get(ixBw); ixBw ++; }
-			if (remainingEnergy < 0) return null;
-		}
-		
-		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy];
-		
-		/////////////////////////////////
-		/// LATEST DEPARTURE TIME
-		/////////////////////////////////
-		
-		int source = routing_arc.tail;
-		int remainingTime = bwSeq.remainingTime - routing_arc.time;
-		if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		
-		ArrayList<Integer> fwRoutingArcs = fwSequence.routingArcsSequence;
-		for (int arcID: fwRoutingArcs){ // Loop over the arc extensions leading up to a C0 vertex
-			Arc routeArc = dataModel.arcs[arcID];
-			source = routeArc.tail;
-			
-			remainingTime -= routeArc.time;
-			if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		}
-		
-		int departure = (int)(remainingTime/10);
-		if (chargingTime >= departure) return null; 	// Charging interval feasibility
-
-		return new MergedSequence(Math.floor(reducedCost*10000)/10000, chargingTime, departure);
 	}
 
 	private void cleanBackwardLabels() {
