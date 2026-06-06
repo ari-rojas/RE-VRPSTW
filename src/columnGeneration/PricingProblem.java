@@ -131,7 +131,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
 		}
 
-		double bestReducedCost = this.FRC_gap+dataModel.precision;
+		double bestReducedCost = this.FRC_gap+2*dataModel.precision;
         while (!pq.isEmpty()) {
 			
             MergeState current = pq.poll();
