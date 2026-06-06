@@ -131,7 +131,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
 		}
 
-		double bestReducedCost = this.FRC_gap+2*dataModel.precision;
+		double min_merged_rc = this.FRC_gap+2*dataModel.precision;
         while (!pq.isEmpty()) {
 			
             MergeState current = pq.poll();
@@ -139,18 +139,18 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			int fw = current.f; PartialForwardSequence fwSeq = fwSequences.get(fw);
 			int bw = current.b; PartialBackwardSequence bwSeq = bwSequences.get(bw);
 
-			if (bestReducedCost <= current.rc + dataModel.precision){ return bestReducedCost; }
+			if (min_merged_rc <= current.rc + dataModel.precision){ return min_merged_rc; }
 			else {
 				MergedSequence mergedPath = mergeLabel_acc(fwSeq, bwSeq, arc, current.rc);
 				if (mergedPath != null){ // If found a feasible merged label
 					double chBound = this.charging_bounds.get(mergedPath.chargingTime).get(mergedPath.departureTime);
 					double complete_rc = mergedPath.reducedCost + chBound;
 					
-					if (complete_rc < bestReducedCost - dataModel.precision){
-						bestReducedCost = complete_rc;
+					if (complete_rc < min_merged_rc - dataModel.precision){
+						min_merged_rc = complete_rc;
 						// If found a feasible column with lower RC than the gap, the arc won't be fixed
 						// If the charging bound is 0, the column's reduced cost is optimal for the FRC expression
-						if (bestReducedCost <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return bestReducedCost; 
+						if (min_merged_rc <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return bestReducedCost; 
 					}
 				}
 			}
