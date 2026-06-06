@@ -156,7 +156,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
         }
 
-        return bestReducedCost;
+        return min_merged_rc;
     }
 
 	private double findMinimumRCPath(ArrayList<PartialBackwardSequence> bwSequences, ArrayList<PartialForwardSequence> fwSequences, Arc arc, double modifiedCost) {
