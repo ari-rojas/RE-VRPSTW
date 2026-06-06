@@ -150,7 +150,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						min_merged_rc = complete_rc;
 						// If found a feasible column with lower RC than the gap, the arc won't be fixed
 						// If the charging bound is 0, the column's reduced cost is optimal for the FRC expression
-						if (min_merged_rc <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return bestReducedCost; 
+						if (min_merged_rc <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return min_merged_rc; 
 					}
 				}
 			}
