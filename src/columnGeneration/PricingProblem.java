@@ -67,6 +67,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit, double UB, double LB){
 		
 		this.FRC_gap = UB-LB;
+		this.bwSequences = new ArrayList<ArrayList<PartialBackwardSequence>>();
+		this.fwDepotSequences = new ArrayList<ArrayList<PartialForwardSequence>>();
+		this.fwC1Sequences = new ArrayList<ArrayList<PartialForwardSequence>>();
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 
@@ -150,7 +153,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						min_merged_rc = complete_rc;
 						// If found a feasible column with lower RC than the gap, the arc won't be fixed
 						// If the charging bound is 0, the column's reduced cost is optimal for the FRC expression
-						if (min_merged_rc <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return min_merged_rc; 
+						if (min_merged_rc - bestReducedCost <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return min_merged_rc; 
 					}
 				}
 			}
@@ -228,7 +231,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// C1 vertices labels
 		//////////////////////////////////
 		
-		this.bwSequences = new ArrayList<ArrayList<PartialBackwardSequence>>();
+		
 		this.bwSequences.add(null);
 
 		for (int i = 1; i <= dataModel.C+1; i++){
@@ -306,7 +309,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		if (System.currentTimeMillis()<timeLimit){
 		
-			this.fwDepotSequences = new ArrayList<ArrayList<PartialForwardSequence>>();
+			
 			this.fwDepotSequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++) {
 				Label label = PPvertices[dataModel.C0_startID+i].processedLabels.get(0);
@@ -315,7 +318,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				this.fwDepotSequences.add(allSequences);
 			}
 
-			this.fwC1Sequences = new ArrayList<ArrayList<PartialForwardSequence>>();
+			
 			this.fwC1Sequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++){
 				ArrayList<Label> labels = new ArrayList<Label>(PPvertices[dataModel.C1_startID+i].processedLabels);
