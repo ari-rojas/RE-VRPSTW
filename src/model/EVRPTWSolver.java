@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.StartEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;

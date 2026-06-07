@@ -300,12 +300,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				// ii) the current gap is greater than 5%
 				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
 					
-					Master mMaster = (Master) master;
-					VRPMasterData masterData = mMaster.getMasterData();
-					
 					double IPtime = System.currentTimeMillis();
 					extendedNotifier.fireIPSolutionEvent();
-					try { this.solveIP(master.getColumns(pricingProblems.get(0)), masterData.subsetRowInequalities.keySet(), masterData.branchingNumberOfVehicles.keySet()); } 
+					try { this.solveIP(master.getColumns(pricingProblems.get(0))); } 
 					catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
 					extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
 				
@@ -384,7 +381,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		
 	}
 
-	public void solveIP(Set<Route> columns, Set<SubsetRowInequality> subsetRowInequalities, Set<NumberVehiclesInequalities> vehiclesInequalities) throws IloException {
+	public void solveIP(Set<Route> columns) throws IloException {
 
 		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
 		IloCplex cplex = new IloCplex();
@@ -406,19 +403,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		for (int t = 0; t < dataModel.last_charging_period; t++)
 			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
 
-		// Subset Row Cuts
-		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
-		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities){
-			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
-			ix ++; }
-		
-		// Number of vehicles branches
-		IloRange[] NumVehiclesBranches = new IloRange[vehiclesInequalities.size()]; ix = 0;
-		for (NumberVehiclesInequalities branch: vehiclesInequalities){
-			if (branch.lessThanOrEqual) NumVehiclesBranches[ix] = cplex.addLe(cplex.linearNumExpr(), branch.coefficient, "branching_"+branch.toString());
-			else NumVehiclesBranches[ix] = cplex.addGe(cplex.linearNumExpr(), branch.coefficient, "branching_"+branch.toString());
-			ix ++; }
-
 		for (Route route: columns) {
 
 			if (route.isArtificialColumn) continue;
@@ -430,16 +414,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
 				iloColumn = iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
-
-			ix = 0;
-			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities) {
-				iloColumn = iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
-				ix ++; }
-
-			ix = 0;
-			for (NumberVehiclesInequalities branch: vehiclesInequalities) {
-				iloColumn = iloColumn.and(cplex.column(NumVehiclesBranches[ix],1));
-				ix ++; }
 
 			//Create the variable and store it
 			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
@@ -470,9 +444,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				}
 
 				this.incumbentSolution = optimalSolution;
-			}
+			} else { logger.debug("Found the same solution to the current UB"); }
 		} else {
-			if (dataModel.print_log) logger.debug("Did not find an integer solution");
+			if (dataModel.print_log) {
+				logger.debug("Status: "+cplex.getStatus().toString());
+				logger.debug("Did not find an integer solution");
+			}
 		}
 		cplex.close();
 		cplex.end();
