@@ -40,7 +40,6 @@ import org.jorlib.frameworks.columnGeneration.io.SimpleDebugger;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractCutGenerator;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.CutHandler;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
-import org.jorlib.frameworks.columnGeneration.util.Configuration;
 import branchAndPrice.BranchAndPrice;
 import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
@@ -48,11 +47,7 @@ import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
-import branchAndPrice.IPRootNodeEvent;
-import branchAndPrice.FinishIPRootNodeEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
-import columnGeneration.HeuristicLabelingThirdPricingProblemSolver;
-import columnGeneration.HeuristicLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
@@ -328,20 +323,6 @@ public final class EVRPTWSolver {
 				for(AbstractColumn<?, ?> column : finishPricingEvent.columns){
 					logger.debug(column.toString());
 				}
-			}
-		}
-
-		@Override
-		public void IPRootNode(IPRootNodeEvent IPRootEvent){
-			if (dataModel.print_log) {
-				logger.debug("=============== SOLVING IP ===============");
-			}
-		}
-
-		@Override
-		public void finishIPRootNode(FinishIPRootNodeEvent IPRootEvent){
-			if (dataModel.print_log) {
-				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
 			}
 		}
 

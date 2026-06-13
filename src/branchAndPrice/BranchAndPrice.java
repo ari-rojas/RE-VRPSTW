@@ -130,15 +130,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		bapNode.addInitialColumns(routesToAdd);
 		//Inherit the cuts generated (not necessary)
 
-		//Solve MIP at root node (optional)
-		if(bapNode.nodeID == 0) {
-			double time = System.currentTimeMillis();
-			extendedNotifier.fireIPRootNodeEvent(bapNode);
-			try {solveIPAtRootNode(bapNode);} 
-			catch (IloException e) {e.printStackTrace(); logger.debug(e.getMessage());}
-			extendedNotifier.fireFinishIPRootNodeEvent(bapNode, System.currentTimeMillis() - time);
-		}
-
 	}
 
 	/**
