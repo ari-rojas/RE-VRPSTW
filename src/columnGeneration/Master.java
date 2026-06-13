@@ -116,6 +116,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					
 					/* logger.debug("Printing dual variables");
 					logger.debug("Capacity constraint: " + String.valueOf(masterData.cplex.getDual(roundedCapacityInequality)));
+					logger.debug("Vehicle branches: ");
+					for(NumberVehiclesInequalities branching: masterData.branchingNumberOfVehicles.keySet())
+						logger.debug(branching.toString()+": "+String.valueOf(masterData.cplex.getDual(masterData.branchingNumberOfVehicles.get(branching))));
 					logger.debug("Customer constraints: " + masterData.cplex.getDuals(visitCustomerConstraints).toString());
 					for(int i=0; i< dataModel.C; i++) {
 						logger.debug("Customer " + String.valueOf(i+1) + ": " +masterData.cplex.getDual(visitCustomerConstraints[i]));
@@ -128,8 +131,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
 						double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
 						logger.debug(subsetRowInequality.toString() + ": " + dual);
-					}
 					} */
+					
 
 					/* logger.debug("---------------- PRINTING COLUMNS ----------------");
 					for (Route col: this.getColumns(pricingProblems.get(0))){

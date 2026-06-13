@@ -562,6 +562,7 @@ public final class BranchAndPrice {
 	
 				if (this.nodeCanBePruned(bapNode)) { // If can be pruned by bound AFTER solving the node
 					this.notifier.firePruneNodeEvent(bapNode, bapNode.getBound());
+					bapNode = this.updateNodeGeneratedColumns(bapNode, cgIncumbent.branchingFRC);
 					++this.nodesProcessed;
 				} else if (this.isInfeasibleNode(bapNode)) { // If can be pruned by infeasibility DUE TO artificial columns in the solution
 					this.notifier.fireNodeIsInfeasibleEvent(bapNode);

@@ -1,6 +1,7 @@
 package branchAndPrice;
 
-import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.List;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
@@ -8,9 +9,7 @@ import columnGeneration.PricingProblem;
 import columnGeneration.Route;
 import model.EVRPTW;
 import model.EVRPTW.PPVertex;
-import model.EVRPTW.Arc;
 import model.EVRPTW.PPArc;
-
 
 /**
  * Ensure that an arc is used (Branching on the arc-flow variables >=)
@@ -24,7 +23,7 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 	public double flowValue;								//flow value of the arc on which we are branching
 	public List<AbstractInequality> poolOfCuts;				//separated SRCs
 	public EVRPTW dataModel;								//data model
-	public ArrayList<Integer> infeasiblePPArcs;				//infeasible arcs by the branching decision
+	public Set<Integer> infeasiblePPArcs;				//infeasible arcs by the branching decision
 
 	public FixArc(PricingProblem pricingProblem, int arc, byte arc_type, EVRPTW dataModel, List<AbstractInequality> list, double flowValue){
 		this.pricingProblem = pricingProblem;
@@ -32,7 +31,7 @@ public final class FixArc implements BranchingDecision<EVRPTW,Route> {
 		this.arc_type = arc_type;
 		this.dataModel = dataModel;
 		this.poolOfCuts = list;
-		this.infeasiblePPArcs = new ArrayList<Integer>();
+		this.infeasiblePPArcs = new HashSet<>();
 		this.flowValue = flowValue;
 
 		// Retrieve the arc (i,j)

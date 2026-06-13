@@ -57,6 +57,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public static final byte AR1 = EVRPTW.AR1;		// Routing arcs between non-first customer nodes
 
 	public double FRC_gap;
+	private int problematic_arc = 735;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -90,7 +91,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				if (arc.arc_type == AR0) forwardSequences = this.fwDepotSequences.get(i);
 				else forwardSequences = this.fwC1Sequences.get(i);
 
-				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost);
+				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost, arc.id);
+
 				if (min_rc - bestReducedCost - dataModel.precision > FRC_gap) arcsToRemove.put(arc.id, min_rc);
 				if (min_rc < bestReducedCost - 1) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
 
@@ -111,7 +113,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	private double findMinimumRCPath_acc(ArrayList<PartialBackwardSequence> bwSequences, ArrayList<PartialForwardSequence> fwSequences, Arc arc, double modifiedCost) {
+	private double findMinimumRCPath_acc(ArrayList<PartialBackwardSequence> bwSequences, ArrayList<PartialForwardSequence> fwSequences, Arc arc, double modifiedCost, int ppid) {
 
 		int nFw = fwSequences.size(); int nBw = bwSequences.size();
 		PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s1.rc, s2.rc) );
@@ -122,19 +124,23 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int ixBw = 0; ixBw < nBw; ixBw++){
 				PartialBackwardSequence bwSeq = bwSequences.get(ixBw);
 				
-				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost; if (route_rc - dataModel.precision > this.FRC_gap) continue;
+				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost;
+				route_rc = Math.floor(route_rc*10000)/10000;
+				if (route_rc - 1 - bestReducedCost > this.FRC_gap) continue;
 				
 				if (bwSeq.ng.intersects(fwSeq.ng)) continue;										// ng-Elementarity
 				if (bwSeq.remainingTime - arc.time < fwSeq.cumulativeTime) continue; 				// Time feasibility
 				if (bwSeq.worstRemainEnergy - arc.energy <  fwSeq.nominalEnergy) continue; 		// Worst-case Energy of the backwards - rest of nominal energy
 				if (bwSeq.remainingLoad < fwSeq.cumulativeLoad) continue; 							// Load feasibility
         		
-				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta); if (route_rc - dataModel.precision > this.FRC_gap) continue;
+				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta);
+				route_rc = Math.floor(route_rc*10000)/10000;
+				if (route_rc - 1 - bestReducedCost > this.FRC_gap) continue;
 				pq.add(new MergeState(ixFw, ixBw, Math.floor(route_rc*10000)/10000));
 			}
 		}
 
-		double min_merged_rc = this.FRC_gap+2*dataModel.precision;
+		double min_merged_rc = this.FRC_gap+1+2*dataModel.precision;
         while (!pq.isEmpty()) {
 			
             MergeState current = pq.poll();
@@ -144,7 +150,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			if (min_merged_rc <= current.rc + dataModel.precision){ return min_merged_rc; }
 			else {
-				MergedSequence mergedPath = mergeLabel_acc(fwSeq, bwSeq, arc, current.rc);
+				MergedSequence mergedPath = mergeLabel_acc(fwSeq, bwSeq, arc, current.rc, ppid);
 				if (mergedPath != null){ // If found a feasible merged label
 					double chBound = this.charging_bounds.get(mergedPath.chargingTime).get(mergedPath.departureTime);
 					double complete_rc = mergedPath.reducedCost + chBound;
@@ -159,7 +165,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
         }
 
-        return min_merged_rc;
+        return 1e5;
     }
 
 	private double getMergeSRCs_RC(boolean[] etaFw, boolean[] etaBw){
@@ -172,7 +178,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return additional_rc;
 	}
 
-	private MergedSequence mergeLabel_acc(PartialForwardSequence fwSequence, PartialBackwardSequence bwSeq, Arc routing_arc, double reducedCost){
+	private MergedSequence mergeLabel_acc(PartialForwardSequence fwSequence, PartialBackwardSequence bwSeq, Arc routing_arc, double reducedCost, int ppid){
 		
 		///////////////////////////////////
 		/// MERGE FEASIBILITY ASSESSMENT
@@ -214,14 +220,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int departure = (int)(remainingTime/10);
 		if (chargingTime >= departure) return null; 	// Charging interval feasibility
 
-		/* double complete_rc = reducedCost + this.charging_bounds.get(chargingTime).get(departure);
-		if (complete_rc < this.bestReducedCost - dataModel.precision){
-			for (int t = 0; t<dataModel.last_charging_period; t++){
-				logger.debug("t: "+t+" "+this.dualCosts[dataModel.C+t]);
-			}
-			logger.debug("Stop here");
-		} */
-
 		return new MergedSequence(reducedCost, chargingTime, departure);
 	}
 
@@ -241,7 +239,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedRouting(l1, labels.get(ix2))) { dominated = true; break; }
 				if (dominated) labels_to_remove.add(l1);
 			} labels.removeAll(labels_to_remove);
-			labels.sort(Comparator.comparing(l -> l.reducedCost));
+			//labels.sort(Comparator.comparing(l -> l.reducedCost));
 
 			ArrayList<PartialBackwardSequence> allSequences = new ArrayList<PartialBackwardSequence>();
 			for (Label label: labels) allSequences.add(new PartialBackwardSequence(label.reducedCost, label.remainingEnergy, label.remainingLoad, label.remainingTime, label.ng_path, label.eta));
@@ -250,6 +248,21 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		this.bwLabels.clear();
 
+	}
+
+	private ArrayList<Integer> get_backward_arcs_sequence(Label bwL){
+
+		ArrayList<Integer> aSeq = new ArrayList<>();
+
+		Label currentLabel = bwL.clone();
+		while (true) {
+			PPArc nextArc = dataModel.PParcs[currentLabel.nextArc];
+			aSeq.add(nextArc.routing_arc.id);
+			if (nextArc.head_vertex_id == depotID) break;
+			currentLabel = this.bwLabels.get(PPvertices[nextArc.head_vertex_id].node_number).get(currentLabel.nextLabelIndex);
+		}
+
+		return aSeq;
 	}
 
 	//////////////////////////////////////////////////
@@ -308,7 +321,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		///////////////////////////////
 
 		if (System.currentTimeMillis()<timeLimit){
-		
 			
 			this.fwDepotSequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++) {
@@ -317,7 +329,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				allSequences.add(get_forward_sequence(label));
 				this.fwDepotSequences.add(allSequences);
 			}
-
 			
 			this.fwC1Sequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++){
@@ -331,7 +342,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
 				for (Label label: labels){ allSequences.add(get_forward_sequence(label)); }
-				allSequences.sort( Comparator.comparing(l -> l.reducedCost) );
+				//allSequences.sort( Comparator.comparing(l -> l.reducedCost) );
 				this.fwC1Sequences.add(allSequences);
 			}
 
@@ -554,6 +565,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.ng = ng;
 			this.eta = eta;
 		}
+
+		@Override
+		public String toString(){
+			return "Forward Label. Reduced Cost: "+reducedCost+" Route Arcs: "+routingArcsSequence.toString()+" Nominal Energy: "+nominalEnergy+ "Worst Energy Devs: "+worstEnergyDevs.toString()+" Cumulative Load: "+cumulativeLoad+" Cumulative Time: "+cumulativeTime+" Ng-Elementarity: "+ng.toString()+" Eta SRCs: "+Arrays.toString(eta);
+		}
 	}
 
 	private final class PartialBackwardSequence {
@@ -582,6 +598,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 			this.eta = eta;
 		}
+
+		@Override
+		public String toString(){
+			return "Backward Label. Reduced Cost: "+reducedCost+" Remaining Load: "+remainingLoad+" Remaining Time: "+remainingTime+" Remaining Nominal Energy: "+nominalEnergy+" Remaining Worst Energy: "+worstRemainEnergy+" Worst Energy Devs: "+worstEnergyDevs.toString()+" Ng-Elementarity: "+ng.toString()+" Eta SRCs: "+Arrays.toString(eta);
+		}
 	}
 
 	private static final class MergeState {
@@ -589,10 +610,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
         final double rc;
         MergeState(int f, int b, double rc) { this.f = f; this.b = b; this.rc = rc; }
     }
-
-	private long key(int fw, int bw) {
-		return (((long) fw) << 32) | (bw & 0xffffffffL);
-	}
 
 	///////////////////////////////////////////////////
 	/// DON'T TOUCH
@@ -687,6 +704,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			Label L1 = vertex1.unprocessedLabels.peek();
 			Label L2 = vertex2.unprocessedLabels.peek();
+			
+			if (vertex1.vertex_type == C0 && vertex2.vertex_type == C0){
+				if (L1.reducedCost<L2.reducedCost) return -1;
+				else return 1;}
+			if (vertex1.vertex_type == C0) return -1;
+			if (vertex2.vertex_type == C0) return 1;
 
 			// Choose according the current unprocessed labels
 			if(L1.remainingLoad>L2.remainingLoad) return -1;
