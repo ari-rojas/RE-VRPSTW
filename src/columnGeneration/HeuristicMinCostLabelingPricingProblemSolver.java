@@ -33,6 +33,10 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 	public double bestReducedCost;
 
+	public boolean canTriggerRollback;
+	public int nLabels;
+	public int rollbackThreshold;
+
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
@@ -48,6 +52,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	public void runLabeling() {
 
+		dataModel.rollbackTrigger = false; this.nLabels = 0;
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
@@ -58,7 +63,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		//Labeling algorithm
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit  && (!canTriggerRollback || nLabels < rollbackThreshold)) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
@@ -226,6 +231,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}
 		Label extendedLabel = new Label(source, arc.id, currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+		
+		this.nLabels ++;
 		return extendedLabel;
 
 	}
@@ -296,6 +303,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	@Override
 	protected List<Route> generateNewColumns() {
 
+		this.canTriggerRollback = dataModel.cut_iterations > 1;
+		this.rollbackThreshold = dataModel.rollbackBaseLine*dataModel.rollbackFactor;
+
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
@@ -303,8 +313,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
 
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
-			this.runLabeling(); 										//runs the labeling algorithm
-
+			this.runLabeling(); //runs the labeling algorithm
+			
+			dataModel.rollbackExplosion = nLabels;
+			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
+				dataModel.rollbackTrigger = true;
+				this.close();
+				return new ArrayList<Route>(); }
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
 				
@@ -356,7 +371,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 		}
 
-		if (vertices[dataModel.V].unprocessedLabels.size() < numCols) pricingProblem.bestReducedCost = this.bestReducedCost;
+		pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
 				logger.debug("Finished exact pricing: "+vertices[dataModel.V].processedLabels.size()+" processed, "+vertices[dataModel.V].unprocessedLabels.size()+" unprocessed.");
