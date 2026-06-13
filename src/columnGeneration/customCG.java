@@ -1,7 +1,11 @@
 package columnGeneration;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.jorlib.frameworks.columnGeneration.colgenMain.ColGen;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -9,6 +13,14 @@ import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
+
+import branchAndPrice.ExtendBAPNotifier;
+import ilog.concert.IloColumn;
+import ilog.concert.IloException;
+import ilog.concert.IloIntVar;
+import ilog.concert.IloObjective;
+import ilog.concert.IloRange;
+import ilog.cplex.IloCplex;
 import model.EVRPTW;
 
 /**
@@ -17,33 +29,51 @@ import model.EVRPTW;
  */
 public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
+	private final ExtendBAPNotifier extendedNotifier;
 	public ArrayList<Route> incumbentSolution = new ArrayList<Route>(); 	//stores the incumbent solution found throughout the CG
-	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
+	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 	
+	
+	public int BBnodeID;
+	public boolean needsChargingBranchingPricing;
+	public int contExact;
+
+	public OptimalSolutionMemory solutionMemory;
+	private boolean masterSolutionIsInteger;
+	private boolean hasExceededPricingSoftThreshold = false;
+	private double gapReduction = 0;
+	
+	// stores the incumbent solution objective found throughout the CG
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective) {
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, ExtendBAPNotifier notifier) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		// TODO Auto-generated constructor stub
+		this.BBnodeID = nodeID;
+		this.extendedNotifier = notifier;
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective) {
+			int cutoffValue, double boundOnMasterObjective, int nodeID, ExtendBAPNotifier notifier) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue,
 				boundOnMasterObjective);
 		// TODO Auto-generated constructor stub
+		this.BBnodeID = nodeID;
+		this.extendedNotifier = notifier;
 	}
 
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6) {
+			int arg5, double arg6, int arg7, ExtendBAPNotifier arg8) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		// TODO Auto-generated constructor stub
+		this.BBnodeID = arg7;
+		this.extendedNotifier = arg8;
 	}
 
 	@Override
@@ -84,6 +114,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		int aux_cont = 0;
 
+		if (this.BBnodeID == 0) { this.contExact = 0; dataModel.rollbackBaseLine = 0; }
+		dataModel.rollbackTrigger = false;
+		dataModel.cut_iterations = 1;
+
 		do{
 			aux_cont ++;
 
@@ -116,12 +150,25 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			foundNewColumns=!newColumns.isEmpty();
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
-			if (boundOnMasterExceedsCutoffValue())
-				break;
+			if (dataModel.rollbackTrigger){
+				this.perform_rollback(solutionMemory); break; }
+			else if (boundOnMasterExceedsCutoffValue()) break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
-				throw new TimeLimitExceededException();
-			} else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+				throw new TimeLimitExceededException(); }
+			else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
+
+				// Check if the gap reduction was enough.
+				// In case the reduction was bad, break the Column and Cut Generation to branch directly
+				if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
+					extendedNotifier.fireGapReductionEvent(this.gapReduction);
+					break; }
+				
+				// The algorithm will allow for more cuts to be generated
+				// Update the solution memory before separating the cuts
+				this.update_solution_memory();
+				
+				dataModel.cut_iterations ++;
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
@@ -198,15 +245,43 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 			exact = true;
 		}
-
-		if(exact) 
-			if(!newColumns.isEmpty()) this.boundOnMasterObjective =(optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
-			else this.boundOnMasterObjective = master.getObjective(); //update the bound before adding cuts
-
+		
 		notifier.fireFinishPricingEvent(newColumns);
-
+		
 		pricingSolveTime+=(System.currentTimeMillis()-time);
 		nrGeneratedColumns+=newColumns.size();
+		
+		if(exact) 
+			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
+			
+			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
+			else { // The RMP bound is optimal
+				
+				// Look for an integer solution if
+				// i) the current MP solution is NOT integer, and
+				// ii) the current gap is greater than 5%
+				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
+					
+					double IPtime = System.currentTimeMillis();
+					extendedNotifier.fireIPSolutionEvent();
+					try { this.solveIP(master.getColumns(pricingProblems.get(0))); } 
+					catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
+					extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
+				
+				}
+				
+				// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
+				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
+				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
+				
+			}
+			
+
+			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
+				this.contExact ++;
+				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
+			}
+
 		//Add columns to the master problem
 		if(!newColumns.isEmpty()){
 			for(Route column : newColumns){
@@ -214,5 +289,147 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 		}
 		return newColumns;
+	}
+
+	private void perform_rollback(OptimalSolutionMemory memory){
+
+		this.extendedNotifier.fireRollbackEvent(dataModel.rollbackBaseLine, dataModel.rollbackExplosion);
+		this.objectiveMasterProblem = memory.previousMPObjective;
+		this.boundOnMasterObjective = memory.previousMPBound;
+
+		Master mMaster = (Master) master;
+		mMaster.rollbackReconstruction(memory.previousColumns, memory.previousCuts, memory.previousMPSolution, memory.previousMPObjective);
+
+		VRPMasterData mData = mMaster.getMasterData();
+		this.extendedNotifier.fireFinishRollbackEvent(mMaster.getSolution(), mData.objectiveValue, mData.getNrColumns(), mData.subsetRowInequalities.size(), mData.branchingNumberOfVehicles.size());
+	
+	}
+
+	public void solveIP(Set<Route> columns) throws IloException {
+
+		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
+		IloCplex cplex = new IloCplex();
+		cplex.setOut(null); 			//disable CPLEX output
+		cplex.setParam(IloCplex.Param.RandomSeed, 30);
+		cplex.setParam(IloCplex.Param.Threads, 1);
+		cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 1e-4);
+
+		// Define the objective
+		IloObjective obj= cplex.addMinimize();
+
+		// Routing set partitioning constraints
+		IloRange[] visitCustomerConstraints=new IloRange[dataModel.C];
+		for(int i=0; i< dataModel.C; i++)
+			visitCustomerConstraints[i] = cplex.addEq(cplex.linearNumExpr(), 1, "visitCustomer_"+(i+1));
+
+		// Charging capacity constraints
+		IloRange[]  chargersCapacityConstraints = new IloRange[dataModel.last_charging_period];
+		for (int t = 0; t < dataModel.last_charging_period; t++)
+			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
+
+		for (Route route: columns) {
+
+			if (route.isArtificialColumn) continue;
+			Route column = route.clone();
+			IloColumn iloColumn = cplex.column(obj,column.cost);
+
+			for(int i: route.route.keySet())
+				iloColumn = iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
+
+			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
+				iloColumn = iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
+
+			//Create the variable and store it
+			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
+			cplex.add(var);
+			solution.put(column, var);
+		}
+
+		//Set time limit
+		cplex.setParam(IloCplex.Param.TimeLimit, 60.0); //set time limit in seconds (in this case 10 seconds)
+		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal){
+			int objVal = (int) (cplex.getObjValue()+0.05);
+
+			if (objVal < this.cutoffValue){ // Found a better solution, update current incumbent
+				this.cutoffValue = objVal;
+				this.incumbentSolutionObjective = objVal;
+				
+				ArrayList<Route> optimalSolution = new ArrayList<Route>();
+				if (dataModel.print_log) logger.debug("Found integer solution. Objective: "+this.incumbentSolutionObjective);
+				for (Route route: solution.keySet()) {
+					double value = cplex.getValue(solution.get(route));
+					if(value > 0.5){
+						Route newRoute = route.clone();
+						newRoute.value = 1;
+						optimalSolution.add(newRoute);
+
+						if (dataModel.print_log) logger.debug(newRoute.toString());
+					}
+				}
+
+				this.incumbentSolution = optimalSolution;
+			} else { logger.debug("Found the same solution to the current UB"); }
+		} else {
+			if (dataModel.print_log) {
+				logger.debug("Status: "+cplex.getStatus().toString());
+				logger.debug("Did not find an integer solution");
+			}
+		}
+		cplex.close();
+		cplex.end();
+	}
+
+	public int getSRCCoefficient(Route route, SubsetRowInequality subsetRowInequality) {
+		int visits = 0;
+		for(int i: subsetRowInequality.cutSet) visits+=route.route.getOrDefault(i, 0);
+		return (int) Math.floor(0.5*visits);
+	}
+
+	public void update_solution_memory(){
+
+		// Saves the current CG state in case it is needed in the future for a rollback
+		List<Route> memoryColumns = new ArrayList<>();
+		for (Route column: master.getColumns(pricingProblems.get(0))){
+			Route newCol = column.clone(); newCol.BBnode = column.BBnode;
+			memoryColumns.add(newCol);
+		}
+
+		List<SubsetRowInequality> memorySRCs = new ArrayList<>();
+		for (SubsetRowInequality src: ((Master)master).getMasterData().subsetRowInequalities.keySet()) memorySRCs.add(src);
+
+		List<Route> memoryIncumbent = new ArrayList<>();
+		for (Route column: this.incumbentSolution){
+			Route newCol = column.clone(); newCol.value = column.value;
+			memoryIncumbent.add(newCol);
+		}
+		
+		List<Route> memorySolution = master.getSolution();
+
+		this.solutionMemory = new OptimalSolutionMemory(memoryColumns, memorySRCs, this.boundOnMasterObjective, memorySolution, this.objectiveMasterProblem, memoryIncumbent, this.incumbentSolutionObjective);
+
+	}
+
+	public class OptimalSolutionMemory{
+
+		public List<Route> previousColumns;
+		public List<SubsetRowInequality> previousCuts;
+		public double previousMPBound;
+		public List<Route> previousMPSolution;
+		public double previousMPObjective;
+		public List<Route> previousIncumbentSolution;
+		public int previousIncumbentObjective;
+
+		public OptimalSolutionMemory(List<Route> previousColumns, List<SubsetRowInequality> previousCuts, double previousNodeBound, List<Route> previousMPSolution,
+			double previousMPObjective, List<Route> previousIncumbentSolution, int previousIncumbentObjective){
+
+			this.previousColumns = previousColumns;
+			this.previousCuts = previousCuts;
+			this.previousMPBound = previousNodeBound;
+			this.previousMPSolution = previousMPSolution;
+			this.previousMPObjective = previousMPObjective;
+			this.previousIncumbentSolution = previousIncumbentSolution;
+			this.previousIncumbentObjective = previousIncumbentObjective;
+
+		}
 	}
 }
