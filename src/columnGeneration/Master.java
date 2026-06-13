@@ -359,6 +359,24 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		return solution;
 	}
 
+	public void rollbackReconstruction(List<Route> previousColumns, List<SubsetRowInequality> previousSRCs, List<Route> previousSolution, double previousObjective){
+		// for simplicity, we simply destroy the master problem and rebuild it. Of course, something more sophisticated may be used which retains the master problem.
+		Set<NumberVehiclesInequalities> vehiclesInequalities = masterData.branchingNumberOfVehicles.keySet(); 	//keep branching decisions
+
+		this.close(); 																							//close the old CPLEX model
+		masterData=this.buildModel(); 																			//create a new model without any columns
+		
+		cutHandler.setMasterData(masterData); 																	//inform the cutHandler about the new master model
+		for(NumberVehiclesInequalities inequality: vehiclesInequalities) addBranchingOnVehichlesInequality(inequality);
+		for(SubsetRowInequality src: previousSRCs) addCut(src);
+
+		addColumns(previousColumns);
+
+		this.solutionKeeper = previousSolution;
+		masterData.objectiveValue = previousObjective;
+
+	}
+
 	/** Close the CPLEX problem. */
 	@Override
 	public void close() {
