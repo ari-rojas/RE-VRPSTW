@@ -133,90 +133,6 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 	}
 
 	/**
-	 * To have a stronger upper bound, we solve the MIP at the root (with the generated columns)
-	 */
-	public void solveIPAtRootNode(BAPNode<EVRPTW, Route> node) throws IloException {
-
-		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
-		IloCplex cplex =new IloCplex();
-		cplex.setOut(null); 			//disable CPLEX output
-		//cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
-		//cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
-		cplex.setParam(IloCplex.Param.RandomSeed, 30);
-		cplex.setParam(IloCplex.Param.Threads, 1);
-		cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 1e-4);
-
-		//Define the objective
-		IloObjective obj= cplex.addMinimize();
-		//Define partitioning constraints
-		IloRange[] visitCustomerConstraints=new IloRange[dataModel.C];
-		for(int i=0; i< dataModel.C; i++)
-			visitCustomerConstraints[i] = cplex.addEq(cplex.linearNumExpr(), 1, "visitCustomer_"+(i+1));
-
-		//define constrains (capacitated station)
-		IloRange[]  chargersCapacityConstraints = new IloRange[dataModel.last_charging_period];
-		for (int t = 0; t < dataModel.last_charging_period; t++)
-			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
-
-		Set<SubsetRowInequality> subsetRowInequalities = ((Master)master).getMasterData().subsetRowInequalities.keySet();
-		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
-		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
-			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
-			ix ++;
-
-		for(Route route: node.getInitialColumns()) {
-
-			if (route.isArtificialColumn) continue;
-			Route column = route.clone();
-			//Register column with objective
-			IloColumn iloColumn= cplex.column(obj,column.cost);
-
-			//Register column with partitioning constraint
-			for(int i: route.route.keySet())
-				iloColumn=iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
-
-			//Register column with chargers capacity constraints
-			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+ column.chargingTime-1); t++)
-				iloColumn=iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
-
-			ix = 0;
-			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities)
-				iloColumn=iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
-				ix ++;
-
-			//Create the variable and store it
-			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
-			cplex.add(var);
-			solution.put(column, var);
-		}
-
-		//Set time limit
-		cplex.setParam(IloCplex.Param.TimeLimit, 60.0); //set time limit in seconds (in this case 10 seconds)
-		if(cplex.solve() && cplex.getStatus()==IloCplex.Status.Optimal){
-			objectiveIncumbentSolution = (int) (cplex.getObjValue()+0.05);
-			upperBoundOnObjective = objectiveIncumbentSolution;
-			//retrieve solution
-			List<Route> optimalSolution = new ArrayList<Route>();
-			if (dataModel.print_log) logger.debug("Found integer solution. Objective: "+objectiveIncumbentSolution);
-			for (Route route: solution.keySet()) {
-				double value = cplex.getValue(solution.get(route));
-				if(value > 0.5){
-					Route newRoute = route.clone();
-					newRoute.value = 1;
-					optimalSolution.add(newRoute);
-
-					if (dataModel.print_log) logger.debug(newRoute.toString());
-				}
-			}
-			incumbentSolution = optimalSolution;
-		} else {
-			if (dataModel.print_log) logger.debug("Did not find an integer solution");
-		}
-		cplex.close();
-		cplex.end();
-	}
-
-	/**
 	 * Solve a given Branch-and-Price node
 	 * @param bapNode node in Branch-and-Price tree
 	 * @param timeLimit future point in time by which the method must be finished
@@ -438,7 +354,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				long time = 0;
 				try { // Try solving the node
 					if (this.chargingNodes.contains(bapNode.nodeID)) { time = System.currentTimeMillis(); }//logger.debug("TIME BRANCHING - Starting to process node "+bapNode.nodeID);} // TIME BRANCHING
-					if (this.arcFlowNodes.contains(bapNode.nodeID)) { dataModel.CUTSENABLED = true; } else { dataModel.CUTSENABLED = false; }
+					if (this.arcFlowNodes.contains(bapNode.nodeID)) { dataModel.CUTSENABLED = true; } else { dataModel.CUTSENABLED = true; }
 					cgIncumbent = this.solveNode(bapNode, timeLimit);
 					if (this.chargingNodes.contains(bapNode.nodeID)) { timeChargingBranching += (System.currentTimeMillis()-time); }//logger.debug("TIME BRANCHING - Finished processing node "+bapNode.nodeID);} // TIME BRANCHING
 				} catch (TimeLimitExceededException var8) { // Catch runtime exceeded exception
