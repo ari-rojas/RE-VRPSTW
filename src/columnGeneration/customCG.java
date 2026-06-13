@@ -275,7 +275,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 				
 			}
-			
 
 			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
 				this.contExact ++;
@@ -336,7 +335,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			for(int i: route.route.keySet())
 				iloColumn = iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));
 
-			for (int t = column.lastChargingTime; t >= (column.lastChargingTime-column.chargingTime+1); t--)
+			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+column.chargingTime-1); t++)
 				iloColumn = iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
 
 			//Create the variable and store it

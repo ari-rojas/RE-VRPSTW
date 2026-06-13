@@ -45,6 +45,7 @@ import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
+import branchAndPrice.GapReductionEvent;
 import branchAndPrice.FinishIPSolutionEvent;
 import branchAndPrice.LexicographicMasterEvent;
 import branchAndPrice.RollbackEvent;
