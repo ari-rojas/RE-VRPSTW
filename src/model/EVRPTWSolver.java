@@ -245,8 +245,8 @@ public final class EVRPTWSolver {
 		String energy_deviation = args[3];
 		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL-IP-CS-Bound-Root"+energy_deviation, args[2], args[3]);
-		//EVRPTW evrptw = new EVRPTW("C101-25", 0, 0, true, "ExNewPricing", "Debug");
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "BL-5GR35-RB100"+energy_deviation, args[2], args[3]);
+		//EVRPTW evrptw = new EVRPTW("RC101-50", 5, 0, true, "BL", "Debug", "");
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
