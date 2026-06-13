@@ -45,8 +45,12 @@ import branchAndPrice.BranchingRules;
 import branchAndPrice.CGMasterIsInfeasibleEvent;
 import branchAndPrice.CGProblemsLBEvent;
 import branchAndPrice.ExtendBAPListener;
+import branchAndPrice.FinishIPSolutionEvent;
 import branchAndPrice.LexicographicMasterEvent;
+import branchAndPrice.RollbackEvent;
 import branchAndPrice.FinishLexicographicMasterEvent;
+import branchAndPrice.FinishRollbackEvent;
+import branchAndPrice.IPSolutionEvent;
 import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
 import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
 import columnGeneration.Master;
@@ -388,6 +392,45 @@ public final class EVRPTWSolver {
 					logger.debug("Did not find integer solution, charging branching proceeds.");
 				}
 
+			}
+		}
+
+		public void IPRootNode(IPSolutionEvent IPRootEvent){
+			if (dataModel.print_log) {
+				logger.debug("=============== SOLVING IP ===============");
+			}
+		}
+
+		public void finishIPRootNode(FinishIPSolutionEvent IPRootEvent){
+			if (dataModel.print_log) {
+				logger.debug("Time solving the IP: "+getTimeInSeconds(IPRootEvent.time));
+			}
+		}
+
+		public void Rollback(RollbackEvent rollbackEvent){
+			if (dataModel.print_log){
+				logger.debug("=============== SRCs ROLLBACK ===============");
+				logger.debug("Performing a rollback step due to a label explosion in the Pricing Problem.");
+				logger.debug("Baseline: " + rollbackEvent.BL + ". Generated: " + rollbackEvent.explosion);
+				logger.debug("Returning to the previous optimal RMP state before the last generation of cuts.");
+			}
+		}
+
+		public void finishRollback(FinishRollbackEvent rollbackEvent){
+			if (dataModel.print_log){
+				logger.debug("Objective: "+ rollbackEvent.objective);
+				logger.debug("Number of columns: " + rollbackEvent.ncols + " Number of SRC separated: " + rollbackEvent.nSRCs);
+				logger.debug("Number of vehicle branches: " + rollbackEvent.nVehicleBranches);
+				logger.debug("Columns (only non-zero columns are returned):");
+				for(Route route: rollbackEvent.solution)
+					logger.debug(route.toString());
+			}
+		}
+
+		public void gapReduction(GapReductionEvent gapEvent){
+			if (dataModel.print_log){
+				logger.debug("Stopping to add more cuts in the current node.");
+				logger.debug("Gap Reduction: "+(Math.floor(gapEvent.gapReduction*100)/100)+" < "+dataModel.gapReductionRequirement);
 			}
 		}
 
