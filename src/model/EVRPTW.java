@@ -76,7 +76,7 @@ public final class EVRPTW implements ModelInterface {
 	public int rollbackFactor = 100;
 	public int cut_iterations;
 	public int pricingSoftFactor = 5;
-	public double gapReductionRequirement = 0.35;
+	public double gapReductionRequirement = 0.5;
 
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
