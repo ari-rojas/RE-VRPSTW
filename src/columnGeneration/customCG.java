@@ -293,6 +293,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			
 			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			else this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
+		
+			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
+				this.contExact ++;
+				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
+			}
 		}
 
 		if (optimalBound) {
@@ -315,11 +320,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			
 			if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
 				perform_fixing_by_reduced_cost(timeLimit);}
-
-			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
-				this.contExact ++;
-				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
-			}
+			
 		}
 
 		// Add columns to the master problem
