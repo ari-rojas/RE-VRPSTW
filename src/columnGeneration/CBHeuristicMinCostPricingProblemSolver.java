@@ -79,6 +79,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	public void runLabeling() {
 
 		dataModel.rollbackTrigger = false;
+		dataModel.exactPricing = true;
 		this.nLabels = 0;
 
 		this.bestReducedCost = Double.MAX_VALUE;

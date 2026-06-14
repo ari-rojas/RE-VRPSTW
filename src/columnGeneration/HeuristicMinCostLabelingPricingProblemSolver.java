@@ -78,6 +78,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void runLabeling() {
 
 		dataModel.rollbackTrigger = false;
+		dataModel.exactPricing = true;
 		this.bestReducedCost = Double.MAX_VALUE;
 
 		// Initialization
@@ -425,6 +426,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			dataModel.rollbackExplosion = nLabels;
 			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
 				dataModel.rollbackTrigger = true;
+				dataModel.exactPricing = false;
 				this.close();
 				return new ArrayList<Route>(); }
 			if(PPvertices[0].unprocessedLabels.isEmpty()) {

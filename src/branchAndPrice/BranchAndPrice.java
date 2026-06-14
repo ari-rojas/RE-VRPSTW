@@ -570,6 +570,7 @@ public final class BranchAndPrice {
 				} else { // If it is either integer solution and hence pruned by optimality OR fractional and should branch
 					if (this.isIntegerNode(bapNode)) { // If is integer, update incumbent
 						this.processIntegerNode(bapNode);
+						bapNode = this.updateNodeGeneratedColumns(bapNode, cgIncumbent.branchingFRC);
 					} else {
 
 						// Update of the global Primal Bound in case the local Primal Bound of the node is better

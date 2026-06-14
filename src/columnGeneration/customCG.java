@@ -268,59 +268,59 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		notifier.fireStartPricingEvent();
 		cPricingProblemManager.setTimeLimit(timeLimit);
 		((PricingProblem) pricingProblems.get(0)).compute_charging_bounds();
-		boolean exact = false;
+		
+		dataModel.exactPricing = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			
 			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
 				newColumns = cPricingProblemManager.solvePricingProblems(solver);
 				if (dataModel.rollbackTrigger) break;
+				//Stop when we found new columns
+				if (!newColumns.isEmpty()) break;
 			}
 
-			//Stop when we found new columns
-			if(!newColumns.isEmpty()){
-				break;
-			}
-			exact = true;
 		}
+
+		boolean optimalBound = dataModel.exactPricing && newColumns.isEmpty() && !dataModel.rollbackTrigger;
 		
 		notifier.fireFinishPricingEvent(newColumns);
-
 		pricingSolveTime+=(System.currentTimeMillis()-time);
 		nrGeneratedColumns+=newColumns.size();
 		
 		// Update of Lower Bound
-		if(exact) 
+		if (dataModel.exactPricing){
 			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
 			
 			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
-			else { // The RMP bound is optimal
+			else this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
+		}
+
+		if (optimalBound) {
 				
-				// Look for an integer solution if
-				// i) the current MP solution is NOT integer, and
-				// ii) the current gap is greater than 5%
-				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
-					
-					double IPtime = System.currentTimeMillis();
-					extendedNotifier.fireIPSolutionEvent();
-					try { this.solveIP(master.getColumns(pricingProblems.get(0))); } 
-					catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
-					extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
+			// Look for an integer solution if
+			// i) the current MP solution is NOT integer, and
+			// ii) the current gap is greater than 5%
+			if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
 				
-				}
-				
-				// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
-				this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
-				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
-				
-				if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
-					perform_fixing_by_reduced_cost(timeLimit);}
+				double IPtime = System.currentTimeMillis();
+				extendedNotifier.fireIPSolutionEvent();
+				try { this.solveIP(master.getColumns(pricingProblems.get(0))); } 
+				catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
+				extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
+			
 			}
 			
+			// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
+			this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
+			
+			if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+				perform_fixing_by_reduced_cost(timeLimit);}
 
 			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
 				this.contExact ++;
 				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
 			}
+		}
 
 		// Add columns to the master problem
 		if(!newColumns.isEmpty()){

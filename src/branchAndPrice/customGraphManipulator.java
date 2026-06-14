@@ -75,6 +75,7 @@ public class customGraphManipulator{
         for(BranchingDecisionListener listener : this.listeners) {
             listener.branchingDecisionPerformed(bd);
         }
+        //logger.debug("Performing branching decision: "+bd.toString());
 
     }
 
@@ -82,6 +83,7 @@ public class customGraphManipulator{
         for(BranchingDecisionListener listener : this.listeners) {
             listener.branchingDecisionReversed(bd);
         }
+        //logger.debug("Reversing branching decision: "+bd.toString());
 
     }
     
