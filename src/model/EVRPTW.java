@@ -22,6 +22,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import columnGeneration.ForwardLabel;
 import columnGeneration.Label;
 
 /**
@@ -248,7 +249,10 @@ public final class EVRPTW implements ModelInterface {
 		this.PPvertices[id] = new PPVertex(id, C0, this.vertices[0], 0); this.superDepotID = id;
 		
 		int auxNumArcs = 2*(V*V-V);
-		for (int ix = 0; ix <= superDepotID; ix ++) this.PPvertices[ix].unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels(superDepotID, T_startID));
+		for (int ix = 0; ix <= superDepotID; ix ++) {
+			this.PPvertices[ix].unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels(superDepotID, T_startID));
+			this.PPvertices[ix].unprocessedForwardLabels = new PriorityQueue<ForwardLabel>(auxNumArcs, new ForwardLabel.SortForwardLabels());
+		}
 		
 		/////////////////////////////////////
 		/// ARCS
@@ -618,6 +622,9 @@ public final class EVRPTW implements ModelInterface {
 		public ArrayList<Label> processedLabels; 					//labels that have reached the vertex and are non-dominated
 		public PriorityQueue<Label> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
 
+		public ArrayList<ForwardLabel> processedForwardLabels;
+		public PriorityQueue<ForwardLabel> unprocessedForwardLabels;
+
 		/**
 		 * Creates a new routing subgraph customer / depot vertex.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
@@ -630,6 +637,7 @@ public final class EVRPTW implements ModelInterface {
 
 			int auxNumArcs = 2*(V*V-V);
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.processedForwardLabels = new ArrayList<ForwardLabel>(auxNumArcs);
 		}
 
 		/**
@@ -644,6 +652,7 @@ public final class EVRPTW implements ModelInterface {
 
 			int auxNumArcs = 2*(V*V-V);
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.processedForwardLabels = new ArrayList<>(auxNumArcs);
 		}
 
 		/**
