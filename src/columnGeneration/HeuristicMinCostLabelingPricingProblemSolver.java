@@ -133,16 +133,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		
 		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) PPvertices[superDepotID].unprocessedLabels.clear();
 		
-		Iterator<Label> it = PPvertices[superDepotID].unprocessedLabels.iterator();
-		while (it.hasNext()) {
-			Label lab = it.next();
-			double min_col_rc = lab.reducedCost + pricingProblem.charging_bounds.get(lab.chargingTime).get(lab.remainingTime);
-			if (min_col_rc >= -dataModel.precision) {
-				if (min_col_rc < this.bestReducedCost - dataModel.precision) { this.bestReducedCost = min_col_rc; this.bestLabel = lab; }
-				it.remove();
-			}
-		}
-		
 		if (!PPvertices[superDepotID].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[superDepotID]);
 
 		/////////////////////////////////////
@@ -296,6 +286,16 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[Gamma]];
 		if (chargingTime >= (int) (remainingTime/10)) return null;
 		
+		////////////////////////////////////////////
+		/// Bounding Procedure
+		////////////////////////////////////////////
+		
+		if (arc_type == AR0){
+			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
+			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
+			if (min_col_rc >= -dataModel.precision) return null;
+		}
+		
 		// After confirming that the label is feasible, update the remaining load
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 
@@ -340,13 +340,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		int chargingTime = currentLabel.chargingTime;
-		if(arc_type < AC3) {
+		if (arc_type < AC3) {
 			chargingTime -= 1;
 			if(chargingTime<0) return null; // If the label is extended through consecutive charging time periods and is charging more than necessary, deem it infeasible
-		} else {
-			if (reducedCost < this.bestReducedCost - dataModel.precision) { this.bestReducedCost = reducedCost; }
-			if (reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
+		
+		if (reducedCost >= -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 
 		Label extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
@@ -500,7 +499,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		pricingProblem.bestReducedCost = this.bestReducedCost;
-		pricingProblem.bestLabel = this.bestLabel;
+		//pricingProblem.bestLabel = this.bestLabel;
 
 		if (dataModel.print_log) {
 			logger.debug("Finished exact pricing: "+PPvertices[0].processedLabels.size()+" processed, "+PPvertices[0].unprocessedLabels.size()+" unprocessed.");
