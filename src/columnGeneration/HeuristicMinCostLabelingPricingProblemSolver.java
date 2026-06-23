@@ -291,7 +291,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		////////////////////////////////////////////
 		
 		if (arc_type == AR0){
-			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
+			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10));
 			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
 			if (min_col_rc >= -dataModel.precision) return null;
 		}
