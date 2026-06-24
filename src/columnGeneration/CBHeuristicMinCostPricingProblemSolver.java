@@ -102,11 +102,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 					PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 					if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				}
-
-				////////////////////////////////////////////
-				/// Bounding Procedure
-				////////////////////////////////////////////
-				if (currentLabel.dominanceVertex == superDepotID && (currentLabel.reducedCost + pricingProblem.charging_bounds.get(currentLabel.chargingTime).get(currentLabel.remainingTime)) >= -dataModel.precision) continue;
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
@@ -244,6 +239,16 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		// Update charging time and check if it's feasible
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[Gamma]];
 		if (chargingTime >= (int) (remainingTime/10)) return null;
+
+		////////////////////////////////////////////
+		/// Bounding Procedure
+		////////////////////////////////////////////
+		
+		if (arc_type == AR0){
+			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10));
+			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
+			if (min_col_rc >= -dataModel.precision) return null;
+		}
 		
 		// After confirming that the label is feasible, update the remaining load
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;

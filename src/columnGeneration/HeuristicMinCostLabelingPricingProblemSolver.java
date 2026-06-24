@@ -128,7 +128,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 
 		////////////////////////////////////////////
-		/// Bounding Procedure
+		/// Intermediate Point
 		////////////////////////////////////////////
 		
 		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) PPvertices[superDepotID].unprocessedLabels.clear();
