@@ -94,7 +94,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 			
 			for (Label currentLabel: labelsToProcessNext) {
 				
-				boolean isDominated = checkDominance(currentLabel);
+				boolean isDominated = checkRoutingDominance(currentLabel);
 				if(isDominated) continue;
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
@@ -113,7 +113,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		while (!PPvertices[superDepotID].unprocessedLabels.isEmpty()){
 
 			Label currentLabel = PPvertices[superDepotID].unprocessedLabels.poll();
-			boolean isDominated = checkDominance(currentLabel);
+			boolean isDominated = checkDepotDominance(currentLabel);
 			if(isDominated) continue;
 			
 			currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
@@ -133,7 +133,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 			
 			for (Label currentLabel: labelsToProcessNext) {
 				
-				boolean isDominated = checkDominance(currentLabel);
+				boolean isDominated = checkChargingDominance(currentLabel);
 				if(isDominated) continue;
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
@@ -504,22 +504,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	
 	}
 
-	public BiPredicate<Label, Label> getDominanceChecker(byte vx_type){
-
-		switch (vx_type){
-
-			case C1: return this::isDominatedRouting;
-			case C0: return this::isDominatedDepot;
-			case Tt: return this::isDominatedCharging;
-			case EVRPTW.Depot: return this::isDominatedRouting;
-
-			default:
-				throw new IllegalArgumentException("Unknown vertex / arc type" + vx_type);
-
-		}
-	}
-
-	public boolean checkDominance(Label newLabel) {
+	public boolean checkRoutingDominance(Label newLabel) {
 		
 		/* // DELETE BLOCK LATER
 		int[] lookup_route = new int[]{0,12,9,3,20,10,1}; // DELETE LATER
@@ -530,7 +515,6 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 			} */
 		
 		PPVertex currentVertex = PPvertices[newLabel.dominanceVertex];
-		BiPredicate<Label, Label> isDominatedChecker = getDominanceChecker(currentVertex.vertex_type);
 
 		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
 		for(Label existingLabel: currentVertex.unprocessedLabels) {
@@ -543,7 +527,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 				is_el_subset = sequence_is_subset(el_sequence, lookup_route);
 			} */
 
-			if(isDominatedChecker.test(existingLabel, newLabel)) {
+			if(isDominatedRouting(existingLabel, newLabel)) {
 				//existing_is_discarded = true; // DELETE LATER
 				labelsToDelete.add(existingLabel);
 			}
@@ -555,8 +539,36 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		//boolean new_is_discarded = false; // DELETE LATER
 		for(Label existingLabel: currentVertex.processedLabels) {
 			//int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
-			if(isDominatedChecker.test(newLabel, existingLabel)) return true;
+			if(isDominatedRouting(newLabel, existingLabel)) return true;
 		}
+
+		return false;
+	}
+
+	public boolean checkDepotDominance(Label newLabel) {
+		
+		PPVertex currentVertex = PPvertices[superDepotID];
+
+		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
+		for(Label existingLabel: currentVertex.unprocessedLabels)  if(isDominatedDepot(existingLabel, newLabel))  labelsToDelete.add(existingLabel);
+		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
+		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
+
+		for(Label existingLabel: currentVertex.processedLabels) if(isDominatedDepot(newLabel, existingLabel)) return true;
+
+		return false;
+	}
+
+	public boolean checkChargingDominance(Label newLabel) {
+		
+		PPVertex currentVertex = PPvertices[newLabel.dominanceVertex];
+
+		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
+		for(Label existingLabel: currentVertex.unprocessedLabels) if(isDominatedCharging(existingLabel, newLabel)) labelsToDelete.add(existingLabel);
+		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
+		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
+
+		for(Label existingLabel: currentVertex.processedLabels) if(isDominatedCharging(newLabel, existingLabel)) return true;
 
 		return false;
 	}
