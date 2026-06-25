@@ -414,7 +414,13 @@ public final class EVRPTW implements ModelInterface {
 				boolean feasible_nonfirst = customElement.getElementsByTagName("non_first_feasible").item(0).getTextContent().equals("true");
 				int open_tw_nonfirst = Integer.parseInt(customElement.getElementsByTagName("tw1_start").item(0).getTextContent());
 				int min_b = Integer.parseInt(customElement.getElementsByTagName("min_chargingTime").item(0).getTextContent());
-				vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw, last_departure, feasible_nonfirst, open_tw_nonfirst, min_b);
+				
+				String dev_seq = customElement.getElementsByTagName("min_energy_depot_path_devs"+this.en_dev).item(0).getTextContent();
+				String[] dev_strs = dev_seq.split(",");
+				int[] devs = new int[this.gamma];
+				for (int d = 0; (d < dev_strs.length) && (d < this.gamma); d++) { devs[d] = Integer.parseInt(dev_strs[d]); }
+				
+				vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw, last_departure, feasible_nonfirst, open_tw_nonfirst, min_b, devs);
 			} else  vertices[id] = new Vertex(id, coordx, coordy, load, opening_tw, closing_tw); // Depot nodes
 
 			graph.addVertex(id);
@@ -513,6 +519,7 @@ public final class EVRPTW implements ModelInterface {
 		public final boolean feasible_nonfirst;
 		public final int open_tw_nonfirst;
 		public final int min_chargingTime;
+		public final int[] minEnergy_DepotPath_Devs;
 		
 		public final HashSet<Integer> unreachable; 			//(a priori) unreachable customers from this vertex
 		public HashSet<Integer> neighbors;
@@ -522,7 +529,7 @@ public final class EVRPTW implements ModelInterface {
 		 * Creates a new (customer) vertex.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
 		 */
-		public Vertex(int id, int xcoord, int ycoord, int load, int opening_tw, int closing_tw, int last_departure, boolean feas_nonfirst, int tw_nonfirst, int min_b) {
+		public Vertex(int id, int xcoord, int ycoord, int load, int opening_tw, int closing_tw, int last_departure, boolean feas_nonfirst, int tw_nonfirst, int min_b, int[] mE_dP_devs) {
 			this.node_id = id;
 			this.xcoord = xcoord;
 			this.ycoord = ycoord;
@@ -534,6 +541,7 @@ public final class EVRPTW implements ModelInterface {
 			this.open_tw_nonfirst = tw_nonfirst;
 			this.min_chargingTime = min_b;
 
+			this.minEnergy_DepotPath_Devs = mE_dP_devs;
 			this.unreachable = new HashSet<Integer>(C);
 			this.SRCIndices = new ArrayList<>();
 			this.neighbors = new HashSet<Integer>(C);
@@ -551,6 +559,7 @@ public final class EVRPTW implements ModelInterface {
 			this.open_tw_nonfirst = opening_tw;
 			this.min_chargingTime = 0;
 
+			this.minEnergy_DepotPath_Devs = null;
 			this.unreachable = null;
 			this.SRCIndices = null;
 			this.neighbors = null;

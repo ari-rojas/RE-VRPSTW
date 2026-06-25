@@ -1,5 +1,6 @@
 package branchAndPrice;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -14,9 +15,7 @@ import java.util.Set;
 import java.util.Iterator;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchAndPrice;
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.GraphManipulator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BAPListener;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.BranchEvent;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.EventHandling.CGListener;
@@ -33,14 +32,11 @@ import org.jorlib.frameworks.columnGeneration.branchAndPrice.bapNodeComparators.
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecisionListener;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
-import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
-import org.jorlib.frameworks.columnGeneration.master.MasterData;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequality;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.pricing.DefaultPricingProblemSolverFactory;
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemBundle;
-import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import org.jorlib.frameworks.columnGeneration.util.Configuration;
 

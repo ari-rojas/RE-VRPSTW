@@ -475,7 +475,15 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		if (remainingEnergy[Gamma]-dataModel.graph.getEdge(head, dataModel.C+1).min_energy < 0) return null;
 
 		// Charging Time
-		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[Gamma]+dataModel.graph.getEdge(head,dataModel.C+1).min_energy];
+		int minEnergyRoute_remEn = remainingEnergy[0] - dataModel.graph.getEdge(head, dataModel.C+1).min_energy; // Nominal Energy
+		int[] bwDevs = vertices[head].minEnergy_DepotPath_Devs;
+		int ixFw = 1; int ixBw = 0;
+		for (int g = 1; g <= Gamma; g++){
+			if (remainingEnergy[ixFw-1]-remainingEnergy[ixFw] >= bwDevs[ixBw]) { minEnergyRoute_remEn -= (remainingEnergy[g-1]-remainingEnergy[g]); ixFw ++; }
+			else { minEnergyRoute_remEn -= bwDevs[ixBw]; ixBw ++; }
+		} if (minEnergyRoute_remEn < 0) return null;
+		
+		int chargingTime = dataModel.f_inverse[dataModel.E-minEnergyRoute_remEn];
 		if (chargingTime >= latestDeparture) return null;
 		double chargingBound = Math.floor(this.charging_bounds.get(chargingTime).get(latestDeparture)*10000)/10000;
 		
