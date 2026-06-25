@@ -38,6 +38,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<ArrayList<PartialBackwardSequence>> bwSequences;
 	public ArrayList<ArrayList<PartialForwardSequence>> fwDepotSequences;
 	public ArrayList<ArrayList<PartialForwardSequence>> fwC1Sequences;
+	public double[] bwBounds;
 
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasiblePPArcs;
@@ -243,6 +244,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedBackwardRouting(l1, labels.get(ix2))) { dominated = true; break; }
 				if (dominated) labels_to_remove.add(l1);
 			} labels.removeAll(labels_to_remove);
+			labels.sort(Comparator.comparingDouble(l -> l.reducedCost));
 
 			ArrayList<PartialBackwardSequence> allSequences = new ArrayList<PartialBackwardSequence>();
 			for (Label label: labels) allSequences.add(new PartialBackwardSequence(label.reducedCost, label.remainingEnergy, label.remainingLoad, label.remainingTime, label.ng_path, label.eta));
@@ -250,6 +252,33 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 
 		this.bwLabels.clear();
+
+		this.bwBounds = new double[2*dataModel.C+2];
+		for (int i = 1; i <= dataModel.C; i++){ // Bound for depot-customer nodes
+			double min_label_rc = Double.MAX_VALUE;
+			for (PPArc arc: dataModel.PPgraph.outgoingEdgesOf(dataModel.C0_startID+i)){
+				if (infeasiblePPArcs[arc.id] > 0) continue;
+				int j = PPvertices[arc.head_vertex_id].node_number;
+				if (j == 0) j = dataModel.C+1;
+				double rc = this.bwSequences.get(j).get(0).reducedCost + arc.modifiedCost;
+				if (rc < min_label_rc - dataModel.precision) min_label_rc = rc;
+			}
+			this.bwBounds[i] = min_label_rc;
+		}
+
+		for (int i = 1; i <= dataModel.C; i++){ // Bound for non-first customer nodes
+			double min_label_rc = Double.MAX_VALUE;
+			for (PPArc arc: dataModel.PPgraph.outgoingEdgesOf(dataModel.C1_startID+i)){
+				if (infeasiblePPArcs[arc.id] > 0) continue;
+				int j = PPvertices[arc.head_vertex_id].node_number;
+				if (j == 0) j = dataModel.C+1;
+				double rc = this.bwSequences.get(j).get(0).reducedCost + arc.modifiedCost;
+				if (rc < min_label_rc - dataModel.precision) min_label_rc = rc;
+			}
+			this.bwBounds[dataModel.C+i] = min_label_rc;
+		}
+
+		this.bwBounds[2*dataModel.C+1] = 0; // Bound for returning depot node
 
 	}
 
@@ -291,10 +320,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			PPVertex depotVertex = PPvertices[dataModel.C0_startID+i];
 			Arc routingArc = dataModel.graph.getEdge(0,i);
 			
-			ForwardLabel initialLabel = extendForwardLabel(l0, routingArc, 0);
-			initialLabel.vertex = depotVertex.id;
-			depotVertex.unprocessedForwardLabels.add(initialLabel);
-			this.nodesToProcess.add(depotVertex);
+			ForwardLabel initialLabel = extendForwardLabel(l0, routingArc, 0, depotVertex.id);
+			if (initialLabel != null){
+				initialLabel.vertex = depotVertex.id;
+				depotVertex.unprocessedForwardLabels.add(initialLabel);
+				this.nodesToProcess.add(depotVertex);
+			}
 		}
 
 		////////////////////////////////////////////
@@ -316,7 +347,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				PPvertices[currentLabel.vertex].processedForwardLabels.add(currentLabel);
 				
 				for (PPArc a: outgoingArcs) {
-					ForwardLabel extendedLabel = extendForwardLabel(currentLabel, a.routing_arc, a.modifiedCost);
+					ForwardLabel extendedLabel = extendForwardLabel(currentLabel, a.routing_arc, a.modifiedCost, a.head_vertex_id);
 					if (extendedLabel!=null) { // Verifies if the extension is feasible
 						extendedLabel.vertex = a.head_vertex_id;
 						extendedLabel.previousArc = a.id;
@@ -337,9 +368,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			this.fwDepotSequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++) {
-				ForwardLabel label = PPvertices[dataModel.C0_startID+i].processedForwardLabels.get(0);
 				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
-				allSequences.add(get_forward_sequence(label));
+				if (PPvertices[dataModel.C0_startID+i].processedForwardLabels.size() > 0){
+					ForwardLabel label = PPvertices[dataModel.C0_startID+i].processedForwardLabels.get(0);
+					allSequences.add(get_forward_sequence(label));
+				}
 				this.fwDepotSequences.add(allSequences);
 			}
 			
@@ -440,7 +473,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return false;
 	}
 
-	public ForwardLabel extendForwardLabel(ForwardLabel currentLabel, Arc routing_arc, double modifiedCost) {
+	public ForwardLabel extendForwardLabel(ForwardLabel currentLabel, Arc routing_arc, double modifiedCost, int pp_head_ix) {
 
 		int head = routing_arc.head;
 		if (currentLabel.unreachable[head-1] || currentLabel.ng_path[head-1]) return null;
@@ -487,6 +520,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		if (chargingTime >= latestDeparture) return null;
 		double chargingBound = Math.floor(this.charging_bounds.get(chargingTime).get(latestDeparture)*10000)/10000;
 		
+		/////////////////////////////////////////
+		/// Bounding Procedure
+		/////////////////////////////////////////
+		
+		if (reducedCost + this.bwBounds[pp_head_ix] + chargingBound > this.FRC_gap + dataModel.precision) return null;
+
 		// After confirming that the label is feasible, update the remaining load
 		int cumulativeLoad = currentLabel.cumulativeLoad+vertices[head].load;
 		
@@ -533,8 +572,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public boolean isDominatedRouting(ForwardLabel L1, ForwardLabel L2) {
 
 		if (L2.cumulativeLoad>L1.cumulativeLoad) return false; 													//load
-		if (L2.reducedCost+L2.chargingBound-L1.reducedCost-L1.chargingBound>dataModel.precision) return false; 	//reduced cost
-		if (L2.cumulativeTime>L1.cumulativeTime) return false; 													//time
+		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
+		if (L2.cumulativeTime>L1.cumulativeTime) return false;
+		if (L2.latestDeparture<L1.latestDeparture) return false;
+		if (L2.travelTimes>L1.travelTimes) return false; 													//time
 		
 		for (int gam=0; gam<=Gamma; gam++){
 			if (L2.remainingEnergy[gam]<L1.remainingEnergy[gam]) return false; 	//energy
@@ -550,10 +591,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					reducedCostL2+=this.dualCosts[dualIndex];
 				}
 			}
-			if (L2.reducedCost+L2.chargingBound-reducedCostL2-L1.reducedCost-L1.chargingBound>dataModel.precision) return false;
+			if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
 		}
 
-		if (L2.reducedCost+L2.chargingBound-reducedCostL2-L1.reducedCost-L1.chargingBound>dataModel.precision) return false;
+		if (L2.reducedCost-reducedCostL2-L1.reducedCost>dataModel.precision) return false;
 
 		// Ng-paths and unreachable resources
 		Vertex currentVertex = PPvertices[L1.vertex].routing_vertex;
