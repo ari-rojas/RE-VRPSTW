@@ -30,7 +30,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<SubsetRowInequality> subsetRowCuts; 				//subset row cuts considered
 	public double bestReducedCost; 										//best reduced cost found by the exact labeling
 	public double reducedCostThreshold = 0; 							//minimum reduced cost when arriving at the depot source
-	public Label bestLabel;
 
 	public Map<Integer, Map<Integer,Double>> charging_bounds;
 
