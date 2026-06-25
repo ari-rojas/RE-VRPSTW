@@ -479,7 +479,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		int[] bwDevs = vertices[head].minEnergy_DepotPath_Devs;
 		int ixFw = 1; int ixBw = 0;
 		for (int g = 1; g <= Gamma; g++){
-			if (remainingEnergy[ixFw-1]-remainingEnergy[ixFw] >= bwDevs[ixBw]) { minEnergyRoute_remEn -= (remainingEnergy[g-1]-remainingEnergy[g]); ixFw ++; }
+			if (remainingEnergy[ixFw-1]-remainingEnergy[ixFw] >= bwDevs[ixBw]) { minEnergyRoute_remEn -= (remainingEnergy[ixFw-1]-remainingEnergy[ixFw]); ixFw ++; }
 			else { minEnergyRoute_remEn -= bwDevs[ixBw]; ixBw ++; }
 		} if (minEnergyRoute_remEn < 0) return null;
 		
