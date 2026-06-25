@@ -100,32 +100,29 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
-				for(PPArc a: incomingArcs) {
-					Label extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
-					if (extendedLabel!=null) { // Verifies if the extension is feasible
-						extendedLabel.vertex = a.tail_vertex_id;
-						extendedLabel.nextArc = a.id;
-
-						if (a.arc_type == AR0) {
-							extendedLabel.dominanceVertex = superDepotID;
-							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
-						} else {
-							extendedLabel.dominanceVertex = a.tail_vertex_id;
-							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
-							if (PPvertices[a.tail_vertex_id].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
-						}
-					}
-				}
+				for(PPArc a: incomingArcs) extendLabel(currentLabel, a, a.routing_arc, a.arc_type, a.modifiedCost);
 			}
 		}
 
 		////////////////////////////////////////////
-		/// Bounding Procedure
+		/// SuperDepot Labels
 		////////////////////////////////////////////
 		
 		if (System.currentTimeMillis()>=timeLimit) PPvertices[superDepotID].unprocessedLabels.clear();
-		
-		if (!PPvertices[superDepotID].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[superDepotID]);
+
+		while (!PPvertices[superDepotID].unprocessedLabels.isEmpty()){
+
+			Label currentLabel = PPvertices[superDepotID].unprocessedLabels.poll();
+			boolean isDominated = checkDominance(currentLabel);
+			if(isDominated) continue;
+			
+			currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+			PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+			PPvertices[superDepotID].processedLabels.add(currentLabel);
+			
+			for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) extendLabelChargingTime(currentLabel, a, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
+
+		}
 
 		/////////////////////////////////////
 		/// Charging Scheduling Labeling
@@ -141,21 +138,8 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
-				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				
-				for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
-					PPVertex extendedVertex = PPvertices[a.tail_vertex_id];
-					Label extendedLabel = extendLabelChargingTime(currentLabel, extendedVertex.node_number, a.arc_type, a.modifiedCost);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						
-						extendedLabel.vertex = a.tail_vertex_id;
-						extendedLabel.nextArc = a.id;
-						extendedLabel.dominanceVertex = a.tail_vertex_id;
-
-						extendedVertex.unprocessedLabels.add(extendedLabel);
-						if (a.arc_type < AC3 && extendedVertex.unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
-					}
-				}
+				for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) extendLabelChargingTime(currentLabel, a, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
 			}
 		}
 
@@ -237,7 +221,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	/**
 	 * Label extension procedure
 	 */
-	public Label extendLabel(Label currentLabel, Arc routing_arc, byte arc_type, double modifiedCost) {
+	public Label extendLabel(Label currentLabel, PPArc pp_arc, Arc routing_arc, byte arc_type, double modifiedCost) {
 
 		int source = routing_arc.tail;
 		if (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1]) return null;
@@ -281,29 +265,47 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		// After confirming that the label is feasible, update the remaining load
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
+		boolean[] unreachable = null;
+		Label extendedLabel = null;
 		
-		if (arc_type == AR0 && reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)) >= -dataModel.precision) return null;
+		if(arc_type == AR1) { // Non-first customer nodes
+			
+			// Mark unreachable customers and ng-path cycling restrictions
+			unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
+			unreachable[source-1] = true; //elementary
 
-		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-		unreachable[source-1] = true; //elementary
-		
-		// Mark unreachable customers and ng-path cycling restrictions
-		if(arc_type == AR1) {
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
 				if (remainingLoad-vertices[c.tail].load<0 || remainingTime-c.min_time<vertices[c.tail].opening_tw || remainingEnergy[Gamma] - c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy < 0) {
 					unreachable[c.tail-1] = true; }
 			}
-		} else {
+			
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
+			extendedLabel.dominanceVertex = pp_arc.tail_vertex_id;
+			PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
+			if (PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[extendedLabel.dominanceVertex]);
+						
+		} else { // Depot-customer nodes
+
 			// We re-scale the remaining time, which represents the departure time of the route
 			remainingTime = (int) (remainingTime/10);
+
+			////////////////////////////////////////////
+			/// Bounding Procedure
+			////////////////////////////////////////////
+			
+			if (reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime) >= -dataModel.precision) return null;
+			
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
+			extendedLabel.dominanceVertex = superDepotID;
+			PPvertices[superDepotID].unprocessedLabels.add(extendedLabel);
+		
 		}
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
+		extendedLabel.vertex = pp_arc.tail_vertex_id;
+		extendedLabel.nextArc = pp_arc.id;
+
 		return extendedLabel;
 
 	}
@@ -311,25 +313,37 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 	/**
 	 * Label extension procedure
 	 */
-	public Label extendLabelChargingTime(Label currentLabel, int t, byte arc_type, double modifiedCost) {
+	public Label extendLabelChargingTime(Label currentLabel, PPArc pp_arc, int t, byte arc_type, double modifiedCost) {
 
 		// If t is a finishing charging time period and is not a value between b_r and d_r-1, it's not feasible
 		if(arc_type == AC1 && (t < currentLabel.chargingTime || t >= currentLabel.remainingTime)) return null;
-		// If the label is extended to the source node but has not charged enough, it's not feasible
-		if(arc_type == AC3 && currentLabel.chargingTime>0 ) return null;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
+		if (reducedCost >= -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
+		
 		int chargingTime = currentLabel.chargingTime;
-		if(arc_type < AC3) {
+		Label extendedLabel = null;
+		if (arc_type < AC3) { // Extension to charging time periods
 			chargingTime -= 1;
-			if(chargingTime<0) return null; // If the label is extended through consecutive charging time periods and is charging more than necessary, deem it infeasible
-		} else {
-			if (reducedCost < this.bestReducedCost - dataModel.precision) this.bestReducedCost = reducedCost;
-			if (reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
-		}
+			if (chargingTime < 0) return null;
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			PPvertices[pp_arc.tail_vertex_id].unprocessedLabels.add(extendedLabel);
+			if (PPvertices[pp_arc.tail_vertex_id].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[pp_arc.tail_vertex_id]);
+			
+		} else { // Extension to the dummy source
+			if (chargingTime > 0) return null;
+			
+			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			PPvertices[pp_arc.tail_vertex_id].unprocessedLabels.add(extendedLabel);
+
+		}		
+
+		extendedLabel.vertex = pp_arc.tail_vertex_id;
+		extendedLabel.nextArc = pp_arc.id;
+		extendedLabel.dominanceVertex = pp_arc.tail_vertex_id;
+
 		return extendedLabel;
 	}
 

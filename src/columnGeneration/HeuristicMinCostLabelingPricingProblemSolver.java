@@ -107,33 +107,30 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
-				for(PPArc a: incomingArcs) {
-					Label extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
-					if (extendedLabel!=null) { // Verifies if the extension is feasible
-						nLabels ++;
-						extendedLabel.vertex = a.tail_vertex_id;
-						extendedLabel.nextArc = a.id;
+				for(PPArc a: incomingArcs) extendLabel(currentLabel, a ,a.routing_arc, a.arc_type, a.modifiedCost);
 
-						if (a.arc_type == AR0) {
-							extendedLabel.dominanceVertex = superDepotID;
-							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
-						} else {
-							extendedLabel.dominanceVertex = a.tail_vertex_id;
-							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
-							if (PPvertices[a.tail_vertex_id].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
-						}
-					}
-				}
 			}
 		}
 
 		////////////////////////////////////////////
-		/// Intermediate Point
+		/// SuperDepot Labels
 		////////////////////////////////////////////
 		
 		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) PPvertices[superDepotID].unprocessedLabels.clear();
 		
-		if (!PPvertices[superDepotID].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[superDepotID]);
+		while (!PPvertices[superDepotID].unprocessedLabels.isEmpty()){
+
+			Label currentLabel = PPvertices[superDepotID].unprocessedLabels.poll();
+			boolean isDominated = checkDominance(currentLabel);
+			if(isDominated) continue;
+			
+			currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+			PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+			PPvertices[superDepotID].processedLabels.add(currentLabel);
+			
+			for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) extendLabelChargingTime(currentLabel, a, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
+
+		}
 
 		/////////////////////////////////////
 		/// Charging Scheduling Labeling
@@ -149,21 +146,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
-				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				
-				for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
-					PPVertex extendedVertex = PPvertices[a.tail_vertex_id];
-					Label extendedLabel = extendLabelChargingTime(currentLabel, extendedVertex.node_number, a.arc_type, a.modifiedCost);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						
-						extendedLabel.vertex = a.tail_vertex_id;
-						extendedLabel.nextArc = a.id;
-						extendedLabel.dominanceVertex = a.tail_vertex_id;
-
-						extendedVertex.unprocessedLabels.add(extendedLabel);
-						if (a.arc_type < AC3 && extendedVertex.unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
-					}
-				}
+				for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) extendLabelChargingTime(currentLabel, a, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
 			}
 		}
 
@@ -245,7 +229,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	/**
 	 * Label extension procedure
 	 */
-	public Label extendLabel(Label currentLabel, Arc routing_arc, byte arc_type, double modifiedCost) {
+	public Label extendLabel(Label currentLabel, PPArc pp_arc, Arc routing_arc, byte arc_type, double modifiedCost) {
 
 		int source = routing_arc.tail;
 		if (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1]) return null;
@@ -253,7 +237,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		// Update the remaining time and check feasibility
 		int remainingTime = currentLabel.remainingTime-routing_arc.time;
 		if (arc_type == AR1 && remainingTime < vertices[source].open_tw_nonfirst) return null;
-		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
+		if (remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
 		boolean[] eta = currentLabel.eta.clone();
@@ -286,25 +270,20 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[Gamma]];
 		if (chargingTime >= (int) (remainingTime/10)) return null;
 		
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-		
-		if (arc_type == AR0){
-			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10));
-			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
-			if (min_col_rc >= -dataModel.precision) return null;
-		}
-		
 		// After confirming that the label is feasible, update the remaining load
 		int remainingLoad = currentLabel.remainingLoad-vertices[source].load;
 
 		// Unreachable resources
-		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-		boolean[] ng_path = new boolean[dataModel.C];
+		boolean[] unreachable = null;
+		boolean[] ng_path = null;
+		Label extendedLabel = null;
 		
-		// Mark unreachable customers and ng-path cycling restrictions
-		if(arc_type == AR1) {
+		if(arc_type == AR1) { // Non-first customer nodes
+			
+			// Mark unreachable customers and ng-path cycling restrictions
+			unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
+			ng_path = new boolean[dataModel.C];
+			
 			ng_path[source-1] = true;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
@@ -316,13 +295,35 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
 				else ng_path[c.tail-1] = false;
 			}
-		} else {
-			ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
+
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel.dominanceVertex = pp_arc.tail_vertex_id;
+			PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
+			if (PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[extendedLabel.dominanceVertex]);
+		
+		} else { // Depot-customer nodes
+			
 			// We re-scale the remaining time, which represents the departure time of the route
 			remainingTime = (int) (remainingTime/10);
-		}
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			////////////////////////////////////////////
+			/// Bounding Procedure
+			////////////////////////////////////////////
+
+			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
+			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
+			if (min_col_rc >= -dataModel.precision) return null;
+
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel.dominanceVertex = superDepotID;
+			PPvertices[superDepotID].unprocessedLabels.add(extendedLabel);
+		
+		}
+		
+		nLabels ++;
+		extendedLabel.vertex = pp_arc.tail_vertex_id;
+		extendedLabel.nextArc = pp_arc.id;
+		
 		return extendedLabel;
 
 	}
@@ -330,24 +331,37 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	/**
 	 * Label extension procedure
 	 */
-	public Label extendLabelChargingTime(Label currentLabel, int t, byte arc_type, double modifiedCost) {
+	public Label extendLabelChargingTime(Label currentLabel, PPArc pp_arc, int t, byte arc_type, double modifiedCost) {
 
 		// If t is a finishing charging time period and is not a value between b_r and d_r-1, it's not feasible
 		if(arc_type == AC1 && (t < currentLabel.chargingTime || t >= currentLabel.remainingTime)) return null;
-		// If the label is extended to the source node but has not charged enough, it's not feasible
-		if(arc_type == AC3 && currentLabel.chargingTime>0 ) return null;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
-		int chargingTime = currentLabel.chargingTime;
-		if (arc_type < AC3) {
-			chargingTime -= 1;
-			if(chargingTime<0) return null; // If the label is extended through consecutive charging time periods and is charging more than necessary, deem it infeasible
-		}
-		
 		if (reducedCost >= -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
+		
+		int chargingTime = currentLabel.chargingTime;
+		Label extendedLabel = null;
+		if (arc_type < AC3) { // Extension to charging time periods
+			chargingTime -= 1;
+			if (chargingTime < 0) return null;
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			PPvertices[pp_arc.tail_vertex_id].unprocessedLabels.add(extendedLabel);
+			if (PPvertices[pp_arc.tail_vertex_id].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[pp_arc.tail_vertex_id]);
+			
+		} else { // Extension to the dummy source
+			if (chargingTime > 0) return null;
+			
+			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			PPvertices[pp_arc.tail_vertex_id].unprocessedLabels.add(extendedLabel);
+
+		}		
+
+		extendedLabel.vertex = pp_arc.tail_vertex_id;
+		extendedLabel.nextArc = pp_arc.id;
+		extendedLabel.dominanceVertex = pp_arc.tail_vertex_id;
+
 		return extendedLabel;
 	}
 
