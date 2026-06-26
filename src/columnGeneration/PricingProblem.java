@@ -81,6 +81,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		long startTime = System.currentTimeMillis();
 		for (Label label: this.frcRouteLabels){
+			if (label.reducedCost > this.FRC_gap + dataModel.precision) continue;
 
 			Label nextLabel = label;
 			while(nextLabel.vertex != depotID) {
