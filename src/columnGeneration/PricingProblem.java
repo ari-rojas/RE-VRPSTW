@@ -87,6 +87,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				this.nonFixablePPArcs.set(nextLabel.nextArc);
 				PPArc nextArc = dataModel.PParcs[nextLabel.nextArc];
 				int j = PPvertices[nextArc.head_vertex_id].node_number;
+				if (j == 0) j = dataModel.C+1;
 				nextLabel = this.bwLabels.get(j).get(nextLabel.nextLabelIndex);
 			}
 		}
