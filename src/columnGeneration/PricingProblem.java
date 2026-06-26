@@ -40,6 +40,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public ArrayList<ArrayList<PartialForwardSequence>> fwC1Sequences;
 	public double[] bwBounds;
 
+	public BitSet nonFixablePPArcs;
+	public ArrayList<Label> frcRouteLabels;
+
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasiblePPArcs;
 	public PPVertex[] PPvertices = dataModel.PPvertices;
@@ -62,6 +65,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
 		this.infeasiblePPArcs = new int[dataModel.numArcs];
+		this.nonFixablePPArcs = new BitSet();
+		this.frcRouteLabels = new ArrayList<Label>();
 		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.PPvertices.length-dataModel.C, new SortVertices());
 	}
 
@@ -74,17 +79,35 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 
+		long startTime = System.currentTimeMillis();
+		for (Label label: this.frcRouteLabels){
+
+			Label nextLabel = label;
+			while(nextLabel.vertex != depotID) {
+				this.nonFixablePPArcs.set(nextLabel.nextArc);
+				PPArc nextArc = dataModel.PParcs[nextLabel.nextArc];
+				int j = PPvertices[nextArc.head_vertex_id].node_number;
+				nextLabel = this.bwLabels.get(j).get(nextLabel.nextLabelIndex);
+			}
+		}
+
+		long totalTime = System.currentTimeMillis()-startTime;
+		if (dataModel.print_log) {
+			logger.debug("Identified " + this.nonFixablePPArcs.cardinality()+"/"+(dataModel.lenAR0+dataModel.lenAR1) + " non-fixable PP Arcs");
+			logger.debug("Time identifying first non-fixable PP Arcs: " + getTimeInSeconds(totalTime));
+		}
+
 		this.cleanBackwardLabels();
 		this.runForwardLabeling(timeLimit);
 		
-		long startTime = System.currentTimeMillis();
+		startTime = System.currentTimeMillis();
 		for (int j = 1; j <= dataModel.C+1; j++){
 			ArrayList<PartialBackwardSequence> backwardSequences = bwSequences.get(j);
 
 			for (PPArc arc: dataModel.PPgraph.incomingEdgesOf(PPvertices[dataModel.C1_startID+j].id)){
 
 				if (System.currentTimeMillis()>timeLimit) break;
-				if (infeasiblePPArcs[arc.id] > 0) continue;
+				if (infeasiblePPArcs[arc.id] > 0 || nonFixablePPArcs.get(arc.id)) continue;
 				
 				ArrayList<PartialForwardSequence> forwardSequences;
 				int i = PPvertices[arc.tail_vertex_id].node_number;
@@ -107,7 +130,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		this.bwSequences.clear(); this.fwC1Sequences.clear(); this.fwDepotSequences.clear();
 
-		long totalTime = System.currentTimeMillis()-startTime;
+		totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
 		if (dataModel.print_log) {
 			logger.debug("Time merging forward and backward labels: " + getTimeInSeconds(totalTime));

@@ -2,6 +2,7 @@ package columnGeneration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -264,6 +265,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			master.initializePricingProblem(pricingProblem);
 		}
 
+		dataModel.potentialFRCgap = this.incumbentSolutionObjective - master.getObjective();
+
 		//Solve pricing problems in the order of the pricing algorithms
 		notifier.fireStartPricingEvent();
 		cPricingProblemManager.setTimeLimit(timeLimit);
@@ -352,6 +355,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		extendedNotifier.fireFixingByReducedCostEvent(this.cutoffValue, this.boundOnMasterObjective);
 		PricingProblem pricingProblem = (PricingProblem)pricingProblems.get(0);
+		pricingProblem.nonFixablePPArcs = new BitSet();
+		
 		Map<Integer, Double> arcsToRemove = pricingProblem.fixByReducedCosts(timeLimit, this.cutoffValue, this.boundOnMasterObjective);
 		
 		// Deleting columns containing the eliminated arcs

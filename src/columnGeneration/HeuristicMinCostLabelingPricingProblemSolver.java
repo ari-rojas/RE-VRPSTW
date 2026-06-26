@@ -297,6 +297,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			}
 
 			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel.vertex = pp_arc.tail_vertex_id;
+			extendedLabel.nextArc = pp_arc.id;
 			extendedLabel.dominanceVertex = pp_arc.tail_vertex_id;
 			PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
 			if (PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[extendedLabel.dominanceVertex]);
@@ -310,19 +312,21 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			/// Bounding Procedure
 			////////////////////////////////////////////
 
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel.vertex = pp_arc.tail_vertex_id;
+			extendedLabel.nextArc = pp_arc.id;
+			extendedLabel.dominanceVertex = superDepotID;
+
 			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
 			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
+			if (dataModel.potentialFRCgap < 1e3 && min_col_rc >= -dataModel.precision && min_col_rc <= dataModel.potentialFRCgap + dataModel.precision) pricingProblem.frcRouteLabels.add(extendedLabel);
 			if (min_col_rc >= -dataModel.precision) return null;
 
-			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
-			extendedLabel.dominanceVertex = superDepotID;
 			PPvertices[superDepotID].unprocessedLabels.add(extendedLabel);
 		
 		}
 		
 		nLabels ++;
-		extendedLabel.vertex = pp_arc.tail_vertex_id;
-		extendedLabel.nextArc = pp_arc.id;
 		
 		return extendedLabel;
 
