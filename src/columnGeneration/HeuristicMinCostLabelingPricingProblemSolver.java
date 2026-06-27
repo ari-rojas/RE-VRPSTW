@@ -107,7 +107,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
 				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
-				for(PPArc a: incomingArcs) extendLabel(currentLabel, a ,a.routing_arc, a.arc_type, a.modifiedCost);
+				for(PPArc a: incomingArcs) extendLabel(currentLabel, a, a.routing_arc, a.arc_type, a.modifiedCost);
 
 			}
 		}
@@ -420,6 +420,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(superDepotID, dataModel.T_startID));
 		}
 		this.nodesToProcess = new PriorityQueue<PPVertex>(new SortVertices());
+		pricingProblem.frcRouteLabels.clear();
 	}
 
 	/**

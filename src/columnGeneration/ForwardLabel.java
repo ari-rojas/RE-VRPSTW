@@ -26,6 +26,7 @@ public class ForwardLabel{
 	public boolean[] ng_path; 				//customers that visit them would violate the ng-path cycling restrictions
 	public boolean[] eta; 					//number of times modulo 2 that the label has visited customers in S (a triplet in a SRC)
 	public HashSet<Integer> srcIndices; 	//SRC indices for which \eta = 1
+	public boolean frcHasCandidate;
 
 	/** Creates a new Label.*/
 	public ForwardLabel(int nextLabelIndex, double reducedCost, double chargingBound, int cumulativeLoad, int cumulativeTime, int latDeparture, int travelTimes, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {

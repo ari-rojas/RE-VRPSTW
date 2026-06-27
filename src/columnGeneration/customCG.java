@@ -294,8 +294,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		if (dataModel.exactPricing){
 			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
 			
-			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
-			else this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
+			if (!newColumns.isEmpty()) {
+				pricingProblems.get(0).frcRouteLabels.clear();
+				this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
+			} else this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 		
 			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
 				this.contExact ++;
