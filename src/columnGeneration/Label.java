@@ -75,6 +75,15 @@ public class Label{
 				else return 1;											
 			}
 
+			if(L1.vertex==0){ // For the depot
+				if(L1.chargingTime<L2.chargingTime) return -1;
+				if(L1.chargingTime>L2.chargingTime) return 1;
+				if(L1.remainingTime>L2.remainingTime) return -1;			// Then higher remaining time
+				if(L1.remainingTime<L2.remainingTime) return 1;
+				if(L1.reducedCost<L2.reducedCost) return -1;				// Then lower reduced cost
+				if(L1.reducedCost>L2.reducedCost) return 1;
+			}
+
 			int gamma = this.Gamma;
 			// For non-chargin vertices
 			if(L1.remainingLoad>L2.remainingLoad) return -1;			// Higher remaining load capacity gets priority
