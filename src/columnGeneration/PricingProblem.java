@@ -119,6 +119,18 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		//////////////////////////////////////////////////
 		/// Variable Fixing by Reduced Cost
 		//////////////////////////////////////////////////
+		
+		for (int j = 1; j <= dataModel.C+1; j++){
+
+			for (PPArc arc: dataModel.PPgraph.incomingEdgesOf(PPvertices[dataModel.C1_startID+j].id)){
+
+				if (System.currentTimeMillis()>timeLimit) break;
+				if (infeasiblePPArcs[arc.id] > 0 || this.nonFixablePPArcs.get(arc.id)) continue;
+				
+				arcsToRemove.put(arc.id, 1e5);
+
+			}
+		}
 
 		this.bwSequences.clear(); this.fwC1Sequences.clear(); this.fwDepotSequences.clear();
 
