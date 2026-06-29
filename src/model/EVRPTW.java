@@ -86,7 +86,6 @@ public final class EVRPTW implements ModelInterface {
 	public int pricingSoftFactor = 2;
 	public double gapReductionRequirement = 0.35;
 	public boolean exactPricing;
-	public double potentialFRCgap;
 
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
 	public static final byte C0 = 0; 	 	// Customer depot nodes

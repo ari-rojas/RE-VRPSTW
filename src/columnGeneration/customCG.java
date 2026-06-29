@@ -1,7 +1,6 @@
 package columnGeneration;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
@@ -21,7 +20,6 @@ import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 
 import branchAndPrice.RemoveArc;
 import branchAndPrice.ExtendBAPNotifier;
-import branchAndPrice.NumberVehiclesInequalities;
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
@@ -265,8 +263,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			master.initializePricingProblem(pricingProblem);
 		}
 
-		dataModel.potentialFRCgap = this.incumbentSolutionObjective - master.getObjective();
-
 		//Solve pricing problems in the order of the pricing algorithms
 		notifier.fireStartPricingEvent();
 		cPricingProblemManager.setTimeLimit(timeLimit);
@@ -325,6 +321,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			
 			if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
 				perform_fixing_by_reduced_cost(timeLimit);}
+			
+			pricingProblems.get(0).frcRouteLabels.clear();
 			
 		}
 
