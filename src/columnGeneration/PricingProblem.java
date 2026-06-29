@@ -330,7 +330,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		dataModel.rollbackTrigger = false;
 		dataModel.exactPricing = true;
-		this.bestReducedCost = Double.MAX_VALUE;
 
 		// Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
@@ -588,7 +587,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						/// BOUNDING PROCEDURE
 						//////////////////////////////////////////////
 						
-						if (extendedLabel.frcHasCandidate){
+						 if (extendedLabel.frcHasCandidate){
 							if (extendedLabel.reducedCost + this.bwBounds[PPvertices[a.head_vertex_id].node_number] + extendedLabel.chargingBound > this.FRC_gap + dataModel.precision) continue;
 						} else{
 							if (extendedLabel.reducedCost + this.bwCandidateBounds[PPvertices[a.head_vertex_id].node_number] + extendedLabel.chargingBound > this.FRC_gap + dataModel.precision) continue;
