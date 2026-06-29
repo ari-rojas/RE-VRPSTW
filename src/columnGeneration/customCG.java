@@ -1,7 +1,6 @@
 package columnGeneration;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +15,6 @@ import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolv
 import org.jorlib.frameworks.columnGeneration.pricing.PricingProblemManager;
 
 import branchAndPrice.ExtendBAPNotifier;
-import branchAndPrice.NumberVehiclesInequalities;
 import ilog.concert.IloColumn;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
@@ -143,7 +141,9 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
 			//if (dataModel.rollbackTrigger){ this.perform_rollback(solutionMemory); break; }
-			if (boundOnMasterExceedsCutoffValue()) break;
+			if (dataModel.rollbackTrigger){
+				this.perform_rollback(solutionMemory); break; }
+			else if (boundOnMasterExceedsCutoffValue()) break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException();
@@ -151,16 +151,15 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				
 				// Check if the gap reduction was enough.
 				// In case the reduction was bad, break the Column and Cut Generation to branch directly
-				/* if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
+				if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
 					extendedNotifier.fireGapReductionEvent(this.gapReduction);
 					break; }
 				
 				// The algorithm will allow for more cuts to be generated
 				// Update the solution memory before separating the cuts
-				this.update_solution_memory(); */
+				this.update_solution_memory();
 				
 				dataModel.cut_iterations ++;
-
 				long time = System.currentTimeMillis();
 				hasNewCuts = master.hasNewCuts();
 				masterSolveTime += (System.currentTimeMillis()-time);	//generating inequalities is considered part of the master problem
@@ -169,6 +168,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 
 		} while (foundNewColumns || hasNewCuts);
+		
 		colGenSolveTime = System.currentTimeMillis() - colGenSolveTime;
 		notifier.fireFinishCGEvent();
 
@@ -227,56 +227,52 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		notifier.fireStartPricingEvent();
 		pricingProblemManager.setTimeLimit(timeLimit);
 		((PricingProblem) pricingProblems.get(0)).compute_charging_bounds();
-		boolean exact = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			newColumns=pricingProblemManager.solvePricingProblems(solver);
-			//if (dataModel.rollbackTrigger) break;
+			if (dataModel.rollbackTrigger) break;
 
 			//Stop when we found new columns
-			if(!newColumns.isEmpty()){
-				break;
-			}
-			exact = true;
+			if(!newColumns.isEmpty()) break;
 		}
+
+		boolean optimalBound = dataModel.exactPricing && newColumns.isEmpty() && !dataModel.rollbackTrigger;
 
 		notifier.fireFinishPricingEvent(newColumns);
 
 		pricingSolveTime+=(System.currentTimeMillis()-time);
 		nrGeneratedColumns+=newColumns.size();
 
-		if(exact){
+		// Update of Lower Bound
+		if (dataModel.exactPricing){
 			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
 			
 			if (!newColumns.isEmpty()) this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
-			else { // The RMP bound is optimal
+			else this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
+		
+			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
+				this.contExact ++;
+				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
+			}
+		}
+
+		if (optimalBound) {
 				
-				// Look for an integer solution if
-				// i) the current MP solution is NOT integer, and
-				// ii) the current gap is greater than 5%
-				if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
-					
-					Master mMaster = (Master) master;
-					VRPMasterData masterData = mMaster.getMasterData();
-					
-					double IPtime = System.currentTimeMillis();
-					extendedNotifier.fireIPSolutionEvent();
-					try { this.solveIP(master.getColumns(pricingProblems.get(0)), masterData.subsetRowInequalities.keySet(), masterData.branchingNumberOfVehicles.keySet()); } 
-					catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
-					extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
+			// Look for an integer solution if
+			// i) the current MP solution is NOT integer, and
+			// ii) the current gap is greater than 5%
+			if (System.currentTimeMillis() < timeLimit && !masterSolutionIsInteger && (1-this.boundOnMasterObjective/this.cutoffValue) > 0.025){
 				
-				}
-				
-				// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
-				//this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
-				this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
+				double IPtime = System.currentTimeMillis();
+				extendedNotifier.fireIPSolutionEvent();
+				try { this.solveIP(master.getColumns(pricingProblems.get(0))); } 
+				catch (IloException e) { e.printStackTrace(); logger.debug(e.getMessage()); }
+				extendedNotifier.fireFinishIPSolutionEvent(System.currentTimeMillis() - IPtime);
 			
 			}
 			
-
-			/* if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
-				this.contExact ++;
-				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
-			} */
+			// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
+			this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
+			
 		}
 		
 		//Add columns to the master problem
@@ -302,7 +298,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	
 	}
 
-	public void solveIP(Set<Route> columns, Set<SubsetRowInequality> subsetRowInequalities, Set<NumberVehiclesInequalities> vehiclesInequalities) throws IloException {
+	public void solveIP(Set<Route> columns) throws IloException {
 
 		Map<Route, IloIntVar> solution = new HashMap<Route, IloIntVar>();
 		IloCplex cplex = new IloCplex();
@@ -324,19 +320,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		for (int t = 0; t < dataModel.last_charging_period; t++)
 			chargersCapacityConstraints[t] = cplex.addLe(cplex.linearIntExpr(), dataModel.B, "capacity_"+(t+1));
 
-		// Subset Row Cuts
-		IloRange[] SRCs = new IloRange[subsetRowInequalities.size()]; int ix = 0;
-		for (SubsetRowInequality subsetRowInequality: subsetRowInequalities){
-			SRCs[ix] = cplex.addLe(cplex.linearNumExpr(), 1, "src_"+Arrays.toString(subsetRowInequality.cutSet));
-			ix ++; }
-		
-		// Number of vehicles branches
-		IloRange[] NumVehiclesBranches = new IloRange[vehiclesInequalities.size()]; ix = 0;
-		for (NumberVehiclesInequalities branch: vehiclesInequalities){
-			if (branch.lessThanOrEqual) NumVehiclesBranches[ix] = cplex.addLe(cplex.linearNumExpr(), branch.coefficient, "branching_"+branch.toString());
-			else NumVehiclesBranches[ix] = cplex.addGe(cplex.linearNumExpr(), branch.coefficient, "branching_"+branch.toString());
-			ix ++; }
-
 		for (Route route: columns) {
 
 			if (route.isArtificialColumn) continue;
@@ -348,16 +331,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			for (int t = column.initialChargingTime; t <= (column.initialChargingTime+column.chargingTime-1); t++)
 				iloColumn = iloColumn.and(cplex.column(chargersCapacityConstraints[t-1], 1));
-
-			ix = 0;
-			for (SubsetRowInequality subsetRowInequality: subsetRowInequalities) {
-				iloColumn = iloColumn.and(cplex.column(SRCs[ix], getSRCCoefficient(column, subsetRowInequality)));
-				ix ++; }
-
-			ix = 0;
-			for (NumberVehiclesInequalities branch: vehiclesInequalities) {
-				iloColumn = iloColumn.and(cplex.column(NumVehiclesBranches[ix],1));
-				ix ++; }
 
 			//Create the variable and store it
 			IloIntVar var= cplex.intVar(iloColumn, 0, Integer.MAX_VALUE);
@@ -388,9 +361,12 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				}
 
 				this.incumbentSolution = optimalSolution;
-			}
+			} else { logger.debug("Found the same solution to the current UB"); }
 		} else {
-			if (dataModel.print_log) logger.debug("Did not find an integer solution");
+			if (dataModel.print_log) {
+				logger.debug("Status: "+cplex.getStatus().toString());
+				logger.debug("Did not find an integer solution");
+			}
 		}
 		cplex.close();
 		cplex.end();

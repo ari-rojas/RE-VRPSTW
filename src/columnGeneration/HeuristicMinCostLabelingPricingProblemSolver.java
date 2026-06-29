@@ -58,6 +58,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void runLabeling() {
 
 		dataModel.rollbackTrigger = false;
+		dataModel.exactPricing = true;
 		this.bestReducedCost = Double.MAX_VALUE;
 
 		// Initialization
@@ -73,43 +74,43 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		
 		this.nLabels = 0;
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
-		//while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
 			Set<Arc> incomingArcs = new HashSet<Arc>(dataModel.graph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
 			
 			for (Label currentLabel: labelsToProcessNext) {
 				
-				boolean isDominated = checkDominance(currentLabel);
+				boolean isDominated = checkRoutingDominance(currentLabel);
 				if(isDominated) continue;
 				
 				currentLabel.index = vertices[currentLabel.vertex].processedLabels.size();
 				vertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
-				for(Arc a: incomingArcs) {
-					Label extendedLabel = extendLabel(currentLabel, a);
-					if (extendedLabel!=null) { // Verifies if the extension is feasible
-						nLabels ++;
-						extendedLabel.vertex = a.tail;
-						extendedLabel.nextArc = a.id;
+				for(Arc a: incomingArcs) extendLabel(currentLabel, a);
 
-						Vertex extendedVertex = vertices[extendedLabel.vertex];
-						extendedVertex.unprocessedLabels.add(extendedLabel);
-						if (extendedVertex.id > 0 && extendedVertex.unprocessedLabels.size() == 1) nodesToProcess.add(extendedVertex);
-						
-					}
-				}
 			}
 		}
 
 		////////////////////////////////////////////
-		/// Middle point
+		/// SuperDepot Labels
 		////////////////////////////////////////////
 		
-		//if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) vertices[0].unprocessedLabels.clear();
-		if (System.currentTimeMillis()>=timeLimit) vertices[0].unprocessedLabels.clear();
-		if (!vertices[0].unprocessedLabels.isEmpty()) nodesToProcess.add(vertices[0]);
+		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) vertices[0].unprocessedLabels.clear();
+		
+		while (!vertices[0].unprocessedLabels.isEmpty()){
+
+			Label currentLabel = vertices[0].unprocessedLabels.poll();
+			boolean isDominated = checkDepotDominance(currentLabel);
+			if(isDominated) continue;
+			
+			currentLabel.index = vertices[currentLabel.vertex].processedLabels.size();
+			vertices[currentLabel.vertex].processedLabels.add(currentLabel);
+			vertices[0].processedLabels.add(currentLabel);
+			
+			for (Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) extendLabelChargingTime(currentLabel, a);
+
+		}
 
 		/////////////////////////////////////
 		/// Charging Scheduling Labeling
@@ -120,24 +121,13 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			
 			for (Label currentLabel: labelsToProcessNext) {
 				
-				boolean isDominated = checkDominance(currentLabel);
+				boolean isDominated = checkChargingDominance(currentLabel);
 				if(isDominated) continue;
 				
 				currentLabel.index = vertices[currentLabel.vertex].processedLabels.size();
 				vertices[currentLabel.vertex].processedLabels.add(currentLabel);
 				
-				for (Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) {
-					Label extendedLabel = extendLabelChargingTime(currentLabel, a);
-					if (extendedLabel!=null) { //verifies if the extension is feasible
-						
-						extendedLabel.vertex = a.tail;
-						extendedLabel.nextArc = a.id;
-
-						Vertex extendedVertex = vertices[extendedLabel.vertex];
-						extendedVertex.unprocessedLabels.add(extendedLabel);
-						if (extendedVertex.id != dataModel.V && extendedVertex.unprocessedLabels.size() == 1) nodesToProcess.add(extendedVertex);
-					}
-				}
+				for (Arc a: dataModel.graph.incomingEdgesOf(currentLabel.vertex)) extendLabelChargingTime(currentLabel, a);
 			}
 		}
 
@@ -221,8 +211,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public Label extendLabel(Label currentLabel, Arc arc) {
 
 		int source = arc.tail;
-		if (source>=1 && source<=dataModel.C)
-			if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
+		if ((source >= 1 && source <= dataModel.C) && (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1])) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 
@@ -244,38 +233,28 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 
 		int[] remainingEnergy = new int[dataModel.gamma + 1];
-		remainingEnergy[0] = currentLabel.remainingEnergy[0]-arc.energy; if (remainingEnergy[0] < 0) return null;
-		for (int gam = 1; gam <= dataModel.gamma; gam++){
-			if (currentLabel.remainingEnergy[gam-1] - arc.energy_deviation < currentLabel.remainingEnergy[gam]){ remainingEnergy[gam] = currentLabel.remainingEnergy[gam-1] - arc.energy - arc.energy_deviation; }
-			else { remainingEnergy[gam] = currentLabel.remainingEnergy[gam] - arc.energy; }
-			if (remainingEnergy[gam] < 0) return null;
-		}
+		boolean is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, currentLabel.remainingEnergy, arc);
+		if (!is_energy_feasible) return null;
 		
 		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[dataModel.gamma]];
 
 		//Quick check
 		if(source>0 && remainingTime-dataModel.graph.getEdge(0, source).time<vertices[0].opening_tw) return null;
-
 		//Check whether the extension is actually feasible
 		if(remainingTime<vertices[source].opening_tw || chargingTime>= (int) (remainingTime/10)) return null;
 
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-
-		if (source == 0){
-			double min_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get((int)(remainingTime/10)); 
-			if (min_rc >= -dataModel.precision) {
-				if (min_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_rc;
-				return null;
-			}
-		}
-
-		boolean[] unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-		boolean[] ng_path = new boolean[dataModel.C];
+		// Unreachable resources
+		boolean[] unreachable = null;
+		boolean[] ng_path = null;
+		Label extendedLabel = null;
 
 		//Mark unreachable customers and ng-path cycling restrictions
-		if(source>0) {
+		if(source > 0) {
+
+			// Mark unreachable customers and ng-path cycling restrictions
+			unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
+			ng_path = new boolean[dataModel.C];
+
 			ng_path[source-1] = true;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
@@ -290,12 +269,36 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
 				else ng_path[c.tail-1] = false;
 			}
+
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel.vertex = source;
+			extendedLabel.nextArc = arc.id;
+			vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
+			if (vertices[extendedLabel.vertex].unprocessedLabels.size() == 1) nodesToProcess.add(vertices[extendedLabel.vertex]);
+
 		} else {
-			ng_path = Arrays.copyOf(currentLabel.ng_path, currentLabel.ng_path.length);
+			
+			// We re-scale the remaining time, which represents the departure time of the route
 			remainingTime = (int) (remainingTime/10);
+
+			////////////////////////////////////////////
+			/// Bounding Procedure
+			////////////////////////////////////////////
+
+			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel.vertex = source;
+			extendedLabel.nextArc = arc.id;
+
+			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
+			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
+			if (min_col_rc >= -dataModel.precision) return null;
+
+			vertices[0].unprocessedLabels.add(extendedLabel);
+		
 		}
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+		nLabels++;
+		
 		return extendedLabel;
 
 	}
@@ -307,25 +310,51 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 		int source = arc.tail;
 
-		if(arc.head==0 && (source-dataModel.V<currentLabel.chargingTime || source-dataModel.V>=currentLabel.remainingTime)) return null;
-		if(source == dataModel.V && currentLabel.chargingTime>0 ) return null;
+		if(arc.head == 0 && (source - dataModel.V < currentLabel.chargingTime || source - dataModel.V >= currentLabel.remainingTime)) return null;
 
-		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
+		double reducedCost = currentLabel.reducedCost + arc.modifiedCost;
 		reducedCost = Math.floor(reducedCost*10000)/10000;
+		if (reducedCost >= -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
+		
 		int chargingTime = currentLabel.chargingTime;
-		if(source!=dataModel.V) {
-			chargingTime-=1;
-			if(chargingTime<0) return null;
+		Label extendedLabel = null;
+		if(source != dataModel.V) {
+			chargingTime -= 1;
+			if (chargingTime < 0) return null;
+
+			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			vertices[source].unprocessedLabels.add(extendedLabel);
+			if (vertices[source].unprocessedLabels.size() == 1) nodesToProcess.add(vertices[source]);
+
+		} else {
+			if (chargingTime > 0) return null;
+
+			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			vertices[source].unprocessedLabels.add(extendedLabel);
+		
 		}
 
-		if (source == dataModel.V){
-			double rc = currentLabel.reducedCost;
-			if (rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = rc;
-			if (rc >= -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
-		}
+		extendedLabel.vertex = source;
+		extendedLabel.nextArc = arc.id;
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
+	}
+
+	private boolean update_worst_case_energy_resource(int[] remainingEnergy, int[] currentEnergy, Arc routing_arc){
+
+		int gamma_change = Gamma + 1;
+		for (int gam = 1; gam <= Gamma; gam++)
+			if (currentEnergy[gam-1] - routing_arc.energy_deviation < currentEnergy[gam]) { gamma_change = gam; break; }
+		if (gamma_change <= Gamma){
+			remainingEnergy[Gamma] = currentEnergy[Gamma-1] - routing_arc.energy - routing_arc.energy_deviation;
+			if (remainingEnergy[Gamma] < 0) return false; }
+		for (int gam = Gamma-1; gam >= gamma_change; gam--)
+			remainingEnergy[gam] = currentEnergy[gam-1] - routing_arc.energy - routing_arc.energy_deviation;
+		for (int gam = 0; gam < gamma_change; gam ++){
+			remainingEnergy[gam] = currentEnergy[gam] - routing_arc.energy;
+			if (remainingEnergy[gam] < 0) return false; }
+
+		return true;
 	}
 
 
@@ -379,13 +408,14 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			this.runLabeling();
 
 			dataModel.rollbackExplosion = nLabels;
-			/* if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
+			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
 				dataModel.rollbackTrigger = true;
+				dataModel.exactPricing = false;
 				this.close();
-				return new ArrayList<Route>(); } */
+				return new ArrayList<Route>(); }
 
 			if(vertices[dataModel.V].unprocessedLabels.isEmpty()) {
-				existsElementaryRoute = true; pricingProblemInfeasible=false; this.objective=Double.MAX_VALUE;
+				existsElementaryRoute = true; pricingProblemInfeasible=false; this.objective=this.bestReducedCost;
 				
 			} else {
 				this.pricingProblemInfeasible=false;
@@ -454,15 +484,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//Already done by the heuristic labeling (must be invoked first)
 	}
 
-	public BiPredicate<Label, Label> getDominanceChecker(int vx_id){
-
-		if (vx_id == 0) return this::isDominatedDepot;
-		if (vx_id <= dataModel.C) return this::isDominatedRouting;
-		
-		return this::isDominatedCharging;
-	}
-
-	public boolean checkDominance(Label newLabel) {
+	public boolean checkRoutingDominance(Label newLabel) {
 		
 		/* // DELETE BLOCK LATER
 		int[] lookup_route = new int[]{0,12,9,3,20,10,1}; // DELETE LATER
@@ -473,7 +495,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			} */
 		
 		Vertex currentVertex = vertices[newLabel.vertex];
-		BiPredicate<Label, Label> isDominatedChecker = getDominanceChecker(currentVertex.id);
 
 		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
 		for(Label existingLabel: currentVertex.unprocessedLabels) {
@@ -486,7 +507,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				is_el_subset = sequence_is_subset(el_sequence, lookup_route);
 			} */
 
-			if(isDominatedChecker.test(existingLabel, newLabel)) {
+			if(isDominatedRouting(existingLabel, newLabel)) {
 				//existing_is_discarded = true; // DELETE LATER
 				labelsToDelete.add(existingLabel);
 			}
@@ -498,8 +519,36 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		//boolean new_is_discarded = false; // DELETE LATER
 		for(Label existingLabel: currentVertex.processedLabels) {
 			//int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
-			if(isDominatedChecker.test(newLabel, existingLabel)) return true;
+			if(isDominatedRouting(newLabel, existingLabel)) return true;
 		}
+
+		return false;
+	}
+
+	public boolean checkDepotDominance(Label newLabel) {
+		
+		Vertex currentVertex = vertices[0];
+
+		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
+		for(Label existingLabel: currentVertex.unprocessedLabels)  if(isDominatedDepot(existingLabel, newLabel))  labelsToDelete.add(existingLabel);
+		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
+		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
+
+		for(Label existingLabel: currentVertex.processedLabels) if(isDominatedDepot(newLabel, existingLabel)) return true;
+
+		return false;
+	}
+
+	public boolean checkChargingDominance(Label newLabel) {
+		
+		Vertex currentVertex = vertices[newLabel.vertex];
+
+		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
+		for(Label existingLabel: currentVertex.unprocessedLabels) if(isDominatedCharging(existingLabel, newLabel)) labelsToDelete.add(existingLabel);
+		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
+		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
+
+		for(Label existingLabel: currentVertex.processedLabels) if(isDominatedCharging(newLabel, existingLabel)) return true;
 
 		return false;
 	}
