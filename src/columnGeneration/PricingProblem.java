@@ -119,38 +119,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		//////////////////////////////////////////////////
 		/// Variable Fixing by Reduced Cost
 		//////////////////////////////////////////////////
-		
-		startTime = System.currentTimeMillis();
-		for (int j = 1; j <= dataModel.C+1; j++){
-			ArrayList<PartialBackwardSequence> backwardSequences = bwSequences.get(j);
-
-			for (PPArc arc: dataModel.PPgraph.incomingEdgesOf(PPvertices[dataModel.C1_startID+j].id)){
-
-				if (System.currentTimeMillis()>timeLimit) break;
-				if (infeasiblePPArcs[arc.id] > 0 || nonFixablePPArcs.get(arc.id)) continue;
-				
-				ArrayList<PartialForwardSequence> forwardSequences;
-				int i = PPvertices[arc.tail_vertex_id].node_number;
-				if (arc.arc_type == AR0) forwardSequences = this.fwDepotSequences.get(i);
-				else forwardSequences = this.fwC1Sequences.get(i);
-
-				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost, arc.id);
-
-				if (min_rc - bestReducedCost - dataModel.precision > FRC_gap) arcsToRemove.put(arc.id, min_rc);
-				if (min_rc < bestReducedCost - 1) logger.debug("!!! Arc {} has a merged label with a reduced cost of {}", new Object[]{arc.toString(), min_rc});
-
-			}
-
-			backwardSequences.clear();
-		}
 
 		this.bwSequences.clear(); this.fwC1Sequences.clear(); this.fwDepotSequences.clear();
-
-		totalTime = System.currentTimeMillis()-startTime;
-		dataModel.exactPricingTime+=totalTime;
-		if (dataModel.print_log) {
-			logger.debug("Time merging forward and backward labels: " + getTimeInSeconds(totalTime));
-		}
 
 		return arcsToRemove;
 
@@ -212,16 +182,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
         return 1e5;
     }
-
-	private double getMergeSRCs_RC(boolean[] etaFw, boolean[] etaBw){
-
-		double additional_rc = 0;
-		for (int ix = 0; ix < etaFw.length; ix++){
-			if (etaFw[ix] && etaBw[ix]) additional_rc -= this.dualCosts[dataModel.C+dataModel.last_charging_period+ix];
-		}
-
-		return additional_rc;
-	}
 
 	private MergedSequence mergeLabel_acc(PartialForwardSequence fwSequence, PartialBackwardSequence bwSeq, Arc routing_arc, double reducedCost, int ppid){
 		
@@ -330,19 +290,18 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (ForwardLabel currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if (isDominated) { labels_to_remove.add(currentLabel); continue; }
-				
-				//currentLabel.index = PPvertices[currentLabel.vertex].processedForwardLabels.size();
-				//PPvertices[currentLabel.vertex].processedForwardLabels.add(currentLabel);
 			} labelsToProcessNext.removeAll(labels_to_remove);
+
+			if (labelsToProcessNext.isEmpty()) continue;
 			
 			Set<PPArc> outgoingArcs = new HashSet<PPArc>(dataModel.PPgraph.outgoingEdgesOf(labelsToProcessNext.get(0).vertex));
-			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0 || arc.head_vertex_id == depotID); // No need to extend to the returning depot
+			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0);
 			boolean foundNewNonFixables = false; Set<Integer> newNonFixableArcs = new HashSet<Integer>();
 			
 			for (PPArc a: outgoingArcs) {
 
 				if (this.nonFixablePPArcs.get(a.id)){
-					for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
+					if (a.head_vertex_id != depotID) for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
 				} else {
 
 					Arc routing_arc = a.routing_arc;
@@ -396,21 +355,31 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			if (foundNewNonFixables){
 						
 				for (Integer arcID: newNonFixableArcs){
+					PPArc arc = dataModel.PParcs[arcID];
+					if (arc.head_vertex_id == depotID) continue; // No need to extend to the returning depot
+					
 					boolean wasNonFixed = this.nonFixablePPArcs.get(arcID);
 					this.nonFixablePPArcs.set(arcID);
-					PPArc arc = dataModel.PParcs[arcID];
 					if (!wasNonFixed) for (ForwardLabel processedLabel: PPvertices[arc.tail_vertex_id].processedForwardLabels) extendForwardLabel(processedLabel, arc, arc.routing_arc, arc.modifiedCost, arc.head_vertex_id);
 				}
 			}
 
 		}
 
+		long totalTime = System.currentTimeMillis()-startTime;
+		dataModel.exactPricingTime+=totalTime;
+		if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
 
+	}
 
-		///////////////////////////////
-		/// Labels cleanse
-		///////////////////////////////
+	private double getMergeSRCs_RC(boolean[] etaFw, boolean[] etaBw){
 
+		double additional_rc = 0;
+		for (int ix = 0; ix < etaFw.length; ix++){
+			if (etaFw[ix] && etaBw[ix]) additional_rc -= this.dualCosts[dataModel.C+dataModel.last_charging_period+ix];
+		}
+
+		return additional_rc;
 	}
 
 	private int mergeIsEnergyFeasible(ForwardLabel fwLabel, Arc routing_arc, PartialBackwardSequence bwSeq){
