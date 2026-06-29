@@ -3,6 +3,7 @@ package columnGeneration;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Arrays;
+import java.util.BitSet;
 
 
 /**
@@ -22,14 +23,13 @@ public class ForwardLabel{
     public int travelTimes;                 //sum of travel and service times along the subpath
 	public int[] remainingEnergy; 			//remaining energy
 	public int chargingTime; 				//time required to charge
-	public boolean[] unreachable; 			//customers that are not reachable by resource limitations
-	public boolean[] ng_path; 				//customers that visit them would violate the ng-path cycling restrictions
+	public BitSet unreachable; 			//customers that are not reachable by resource limitations
+	public BitSet ng_path; 				//customers that visit them would violate the ng-path cycling restrictions
 	public boolean[] eta; 					//number of times modulo 2 that the label has visited customers in S (a triplet in a SRC)
 	public HashSet<Integer> srcIndices; 	//SRC indices for which \eta = 1
-	public boolean frcHasCandidate;
 
 	/** Creates a new Label.*/
-	public ForwardLabel(int nextLabelIndex, double reducedCost, double chargingBound, int cumulativeLoad, int cumulativeTime, int latDeparture, int travelTimes, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
+	public ForwardLabel(int nextLabelIndex, double reducedCost, double chargingBound, int cumulativeLoad, int cumulativeTime, int latDeparture, int travelTimes, int[] remainingEnergy, int chargingTime, BitSet unreachable, BitSet ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
 		this.previousLabelIndex = nextLabelIndex;
 		this.reducedCost = reducedCost;
         this.chargingBound = chargingBound;
@@ -48,7 +48,7 @@ public class ForwardLabel{
 	/** Obtains the string representation of a label. */
 	@Override
 	public String toString(){
-		return "l("+vertex+"): r="+reducedCost+",q="+cumulativeLoad+",t="+cumulativeTime+", e="+Arrays.toString(remainingEnergy) + ", b="+chargingTime + ", unreach="+ Arrays.toString(unreachable) + ", ng=" + Arrays.toString(ng_path) + ", eta=" + Arrays.toString(eta);
+		return "l("+vertex+"): r="+reducedCost+",q="+cumulativeLoad+",t="+cumulativeTime+", e="+Arrays.toString(remainingEnergy) + ", b="+chargingTime + ", unreach="+ unreachable.toString() + ", ng=" + ng_path.toString() + ", eta=" + Arrays.toString(eta);
 	}
 
 	public ForwardLabel clone(){
