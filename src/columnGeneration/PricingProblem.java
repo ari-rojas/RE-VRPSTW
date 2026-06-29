@@ -46,6 +46,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasiblePPArcs;
+	public BitSet infeasiblePPArcsPointer;
 	public PPVertex[] PPvertices = dataModel.PPvertices;
 	public Vertex[] vertices = dataModel.vertices;
 	public PriorityQueue<PPVertex> nodesToProcess;
@@ -64,14 +65,20 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double FRC_gap;
 	private int problematic_arc = 1271;
 
+	private int frcTimes;
+
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
 		this.infeasiblePPArcs = new int[dataModel.numArcs];
+		this.infeasiblePPArcsPointer = new BitSet();
 		this.nonFixablePPArcs = new BitSet();
 		this.frcRouteLabels = new ArrayList<Label>();
+		this.frcTimes = 0;
 	}
 
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit, double UB, double LB){
+		
+		this.frcTimes ++;
 		
 		this.FRC_gap = UB-LB;
 		this.bwSequences = new ArrayList<ArrayList<PartialBackwardSequence>>();
@@ -86,7 +93,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		long startTime = System.currentTimeMillis();
 		for (Label label: this.frcRouteLabels){
-			if (label.reducedCost > this.FRC_gap + dataModel.precision) continue;
+			if (label.reducedCost + this.charging_bounds.get(label.chargingTime).get(label.remainingTime) > this.FRC_gap + dataModel.precision) continue;
 
 			Label nextLabel = label;
 			while(nextLabel.vertex != depotID) {
@@ -100,7 +107,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		if (dataModel.print_log) {
-			logger.debug("Identified " + this.nonFixablePPArcs.cardinality()+"/"+(dataModel.lenAR0+dataModel.lenAR1) + " non-fixable PP Arcs");
+			logger.debug("Identified " + this.nonFixablePPArcs.cardinality()+"/"+(dataModel.lenAR0+dataModel.lenAR1-this.infeasiblePPArcsPointer.cardinality()) + " non-fixable PP Arcs");
 			logger.debug("Time identifying first non-fixable PP Arcs: " + getTimeInSeconds(totalTime));
 		}
 
@@ -121,7 +128,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		//////////////////////////////////////////////////
 		
 		for (int j = 1; j <= dataModel.C+1; j++){
-
 			for (PPArc arc: dataModel.PPgraph.incomingEdgesOf(PPvertices[dataModel.C1_startID+j].id)){
 
 				if (System.currentTimeMillis()>timeLimit) break;
@@ -368,14 +374,18 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						
 				for (Integer arcID: newNonFixableArcs){
 					PPArc arc = dataModel.PParcs[arcID];
-					if (arc.head_vertex_id == depotID) continue; // No need to extend to the returning depot
+					if (arc.head_vertex_id == depotID || this.nonFixablePPArcs.get(arcID)) continue; // No need to extend to the returning depot
 					
-					boolean wasNonFixed = this.nonFixablePPArcs.get(arcID);
 					this.nonFixablePPArcs.set(arcID);
-					if (!wasNonFixed) for (ForwardLabel processedLabel: PPvertices[arc.tail_vertex_id].processedForwardLabels) extendForwardLabel(processedLabel, arc, arc.routing_arc, arc.modifiedCost, arc.head_vertex_id);
+					for (ForwardLabel processedLabel: PPvertices[arc.tail_vertex_id].processedForwardLabels) extendForwardLabel(processedLabel, arc, arc.routing_arc, arc.modifiedCost, arc.head_vertex_id);
 				}
 			}
 
+		}
+
+		for (int i = 1; i <= dataModel.C; i++){
+			PPvertices[dataModel.C0_startID+i].processedForwardLabels.clear();
+			PPvertices[dataModel.C1_startID+i].processedForwardLabels.clear();
 		}
 
 		long totalTime = System.currentTimeMillis()-startTime;
@@ -489,7 +499,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				reducedCost-=this.dualCosts[dualIndex];
 				srcIndices.remove(srcIndex);
 			}
-			else {eta[srcIndex]=true; srcIndices.add(srcIndex);}
+			else {eta[srcIndex] = true; srcIndices.add(srcIndex);}
 		}
 		reducedCost = Math.floor(reducedCost*10000)/10000;
 		
@@ -802,10 +812,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public void branchingDecisionPerformed(BranchingDecision bd) {
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasiblePPArcs[infeasibleArc] ++;
+			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) {this.infeasiblePPArcs[infeasibleArc] ++; this.infeasiblePPArcsPointer.set(infeasibleArc); }
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			this.infeasiblePPArcs[removeArcDecision.arcID] ++;
+			this.infeasiblePPArcsPointer.set(removeArcDecision.arcID);
 		}
 	}
 
@@ -817,10 +828,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public void branchingDecisionReversed(BranchingDecision bd) {
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasiblePPArcs[infeasibleArc] --;
-		}else if(bd instanceof RemoveArc) {//Removing one arc
+			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) {
+				this.infeasiblePPArcs[infeasibleArc] --;
+				if (this.infeasiblePPArcs[infeasibleArc] == 0) this.infeasiblePPArcsPointer.set(infeasibleArc, false);
+			}
+		} else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			this.infeasiblePPArcs[removeArcDecision.arcID] --;
+			if (this.infeasiblePPArcs[removeArcDecision.arcID] == 0) this.infeasiblePPArcsPointer.set(removeArcDecision.arcID, false);
 		}
 	}
 
