@@ -277,21 +277,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		return lista;
 	}
-
-	private ArrayList<Integer> get_backward_arcs_sequence(Label bwL){
-
-		ArrayList<Integer> aSeq = new ArrayList<>();
-
-		Label currentLabel = bwL.clone();
-		while (true) {
-			PPArc nextArc = dataModel.PParcs[currentLabel.nextArc];
-			aSeq.add(nextArc.routing_arc.id);
-			if (nextArc.head_vertex_id == depotID) break;
-			currentLabel = this.bwLabels.get(PPvertices[nextArc.head_vertex_id].node_number).get(currentLabel.nextLabelIndex);
-		}
-
-		return aSeq;
-	}
 	
 	private void cleanBackwardLabels() {
 
@@ -302,16 +287,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		this.bwSequences.add(null);
 
 		for (int i = 1; i <= dataModel.C+1; i++){
-			ArrayList<Label> labels = this.bwLabels.get(i); ArrayList<Label> labels_to_remove = new ArrayList<Label>();
-			for (int ix = 0; ix < labels.size(); ix++){
-				Label l1 = labels.get(ix); boolean dominated = false;
-				for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedBackwardRouting(l1, labels.get(ix2))) { dominated = true; break; }
-				if (dominated) labels_to_remove.add(l1);
-			} labels.removeAll(labels_to_remove);
-			labels.sort(Comparator.comparingDouble(l -> l.reducedCost));
-
+			ArrayList<Label> labels = this.bwLabels.get(i);
 			ArrayList<PartialBackwardSequence> allSequences = new ArrayList<PartialBackwardSequence>();
-			for (Label label: labels) allSequences.add(new PartialBackwardSequence(label.reducedCost, label.remainingEnergy, label.remainingLoad, label.remainingTime, label.ng_path, label.eta));
+			for (Label label: labels) allSequences.add(new PartialBackwardSequence(label.reducedCost, label.remainingEnergy, label.remainingLoad, label.remainingTime, label.ng_path, label.eta, get_backward_arcs_sequence(label)));
 			this.bwSequences.add(allSequences);
 		}
 
@@ -359,6 +337,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			Set<PPArc> outgoingArcs = new HashSet<PPArc>(dataModel.PPgraph.outgoingEdgesOf(labelsToProcessNext.get(0).vertex));
 			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0 || arc.head_vertex_id == depotID); // No need to extend to the returning depot
+			boolean foundNewNonFixables = false; Set<Integer> newNonFixableArcs = new HashSet<Integer>();
+			
 			for (PPArc a: outgoingArcs) {
 
 				if (this.nonFixablePPArcs.get(a.id)){
@@ -369,7 +349,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 					int j = vertices[routing_arc.head].node_id; if (j == 0) j = dataModel.C+1;
 					ArrayList<PartialBackwardSequence> bwSeqs = this.bwSequences.get(j);
 					
-					boolean arcIsNonFixable = false;
 					for (PartialBackwardSequence bwSeq: bwSeqs){
 						for (ForwardLabel currentLabel: labelsToProcessNext){
 							
@@ -384,19 +363,44 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 							route_rc += getMergeSRCs_RC(currentLabel.eta, bwSeq.eta);
 							if (route_rc - bestReducedCost > this.FRC_gap) continue;
 
-							boolean isEnergyFeasible = mergeIsEnergyFeasible(currentLabel, routing_arc, bwSeq);
-							if (!isEnergyFeasible) continue;
+							int routeWorstCaseEnergy = mergeIsEnergyFeasible(currentLabel, routing_arc, bwSeq);
+							if (routeWorstCaseEnergy < 0) continue;
 
 							int latestDeparture = currentLabel.latestDeparture;
-							if ((int)((bwSeq.remainingTime)/10) < latestDeparture);
+							if ((int)((bwSeq.remainingTime - currentLabel.travelTimes - routing_arc.time)/10) < latestDeparture) latestDeparture = (int)((bwSeq.remainingTime - currentLabel.travelTimes - routing_arc.time)/10);
+
+							int chargingTime = dataModel.f_inverse[dataModel.E - routeWorstCaseEnergy];
+							if (chargingTime >= latestDeparture) continue;
+
+							double chargingBound = this.charging_bounds.get(chargingTime).get(latestDeparture);
+							if (route_rc + chargingBound <= this.FRC_gap + dataModel.precision){
+								newNonFixableArcs.add(a.id);
+								newNonFixableArcs.addAll(get_forward_arcs_sequence(currentLabel));
+								newNonFixableArcs.addAll(bwSeq.arcSequence);
+								foundNewNonFixables = true;
+							}
 
 						}
 					}
 
 
+				}	
+				
+			}
+
+			for (ForwardLabel currentLabel: labelsToProcessNext) {
+				currentLabel.index = PPvertices[currentLabel.vertex].processedForwardLabels.size();
+				PPvertices[currentLabel.vertex].processedForwardLabels.add(currentLabel);
+			}
+
+			if (foundNewNonFixables){
+						
+				for (Integer arcID: newNonFixableArcs){
+					boolean wasNonFixed = this.nonFixablePPArcs.get(arcID);
+					this.nonFixablePPArcs.set(arcID);
+					PPArc arc = dataModel.PParcs[arcID];
+					if (!wasNonFixed) for (ForwardLabel processedLabel: PPvertices[arc.tail_vertex_id].processedForwardLabels) extendForwardLabel(processedLabel, arc, arc.routing_arc, arc.modifiedCost, arc.head_vertex_id);
 				}
-				
-				
 			}
 
 		}
@@ -409,7 +413,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	}
 
-	private boolean mergeIsEnergyFeasible(ForwardLabel fwLabel, Arc routing_arc, PartialBackwardSequence bwSeq){
+	private int mergeIsEnergyFeasible(ForwardLabel fwLabel, Arc routing_arc, PartialBackwardSequence bwSeq){
 		
 		int minEnergyRoute_remEn = fwLabel.remainingEnergy[0] - routing_arc.energy - (dataModel.E-bwSeq.remNominalEnergy); // Nominal Energy
 		ArrayList<Integer> bwDevs = bwSeq.worstEnergyDevs;
@@ -419,30 +423,22 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		for (int g = 1; g <= Gamma; g++){
 			if (fwLabel.remainingEnergy[ixFw-1]-fwLabel.remainingEnergy[ixFw] >= bwDevs.get(ixBw)) { minEnergyRoute_remEn -= (fwLabel.remainingEnergy[ixFw-1]-fwLabel.remainingEnergy[ixFw]); ixFw ++; }
 			else { minEnergyRoute_remEn -= bwDevs.get(ixBw); ixBw ++; }
-		} if (minEnergyRoute_remEn < 0) return false;
+		}
 
-		return true;
+		return minEnergyRoute_remEn;
 	}
 
-	private PartialForwardSequence get_forward_sequence(ForwardLabel fwL){
+	private ArrayList<Integer> get_forward_arcs_sequence(ForwardLabel fwL){
 
 		ArrayList<Integer> aSeq = new ArrayList<>();
-		
-		ForwardLabel currentLabel = fwL.clone();
+		ForwardLabel currentLabel = fwL;
 		while(PPvertices[currentLabel.vertex].vertex_type > C0) {
 			PPArc previousArc = dataModel.PParcs[currentLabel.previousArc];
-			aSeq.add(previousArc.routing_arc.id);
+			aSeq.add(previousArc.id);
 			currentLabel = PPvertices[previousArc.tail_vertex_id].processedForwardLabels.get(currentLabel.previousLabelIndex);
 		}
-		aSeq.add(dataModel.graph.getEdge(0,PPvertices[currentLabel.vertex].node_number).id);
 
-		ArrayList<Integer> worst_energy_deviations = new ArrayList<>();
-		for (int g = 0; g < Gamma; g++){ worst_energy_deviations.add(fwL.remainingEnergy[g] - fwL.remainingEnergy[g+1]); }
-
-		BitSet ng = new BitSet();
-		for (int i = 0; i < dataModel.C; i++) if (fwL.ng_path.get(i)) ng.set(i);
-
-		return new PartialForwardSequence(fwL.reducedCost, aSeq, dataModel.E - fwL.remainingEnergy[0], worst_energy_deviations, fwL.cumulativeLoad, fwL.cumulativeTime, ng, fwL.eta);
+		return aSeq;
 	}
 
 	public ArrayList<ForwardLabel> routingLabelsToProcessNext(){
@@ -715,8 +711,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		public final int remainingTime;
 		public final BitSet ng;
 		public final boolean[] eta;
+		public final ArrayList<Integer> arcSequence;
 
-		private PartialBackwardSequence(double rc, int[] remEnergy, int remLoad, int remTime, boolean[] ngp, boolean[] eta){
+		private PartialBackwardSequence(double rc, int[] remEnergy, int remLoad, int remTime, boolean[] ngp, boolean[] eta, ArrayList<Integer> aseq){
 			this.reducedCost = rc;
 			this.remainingLoad = remLoad;
 			this.remainingTime = remTime;
@@ -730,12 +727,28 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int i = 1; i <= dataModel.C; i++)  if (ngp[i-1]) this.ng.set(i);
 
 			this.eta = eta;
+			this.arcSequence = aseq;
 		}
 
 		@Override
 		public String toString(){
-			return "Backward Label. Reduced Cost: "+reducedCost+" Remaining Load: "+remainingLoad+" Remaining Time: "+remainingTime+" Remaining Nominal Energy: "+nominalEnergy+" Remaining Worst Energy: "+worstRemainEnergy+" Worst Energy Devs: "+worstEnergyDevs.toString()+" Ng-Elementarity: "+ng.toString()+" Eta SRCs: "+Arrays.toString(eta);
+			return "Backward Label. Reduced Cost: "+reducedCost+" Remaining Load: "+remainingLoad+" Remaining Time: "+remainingTime+" Remaining Nominal Energy: "+remNominalEnergy+" Remaining Worst Energy: "+worstRemainEnergy+" Worst Energy Devs: "+worstEnergyDevs.toString()+" Ng-Elementarity: "+ng.toString()+" Eta SRCs: "+Arrays.toString(eta);
 		}
+	}
+
+	private ArrayList<Integer> get_backward_arcs_sequence(Label bwL){
+
+		ArrayList<Integer> aSeq = new ArrayList<>();
+
+		Label currentLabel = bwL;
+		while (true) {
+			PPArc nextArc = dataModel.PParcs[currentLabel.nextArc];
+			aSeq.add(nextArc.id);
+			if (nextArc.head_vertex_id == depotID) break;
+			currentLabel = this.bwLabels.get(PPvertices[nextArc.head_vertex_id].node_number).get(currentLabel.nextLabelIndex);
+		}
+
+		return aSeq;
 	}
 
 	private static final class MergeState {
