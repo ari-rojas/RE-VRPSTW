@@ -372,7 +372,7 @@ public final class EVRPTW implements ModelInterface {
 			this.unreachable = new HashSet<Integer>(C);
 			int auxNumArcs = 2*(V*V-V);
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
-			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
+			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels(gamma, C));
 			this.SRCIndices = new ArrayList<>();
 			this.neighbors = new HashSet<Integer>(C);
 		}
@@ -389,7 +389,7 @@ public final class EVRPTW implements ModelInterface {
 			this.closing_tw = closing_tw;
 			int auxNumArcs = 2*(V*V-V);
 			this.processedLabels = new ArrayList<Label>(auxNumArcs);
-			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels());
+			this.unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels(gamma, C));
 		}
 
 		/**

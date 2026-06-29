@@ -5,14 +5,12 @@ import model.EVRPTW.Arc;
 import model.EVRPTW.Vertex;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.function.BiPredicate;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
@@ -366,12 +364,12 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if(this.pricingProblemInfeasible) {
 			for (int i = 0; i < vertices.length; i++) {
 				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(Gamma, dataModel.C));
 			}
 		}else {
 			for (int i = 0; i < vertices.length; i++) {
 				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(Gamma, dataModel.C));
 				vertices[i].SRCIndices = new ArrayList<>(); 
 			}
 		}
@@ -384,7 +382,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void restart() {
 		for (int i = 0; i < vertices.length; i++) {
 			vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels());
+			vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(Gamma, dataModel.C));
 		}
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 	}

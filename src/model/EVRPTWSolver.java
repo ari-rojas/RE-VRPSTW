@@ -225,10 +225,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		//int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-2GR35-40", args[2]);
-		//EVRPTW evrptw = new EVRPTW("R103-50", 2, 0, true, "TSL", "Debug");
+		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-2GR35-40", args[2]);
+		EVRPTW evrptw = new EVRPTW("RC202-50", 5, 0, true, "TSL", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
