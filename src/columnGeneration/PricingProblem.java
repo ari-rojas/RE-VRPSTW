@@ -313,6 +313,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			if (labelsToProcessNext.isEmpty()) continue;
 			
 			Set<PPArc> outgoingArcs = new HashSet<PPArc>(dataModel.PPgraph.outgoingEdgesOf(labelsToProcessNext.get(0).vertex));
+			//logger.debug("Processing Vertex "+PPvertices[labelsToProcessNext.get(0).vertex].toString());
 			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0);
 			boolean foundNewNonFixables = false; Set<Integer> newNonFixableArcs = new HashSet<Integer>();
 			
@@ -320,6 +321,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 				if (this.nonFixablePPArcs.get(a.id)){
 					if (a.head_vertex_id != depotID) for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
+					//logger.debug("\tExtending through arc "+a.toString());
 				} else {
 
 					Arc routing_arc = a.routing_arc;
@@ -351,6 +353,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 							double chargingBound = this.charging_bounds.get(chargingTime).get(latestDeparture);
 							if (route_rc + chargingBound <= this.FRC_gap + dataModel.precision){
+								//logger.debug("Found non-fixable arcs evaluating arc: "+a.toString());
 								newNonFixableArcs.add(a.id);
 								newNonFixableArcs.addAll(get_forward_arcs_sequence(currentLabel));
 								newNonFixableArcs.addAll(bwSeq.arcSequence);
@@ -374,9 +377,10 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						
 				for (Integer arcID: newNonFixableArcs){
 					PPArc arc = dataModel.PParcs[arcID];
-					if (arc.head_vertex_id == depotID || this.nonFixablePPArcs.get(arcID)) continue; // No need to extend to the returning depot
+					if (this.nonFixablePPArcs.get(arcID)) continue; // No need to extend to the returning depot
 					
 					this.nonFixablePPArcs.set(arcID);
+					if (arc.head_vertex_id == depotID) continue;
 					for (ForwardLabel processedLabel: PPvertices[arc.tail_vertex_id].processedForwardLabels) extendForwardLabel(processedLabel, arc, arc.routing_arc, arc.modifiedCost, arc.head_vertex_id);
 				}
 			}
@@ -539,7 +543,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				
 			//ng-path
 			if (currentLabel.ng_path.get(c.head) && vertices[head].neighbors.contains(c.head)) ng_path.set(c.head);
-			else ng_path.set(c.head);
 		}
 			
 		ForwardLabel extendedLabel = new ForwardLabel(currentLabel.index, reducedCost, chargingBound, cumulativeLoad, cumulativeTime, latestDeparture, travelTimes, remainingEnergy, chargingTime, unreachable, ng_path, eta, srcIndices);
@@ -548,7 +551,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		extendedLabel.previousArc = pp_arc.id;
 
 		PPvertices[extendedLabel.vertex].unprocessedForwardLabels.add(extendedLabel);
-		if (PPvertices[pp_arc.head_vertex_id].unprocessedForwardLabels.size() == 1) nodesToProcess.add(PPvertices[pp_arc.head_vertex_id]);
+		if (PPvertices[extendedLabel.vertex].unprocessedForwardLabels.size() == 1) nodesToProcess.add(PPvertices[extendedLabel.vertex]);
+
+		//if (pp_arc.id != -1) logger.debug("\tFeasible extension through arc "+pp_arc.toString());
 
 		return extendedLabel;
 

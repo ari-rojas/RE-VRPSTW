@@ -330,7 +330,7 @@ public final class EVRPTW implements ModelInterface {
 		PPArc newArc = new PPArc(id, AC3, 0, this.T_startID+this.last_charging_period); this.PParcs[id] = newArc;
 		PPgraph.addEdge(0, this.T_startID+this.last_charging_period, newArc);
 
-		dummyPPArc = new PPArc(0, AR0, 0, 0);
+		dummyPPArc = new PPArc(-1, AR0, 0, 0);
 
 		this.numArcs = id+1;
 
