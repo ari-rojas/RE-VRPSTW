@@ -1,5 +1,6 @@
 package columnGeneration;
 
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -63,9 +64,9 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public static final byte AR1 = EVRPTW.AR1;		// Routing arcs between non-first customer nodes
 
 	public double FRC_gap;
-	private int problematic_arc = 1271;
+	private int problematic_arc = 738;
 
-	private int frcTimes;
+	public int frcTimes;
 
 	public PricingProblem(EVRPTW modelData, String name) {
 		super(modelData, name);
@@ -332,7 +333,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 						for (ForwardLabel currentLabel: labelsToProcessNext){
 							
 							double route_rc = currentLabel.reducedCost + a.modifiedCost + bwSeq.reducedCost;
-							if (route_rc - bestReducedCost > this.FRC_gap) continue;
+							if (route_rc - bestReducedCost > this.FRC_gap + dataModel.precision) continue;
 							
 							if (bwSeq.ng.intersects(currentLabel.ng_path)) continue;															// ng-Elementarity
 							if (bwSeq.remainingTime - routing_arc.time < currentLabel.cumulativeTime) continue; 								// Time feasibility
@@ -340,7 +341,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 							if (bwSeq.remainingLoad < currentLabel.cumulativeLoad) continue; 													// Load feasibility
 							
 							route_rc += getMergeSRCs_RC(currentLabel.eta, bwSeq.eta);
-							if (route_rc - bestReducedCost > this.FRC_gap) continue;
+							route_rc = Math.floor(route_rc*10000)/10000;
+							if (route_rc - bestReducedCost > this.FRC_gap + dataModel.precision) continue;
 
 							int routeWorstCaseEnergy = mergeIsEnergyFeasible(currentLabel, routing_arc, bwSeq);
 							if (routeWorstCaseEnergy < 0) continue;
@@ -352,7 +354,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 							if (chargingTime >= latestDeparture) continue;
 
 							double chargingBound = this.charging_bounds.get(chargingTime).get(latestDeparture);
-							if (route_rc + chargingBound <= this.FRC_gap + dataModel.precision){
+							if (route_rc + chargingBound - bestReducedCost <= this.FRC_gap + dataModel.precision){
 								//logger.debug("Found non-fixable arcs evaluating arc: "+a.toString());
 								newNonFixableArcs.add(a.id);
 								newNonFixableArcs.addAll(get_forward_arcs_sequence(currentLabel));
@@ -411,7 +413,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	private int mergeIsEnergyFeasible(ForwardLabel fwLabel, Arc routing_arc, PartialBackwardSequence bwSeq){
 		
 		int minEnergyRoute_remEn = fwLabel.remainingEnergy[0] - routing_arc.energy - (dataModel.E-bwSeq.remNominalEnergy); // Nominal Energy
-		ArrayList<Integer> bwDevs = bwSeq.worstEnergyDevs;
+		ArrayList<Integer> bwDevs = new ArrayList<Integer>(bwSeq.worstEnergyDevs);
 		for (int g = 0; g < Gamma; g++) if (routing_arc.energy_deviation >= bwDevs.get(g)) { bwDevs.add(g, routing_arc.energy_deviation); break; }
 
 		int ixFw = 1; int ixBw = 0;
