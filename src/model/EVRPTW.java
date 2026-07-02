@@ -81,7 +81,7 @@ public final class EVRPTW implements ModelInterface {
 	public boolean rollbackTrigger;
 	public int rollbackBaseLine;
 	public int rollbackExplosion;
-	public int rollbackFactor = 40;
+	public int rollbackFactor = 30;
 	public int cut_iterations;
 	public int pricingSoftFactor = 2;
 	public double gapReductionRequirement = 0.35;
