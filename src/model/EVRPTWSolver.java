@@ -227,7 +227,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-2GR35-RB40-Root", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-2GR35-RB40", args[2]);
 		//EVRPTW evrptw = new EVRPTW("RC202-50", 5, 0, true, "TSL", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
