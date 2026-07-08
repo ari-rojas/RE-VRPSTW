@@ -145,6 +145,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		boolean hasNewCuts; 						//identify whether the master problem violates any valid inequalities
 		notifier.fireStartCGEvent();
 
+		this.solutionMemory = new OptimalSolutionMemory(null, null, 0, null, 0, null, 0);
+
 		int cg_iterations = 0;
 
 		if (this.BBnodeID == 0) { this.contExact = 0; dataModel.rollbackBaseLine = 0; }
@@ -317,7 +319,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 			
 			// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
-			this.gapReduction = (master.getObjective()-this.boundOnMasterObjective)/(this.cutoffValue-this.boundOnMasterObjective);
+			this.gapReduction = (master.getObjective()-this.solutionMemory.previousMPBound)/(this.cutoffValue-this.solutionMemory.previousMPBound);
 			
 			if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
 				perform_fixing_by_reduced_cost(timeLimit);}
