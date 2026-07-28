@@ -87,6 +87,8 @@ public final class EVRPTW implements ModelInterface {
 	public double gapReductionRequirement = 0.35;
 	public boolean exactPricing;
 
+	public boolean hasInvokedFRC;
+
 	// Identifiers for the differnt types of vertices in the Pricing Problem Graph
 	public static final byte C0 = 0; 	 	// Customer depot nodes
 	public static final byte C1 = 1; 		// Non-first customer nodes
@@ -528,6 +530,9 @@ public final class EVRPTW implements ModelInterface {
 		public HashSet<Integer> neighbors;
 		public ArrayList<Integer> SRCIndices; 			//indices of the SRC containing this vertex
 
+		public ArrayList<Label> processedLabels; 					//labels that have reached the vertex and are non-dominated
+		public PriorityQueue<Label> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
+
 		/**
 		 * Creates a new (customer) vertex.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
@@ -548,6 +553,9 @@ public final class EVRPTW implements ModelInterface {
 			this.unreachable = new HashSet<Integer>(C);
 			this.SRCIndices = new ArrayList<>();
 			this.neighbors = new HashSet<Integer>(C);
+
+			int auxNumArcs = 2*(V*V-V);
+			this.processedLabels = new ArrayList<Label>(auxNumArcs);
 		}
 
 		public Vertex(int id, int xcoord, int ycoord, int load, int opening_tw, int closing_tw) {
@@ -566,6 +574,9 @@ public final class EVRPTW implements ModelInterface {
 			this.unreachable = null;
 			this.SRCIndices = null;
 			this.neighbors = null;
+
+			int auxNumArcs = 2*(V*V-V);
+			this.processedLabels = new ArrayList<Label>(auxNumArcs);
 		}
 
 		/**
