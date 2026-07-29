@@ -25,7 +25,7 @@ import branchAndPrice.RemoveArc;
  * This class provides a heuristic solver for the ng-SPPRC pricing problem
  * It uses a relaxed dominance rule (but an exact dominance rule)
  */
-public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
+public final class EC2FC_ExactPPSolver_CB extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
 
 	public PPVertex[] PPvertices = dataModel.PPvertices; 			//vertices of the instance
 	public Vertex[] vertices = dataModel.vertices;
@@ -61,7 +61,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
-	public CBHeuristicMinCostPricingProblemSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
+	public EC2FC_ExactPPSolver_CB(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
 		this.name="ExactLabelingSolver"; //Set a name for the solver
 		this.infeasibleArcs = new int[dataModel.numArcs];

@@ -54,10 +54,10 @@ import branchAndPrice.RollbackEvent;
 import branchAndPrice.FinishRollbackEvent;
 import branchAndPrice.IPSolutionEvent;
 import branchAndPrice.FinishIPSolutionEvent;
-import columnGeneration.HeuristicMinCostLabelingPricingProblemSolver;
-import columnGeneration.HeuristicLabelingSecondPricingProblemSolver;
-import columnGeneration.CBHeuristicSecondPricingProblemSolver;
-import columnGeneration.CBHeuristicMinCostPricingProblemSolver;
+import columnGeneration.EC2FC_ExactPPSolver;
+import columnGeneration.EC2FC_HeuristicPPSolver;
+import columnGeneration.EC2FC_HeuristicPPSolver_CB;
+import columnGeneration.EC2FC_ExactPPSolver_CB;
 import columnGeneration.Master;
 import columnGeneration.PricingProblem;
 import columnGeneration.Route;
@@ -103,11 +103,11 @@ public final class EVRPTWSolver {
 	
 		//solvers.add(HeuristicLabelingThirdPricingProblemSolver.class);
 		//solvers.add(HeuristicLabelingPricingProblemSolver.class);
-		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
-		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
+		solvers.add(EC2FC_HeuristicPPSolver.class);
+		solvers.add(EC2FC_ExactPPSolver.class);
 
-		solvers.add(CBHeuristicSecondPricingProblemSolver.class);
-		solvers.add(CBHeuristicMinCostPricingProblemSolver.class);
+		solvers.add(EC2FC_HeuristicPPSolver_CB.class);
+		solvers.add(EC2FC_ExactPPSolver_CB.class);
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution = this.getInitialSolution(pricingProblem, initialColumns);

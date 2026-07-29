@@ -54,11 +54,9 @@ public class CCRLabel{
 	/** @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object. */
 	public static class SortLabels implements Comparator<CCRLabel> {
 
-		public int superDepotID;
 		public int T_startID;
 
-		public SortLabels(int superDepot, int T_start){
-			this.superDepotID = superDepot;
+		public SortLabels(int T_start){
 			this.T_startID = T_start;
 		}
 

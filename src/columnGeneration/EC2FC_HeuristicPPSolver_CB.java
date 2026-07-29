@@ -7,12 +7,12 @@ import model.EVRPTW.Vertex;
 import model.EVRPTW.PPVertex;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
-import java.util.Set;
 import java.util.function.BiPredicate;
 
 import org.jgrapht.graph.DirectedWeightedMultigraph;
@@ -26,7 +26,7 @@ import branchAndPrice.RemoveArc;
  * This class provides a heuristic solver for the ng-SPPRC pricing problem
  * It uses a relaxed dominance rule (but an exact dominance rule)
  */
-public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
+public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem> {
 
 	public PPVertex[] PPvertices = dataModel.PPvertices; 			//vertices of the instance
 	public Vertex[] vertices = dataModel.vertices;
@@ -54,10 +54,12 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 	public final int depotID;
 	public final int superDepotID;
 
+	public int[][] CB_infeasibleTimes;
+
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
-	public HeuristicLabelingThirdPricingProblemSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
+	public EC2FC_HeuristicPPSolver_CB(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
 		this.name="HeuristicLabelingSolver"; //Set a name for the solver
 		this.infeasibleArcs = new int[dataModel.numArcs];
@@ -65,6 +67,8 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		this.depotID = dataModel.T_startID;
 		this.superDepotID = dataModel.superDepotID;
 		this.Gamma = dataModel.gamma;
+
+		this.CB_infeasibleTimes = new int[dataModel.C][dataModel.last_charging_period + 1];
 	}
 
 	/**
@@ -73,86 +77,39 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 	public void runLabeling() {
 
 		dataModel.rollbackTrigger = false;
-		this.bestReducedCost = Double.MAX_VALUE;
 
-		// Initialization
+		this.bestReducedCost = Double.MAX_VALUE;
+		//Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		Label initialLabel = new Label(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
 		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.dominanceVertex = depotID; initialLabel.nextArc = depotID;
 		this.nodesToProcess.add(PPvertices[depotID]);
 		PPvertices[depotID].unprocessedLabels.add(initialLabel);
-		
-		////////////////////////////////////////////
-		/// Routing Labeling
-		////////////////////////////////////////////
-		
+
+		//Labeling algorithm
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
-			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
-			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
-			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0 || (arc.arc_type == AR1 && arc.head_vertex_id != depotID && arc.modifiedCost >= -dataModel.precision));
-			
-			for (Label currentLabel: labelsToProcessNext) {
-				
+			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
+			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
-				
-				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
-				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
-				
-				for(PPArc a: incomingArcs) {
-					Label extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
-					if (extendedLabel!=null) { // Verifies if the extension is feasible
-						extendedLabel.vertex = a.tail_vertex_id;
-						extendedLabel.nextArc = a.id;
-
-						if (a.arc_type == AR0) {
-							extendedLabel.dominanceVertex = superDepotID;
-							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
-						} else {
-							extendedLabel.dominanceVertex = a.tail_vertex_id;
-							PPvertices[extendedLabel.dominanceVertex].unprocessedLabels.add(extendedLabel);
-							if (PPvertices[a.tail_vertex_id].unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
-						}
-					}
+				else {
+					currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
+					PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
+					if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
 				}
-			}
-		}
-
-		////////////////////////////////////////////
-		/// Bounding Procedure
-		////////////////////////////////////////////
-		
-		if (System.currentTimeMillis()>=timeLimit) PPvertices[superDepotID].unprocessedLabels.clear();
-		if (!PPvertices[superDepotID].unprocessedLabels.isEmpty()) nodesToProcess.add(PPvertices[superDepotID]);
-
-		/////////////////////////////////////
-		/// Charging Scheduling Labeling
-		////////////////////////////////////
-		
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
-			ArrayList<Label> labelsToProcessNext = chargingLabelsToProcessNext();
-			
-			for (Label currentLabel: labelsToProcessNext) {
 				
-				boolean isDominated = checkDominance(currentLabel);
-				if(isDominated) continue;
-				
-				currentLabel.index = PPvertices[currentLabel.vertex].processedLabels.size();
-				PPvertices[currentLabel.vertex].processedLabels.add(currentLabel);
-				if (currentLabel.dominanceVertex == superDepotID) PPvertices[superDepotID].processedLabels.add(currentLabel);
-				
-				for (PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
-					PPVertex extendedVertex = PPvertices[a.tail_vertex_id];
-					Label extendedLabel = extendLabelChargingTime(currentLabel, extendedVertex.node_number, a.arc_type, a.modifiedCost);
+				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
+					if(infeasibleArcs[a.id] > 0) continue;
+					Label extendedLabel;
+					if(a.arc_type <= AR1) extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
+					else extendedLabel = extendLabelChargingTime(currentLabel, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
-						
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
-						extendedLabel.dominanceVertex = a.tail_vertex_id;
-
-						extendedVertex.unprocessedLabels.add(extendedLabel);
-						if (a.arc_type < AC3 && extendedVertex.unprocessedLabels.size() == 1) nodesToProcess.add(PPvertices[a.tail_vertex_id]);
+						if (a.arc_type == AR0) { extendedLabel.dominanceVertex = superDepotID; extendedLabel.feasible_Ts = get_feasible_finishing_ts(extendedLabel); }
+						else extendedLabel.dominanceVertex = a.tail_vertex_id;
+						updateNodesToProcess(extendedLabel);
 					}
 				}
 			}
@@ -160,18 +117,20 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.heuristicPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time solving (exactly) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
+		if (dataModel.print_log) logger.debug("Time solving (heuristically) the pricing problem (s): " + getTimeInSeconds(totalTime)); 
 	}
 
 
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
 	 */
-	public ArrayList<Label> routingLabelsToProcessNext(){
+	public ArrayList<Label> labelsToProcessNext(){
 
 		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
 		PPVertex currentVertex = nodesToProcess.poll();
-		
+		byte vertex_type = currentVertex.vertex_type;
+		BiPredicate<Label, Label> isDominatedMethod = getDominanceChecker(vertex_type);
+
 		while(true) {
 			Label currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);
@@ -179,26 +138,27 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 				boolean isDominated = false;
 				for(Label L2: labelsToProcessNext) {
 					
-					isDominatedRouting(currentLabel, L2);
+					isDominatedMethod.test(currentLabel, L2);
 					if(isDominated) break;
 				}
-				if (!isDominated) labelsToProcessNext.add(currentLabel);
+				if(!isDominated) labelsToProcessNext.add(currentLabel);
 			}
-			if(currentVertex.unprocessedLabels.isEmpty() || (currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
+			if(currentVertex.unprocessedLabels.isEmpty() || (vertex_type==C0 && currentVertex.unprocessedLabels.peek().chargingTime>currentLabel.chargingTime) || (vertex_type==C1 && currentVertex.unprocessedLabels.peek().remainingLoad<currentLabel.remainingLoad)) break;
 		}
 
 		if(!currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.add(currentVertex);
 		return labelsToProcessNext;
 	}
 
-	public ArrayList<Label> chargingLabelsToProcessNext(){
 
-		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
-		PPVertex currentVertex = nodesToProcess.poll();
-		
-		while (!currentVertex.unprocessedLabels.isEmpty()) labelsToProcessNext.add(currentVertex.unprocessedLabels.poll());
-		return labelsToProcessNext;
-		
+	/**
+	 * Given a new (non-dominated) label, updates the nodes to be processed
+	 */
+	public void updateNodesToProcess(Label extendedLabel) {
+		PPVertex currentVertex = PPvertices[extendedLabel.dominanceVertex];
+		if(currentVertex.vertex_type == Source) currentVertex.unprocessedLabels.add(extendedLabel);
+		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
+		else currentVertex.unprocessedLabels.add(extendedLabel);
 	}
 
 	/**
@@ -493,8 +453,8 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 		switch (vx_type){
 
-			case C1: return this::isDominatedRouting;
 			case C0: return this::isDominatedDepot;
+			case C1: return this::isDominatedRouting;
 			case Tt: return this::isDominatedCharging;
 			case EVRPTW.Depot: return this::isDominatedRouting;
 
@@ -556,10 +516,13 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
 
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false; 	//reduced cost
-		if (L2.remainingTime<L1.remainingTime) return false; 					//departure time
 		if (L2.chargingTime>L1.chargingTime) return false;						//charging time
+		
+		// Set of feasible charging time periods
+		BitSet T1 = (BitSet) L1.feasible_Ts.clone();
+		T1.andNot(L2.feasible_Ts);
 
-		return true;
+		return T1.isEmpty();
 	}
 
 	/**
@@ -607,6 +570,15 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 
 	}
 
+	public BitSet get_feasible_finishing_ts(Label label){
+
+		BitSet bs = new BitSet();	
+
+		int[] customer_infeasibleTimes = CB_infeasibleTimes[PPvertices[label.vertex].node_number-1];
+		for (int t = label.chargingTime; t < label.remainingTime; t++) if (customer_infeasibleTimes[t] == 0) bs.set(t);
+
+		return bs;
+	}
 
 	public int[] get_route_sequence(Label label) {
 
@@ -669,9 +641,23 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] ++;
+
+			if (fixArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[fixArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				for (int tt = 1; tt < vertices[i].last_departure; tt++) if (tt != t) this.CB_infeasibleTimes[i-1][tt] ++;
+			}
 		}else if(bd instanceof RemoveArc) {//Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			infeasibleArcs[removeArcDecision.arcID] ++;
+
+			if (removeArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[removeArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				this.CB_infeasibleTimes[i-1][t] ++;
+			}
 		}
 	}
 
@@ -684,9 +670,23 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 		if(bd instanceof FixArc) { 			//Fixing one arc
 			FixArc fixArcDecision = (FixArc) bd;
 			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] --;
-		}else if(bd instanceof RemoveArc) {//Removing one arc
+
+			if (fixArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[fixArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				for (int tt = 1; tt < vertices[i].last_departure; tt++) if (tt != t) this.CB_infeasibleTimes[i-1][tt] --;
+			}
+		}else if(bd instanceof RemoveArc) { //Removing one arc
 			RemoveArc removeArcDecision= (RemoveArc) bd;
 			infeasibleArcs[removeArcDecision.arcID] --;
+
+			if (removeArcDecision.arc_type == AC1){
+				PPArc arc = dataModel.PParcs[removeArcDecision.arcID];
+				int t = PPvertices[arc.tail_vertex_id].node_number;
+				int i = PPvertices[arc.head_vertex_id].node_number;
+				this.CB_infeasibleTimes[i-1][t] --;
+			}
 		}
 	}
 

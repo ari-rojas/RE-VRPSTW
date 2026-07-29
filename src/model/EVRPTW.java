@@ -22,6 +22,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import columnGeneration.CCRLabel;
 import columnGeneration.ForwardLabel;
 import columnGeneration.Label;
 
@@ -430,6 +431,13 @@ public final class EVRPTW implements ModelInterface {
 
 			graph.addVertex(id);
 		}
+
+		graph.addVertex(this.V); //fictitious source
+		this.vertices[this.V] = new Vertex(this.V);
+
+		// Charging time vertices
+		for (int t = 1; t <= last_charging_period; t++) {
+			this.vertices[V+t] = new Vertex(V+t); graph.addVertex(V+t); }
 	}
 
 	/** Defines the arcs (according to the information in the .xml file). */
@@ -438,6 +446,7 @@ public final class EVRPTW implements ModelInterface {
 		NodeList linkNodes = doc.getElementsByTagName("link");
 		this.numArcsRoadNetwork = linkNodes.getLength();
 
+		int arcID = 0;
 		for (int i = 0; i < linkNodes.getLength(); i++) {
 			
 			Node link = linkNodes.item(i);
@@ -464,8 +473,31 @@ public final class EVRPTW implements ModelInterface {
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, min_energy, min_cost, min_time, minCostAlternative);
 			arcs[id] = newArc;
 			graph.addEdge(tail, head, newArc);
-			
+			arcID ++;
 		}
+
+		for (int t = 1; t < this.last_charging_period; t++){
+
+			int time_vertex_id = V+t;
+			// AC1 Charging arcs for finishing charging time periods
+			Arc newArc = new Arc(arcID, time_vertex_id, 0); this.arcs[arcID] = newArc;
+			graph.addEdge(time_vertex_id, 0, newArc); arcID ++;
+
+			// AC2 Charging arcs between consecutive charging time periods
+			newArc = new Arc(arcID, time_vertex_id, time_vertex_id+1); this.arcs[arcID] = newArc;
+			graph.addEdge(time_vertex_id, time_vertex_id+1, newArc); arcID ++;
+
+			// AC3 Charging arcs for starting charging time periods
+			newArc = new Arc(arcID, V, time_vertex_id); this.arcs[arcID] = newArc;
+			graph.addEdge(V, time_vertex_id, newArc); arcID ++;
+
+		}
+		Arc newArc = new Arc(arcID, V+last_charging_period, 0); this.arcs[arcID] = newArc;
+		graph.addEdge(V+this.last_charging_period, 0, newArc); arcID ++;
+		
+		newArc = new Arc(arcID, V, V+last_charging_period); this.arcs[arcID] = newArc;
+		graph.addEdge(V, V+this.last_charging_period, newArc);
+
 	}
 
 	/** Defines the arcs (according to the information in the .xml file). */
@@ -530,8 +562,8 @@ public final class EVRPTW implements ModelInterface {
 		public HashSet<Integer> neighbors;
 		public ArrayList<Integer> SRCIndices; 			//indices of the SRC containing this vertex
 
-		public ArrayList<Label> processedLabels; 					//labels that have reached the vertex and are non-dominated
-		public PriorityQueue<Label> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
+		public ArrayList<CCRLabel> processedLabels; 					//labels that have reached the vertex and are non-dominated
+		public PriorityQueue<CCRLabel> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
 
 		/**
 		 * Creates a new (customer) vertex.
@@ -555,7 +587,9 @@ public final class EVRPTW implements ModelInterface {
 			this.neighbors = new HashSet<Integer>(C);
 
 			int auxNumArcs = 2*(V*V-V);
-			this.processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.processedLabels = new ArrayList<CCRLabel>(auxNumArcs);
+			this.unprocessedLabels = new PriorityQueue<CCRLabel>(auxNumArcs+3*last_charging_period, new CCRLabel.SortLabels(V));
+			
 		}
 
 		public Vertex(int id, int xcoord, int ycoord, int load, int opening_tw, int closing_tw) {
@@ -576,7 +610,30 @@ public final class EVRPTW implements ModelInterface {
 			this.neighbors = null;
 
 			int auxNumArcs = 2*(V*V-V);
-			this.processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.processedLabels = new ArrayList<CCRLabel>(auxNumArcs);
+			this.unprocessedLabels = new PriorityQueue<CCRLabel>(auxNumArcs+3*last_charging_period, new CCRLabel.SortLabels(V));
+		}
+
+		public Vertex(int id) {
+			this.node_id = id;
+			this.xcoord = 0;
+			this.ycoord = 0;
+			this.load = 0;
+			this.opening_tw = 0;
+			this.closing_tw = 0;
+			this.last_departure = 0;
+			this.feasible_nonfirst = false;
+			this.open_tw_nonfirst = 0;
+			this.min_chargingTime = 0;
+
+			this.minEnergy_DepotPath_Devs = null;
+			this.unreachable = null;
+			this.SRCIndices = null;
+			this.neighbors = null;
+
+			int auxNumArcs = 2*(V*V-V);
+			this.processedLabels = new ArrayList<CCRLabel>(auxNumArcs);
+			this.unprocessedLabels = new PriorityQueue<CCRLabel>(auxNumArcs+3*last_charging_period, new CCRLabel.SortLabels(V));
 		}
 
 		/**
@@ -603,6 +660,8 @@ public final class EVRPTW implements ModelInterface {
 		public final int min_time;
 		public final boolean minCostAlternative;
 
+		public double modifiedCost;
+
 		/**
 		 * Creates a new arc.
 		 * @throws IOException Throws IO exception when the instance cannot be found.
@@ -619,6 +678,20 @@ public final class EVRPTW implements ModelInterface {
 			this.min_cost = min_cost;
 			this.min_time = min_time;
 			this.minCostAlternative = minCostAlt;
+		}
+
+		public Arc(int id, int tail, int head) {
+			this.id = id;
+			this.tail = tail;
+			this.head = head;
+			this.cost = 0;
+			this.time = 0;
+			this.energy = 0;
+			this.energy_deviation = 0;
+			this.min_energy = 0;
+			this.min_cost = 0;
+			this.min_time = 0;
+			this.minCostAlternative = true;
 		}
 
 		/** Obtains the string representation of the arc. */
