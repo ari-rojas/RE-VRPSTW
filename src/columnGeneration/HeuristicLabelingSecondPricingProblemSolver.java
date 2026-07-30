@@ -254,6 +254,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		if (arc_type == AR0){
 			Arc depotArc = dataModel.graph.getEdge(0, source);
 			remainingTime -= depotArc.time;
+			reducedCost -= depotArc.cost*dataModel.lowerBoundDual;
 			
 			is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, remainingEnergy, depotArc);
 			if (!is_energy_feasible) return null;
