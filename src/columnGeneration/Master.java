@@ -232,12 +232,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				}
 			}
 
+			iloColumn = iloColumn.and(masterData.cplex.column(objectiveLowerBoundInequality, column.cost));
 			if(!column.isArtificialColumn) {
 
 				// register column with rounded capacity inequality
 				iloColumn = iloColumn.and(masterData.cplex.column(roundedCapacityInequality, 1));
-				
-				iloColumn = iloColumn.and(masterData.cplex.column(objectiveLowerBoundInequality, column.cost));
 
 				// register the column with Subset Row Inequalities Constraints
 				for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
