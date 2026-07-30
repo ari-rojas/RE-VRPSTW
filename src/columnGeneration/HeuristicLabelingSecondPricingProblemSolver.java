@@ -232,6 +232,7 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
+		reducedCost -= routing_arc.cost*dataModel.lowerBoundDual;
 		boolean[] eta = currentLabel.eta.clone();
 		HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
 		for(int srcIndex: vertices[source].SRCIndices) {
