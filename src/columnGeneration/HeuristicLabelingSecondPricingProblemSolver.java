@@ -232,7 +232,6 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		if(remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
-		reducedCost -= routing_arc.cost*dataModel.lowerBoundDual;
 		boolean[] eta = currentLabel.eta.clone();
 		HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
 		for(int srcIndex: vertices[source].SRCIndices) {
@@ -254,7 +253,6 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		if (arc_type == AR0){
 			Arc depotArc = dataModel.graph.getEdge(0, source);
 			remainingTime -= depotArc.time;
-			reducedCost -= depotArc.cost*dataModel.lowerBoundDual;
 			
 			is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, remainingEnergy, depotArc);
 			if (!is_energy_feasible) return null;
@@ -487,12 +485,12 @@ public final class HeuristicLabelingSecondPricingProblemSolver extends AbstractP
 		for (int i = 1; i <= dataModel.C; i++){
 			int vertex_id = dataModel.C0_startID+i;
 			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
-				arc.modifiedCost = dataModel.graph.getEdge(0,i).cost + arc.routing_arc.cost - pricingProblem.dualCosts[i-1];
+				arc.modifiedCost = dataModel.graph.getEdge(0,i).cost*(1-dataModel.lowerBoundDual) + arc.routing_arc.cost*(1-dataModel.lowerBoundDual) - pricingProblem.dualCosts[i-1];
 			}
 
 			vertex_id = dataModel.C1_startID+i;
 			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
-				arc.modifiedCost = arc.routing_arc.cost - pricingProblem.dualCosts[i-1];
+				arc.modifiedCost = arc.routing_arc.cost*(1-dataModel.lowerBoundDual) - pricingProblem.dualCosts[i-1];
 			}
 		}
 

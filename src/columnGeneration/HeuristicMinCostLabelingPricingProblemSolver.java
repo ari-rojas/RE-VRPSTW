@@ -238,7 +238,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
-		reducedCost -= routing_arc.cost*dataModel.lowerBoundDual;
 		boolean[] eta = currentLabel.eta.clone();
 		HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
 		for(int srcIndex: vertices[source].SRCIndices) {
@@ -260,7 +259,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (arc_type == AR0){
 			Arc depotArc = dataModel.graph.getEdge(0, source);
 			remainingTime -= depotArc.time;
-			reducedCost -= depotArc.cost*dataModel.lowerBoundDual;
 			
 			is_energy_feasible = update_worst_case_energy_resource(remainingEnergy, remainingEnergy, depotArc);
 			if (!is_energy_feasible) return null;
