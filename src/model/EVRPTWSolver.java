@@ -258,17 +258,18 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		/* int gamma = Integer.parseInt(args[1]);
 		String energy_deviation = args[3];
 		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
+		double lb = Double.parseDouble(args[4]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC-1GR25-RB50"+energy_deviation, args[2], args[3]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC-1GR25-RB50"+energy_deviation, args[2], args[3], lb);
 		//EVRPTW evrptw = new EVRPTW("RC105-50", 5, 0, true, "NF", "Debug", "");
 
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
 		Solver.solve(10800000L); evrptw.fileOut.close();
-		Solver.close();
+		Solver.close(); */
 
 	}
 

@@ -72,176 +72,24 @@ public class Experiments {
         return names;
     }
 
-    public static void determine_number_of_chargers(String name){
-
-        try {
-            PrintStream fileOut = new PrintStream("./results/log/B-"+name+".log");
-            System.setOut(fileOut);
-
-            if (!name.equals("")) {
-                System.out.println(" ========================== "+name+" ========================== ");
-                
-                boolean same_obj = false;
-                Double last_obj = 0.;
-        
-                int B = 1;
-                while (!same_obj){
-        
-                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW","tuning", "");
-                    EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
-        
-                    Double obj = Solver.upperBound;
-                    if (obj.doubleValue() == last_obj.doubleValue() && obj.doubleValue() < 100000) same_obj = true;
-                    else {
-                        B++; last_obj = obj;
-                    }
-        
-                    deleteStaticObject(Configuration.class, "instance");
-        
-                }
-            }
-
-        } catch (Exception ex){
-            ex.printStackTrace();
-        }
-        
-
-    }
-
-    public static void test_number_of_chargers(String name){
-
-        try{
-            PrintStream fileOut = new PrintStream("./results/log/KB-"+name+".log");
-            System.setOut(fileOut);
-
-            // RUN ALL THE EXPERIMENTS AT ONCE
-
-            File xmlFile = new File("./results/tuning/Num_chargers.xml");
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(xmlFile);
-            Element num_chargers_element = (Element) doc.getElementsByTagName("tuning").item(0);
-
-            System.out.println(" ========================== "+name+" ========================== ");
-            
-            Element instance_element = (Element) num_chargers_element.getElementsByTagName(name).item(0);
-            Element unb_B = (Element) instance_element.getElementsByTagName("unb_B").item(0);
-            int B = Integer.parseInt(unb_B.getElementsByTagName("K").item(0).getTextContent());
-
-            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning", "");
-            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
-
-            deleteStaticObject(Configuration.class, "instance");
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-
-    }
-
-    public static void tune_number_of_chargers(){
-
-        try{
-            PrintStream fileOut = new PrintStream("./results/log/1. Tune_num_chargers.log");
-            System.setOut(fileOut);
-
-            File xmlFile = new File("./data/1. Num_chargers.xml");
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(xmlFile);
-            Element num_chargers_element = (Element) doc.getElementsByTagName("num_chargers").item(0);
-
-            List<String> names = generateNames("");
-            for (String name : names){
-
-                try {
-                    
-                    Element instance_element = (Element) num_chargers_element.getElementsByTagName(name).item(0);
-                    boolean needs_tuning = Boolean.parseBoolean(instance_element.getElementsByTagName("needs_tuning").item(0).getTextContent());
-
-                    if (needs_tuning) {
-                        System.out.println(" ========================== "+name+" ========================== ");
-                        
-                        int max_chargers = Integer.parseInt(instance_element.getElementsByTagName("num_chargers").item(0).getTextContent());
-                        int min_chargers = Integer.parseInt(instance_element.getElementsByTagName("min_chargers").item(0).getTextContent());
-
-                        Double last_obj = 10000.;
-                        for (int B=max_chargers; B >= min_chargers; B--){
-                            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "RE-VRSPTW", "tuning", "");
-                            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
-
-                            Double obj = Solver.upperBound;
-                            if (obj.doubleValue() > last_obj.doubleValue()){
-                                deleteStaticObject(Configuration.class, "instance");
-                                break;
-                            } else{
-                                last_obj = obj;
-                            }
-                
-                            deleteStaticObject(Configuration.class, "instance");
-                        }
-                    }
-
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                    break;
-                }
-            }
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void run_experiments(String instances_prefix, int gamma, String experiment){
-
-        try{
-
-            // RUN ALL THE EXPERIMENTS AT ONCE
-            List<String> names = generateNames(instances_prefix);
-            for (String name : names){
-
-                try {
-                    if (!name.equals("")) {
-                        
-                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "RE-VRSPTW", experiment, "");
-                        EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, null);
-            
-                        deleteStaticObject(Configuration.class, "instance");
-                    }
-
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                    break;
-                }
-            }
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
     public static void run_forward_robustness_experiments(String instance, String en_dev){
 
         String energy_deviation = en_dev;
         if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
-        String alg = "Forward"+energy_deviation;
+        String alg = "Increasing_Gamma"+energy_deviation;
 
         if (instance != ""){
             try {
 
-                int gamma = 0;
+                int gamma = 0; double lb = 0;
                 if (instance == "") gamma = 1;
 
                 while (gamma <= 10){
                     
-                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev);
+                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev, lb);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
-                    Solver.solve(32400000L); evrptw.fileOut.close();
+                    Solver.solve(43200000L); evrptw.fileOut.close();
                     ArrayList<Route> solution = Solver.close();
 
                     double obj = Solver.upperBound;
@@ -254,6 +102,8 @@ public class Experiments {
                         break;
 
                     } else if (gamma <= 10) {
+
+                        lb = Math.floor(obj*10*1e4)/1e4;
 
                         // Retrieve the solution
                         int nR = solution.size(); int[] departureTimes = new int[nR]; int maxT = 0;
@@ -363,7 +213,7 @@ public class Experiments {
                 ArrayList<Route> initialColumns = new ArrayList<>();
                 while (gamma >= 0){
                     
-                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev);
+                    EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev, 0);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, initialColumns);
 
                     Solver.solve(32400000L); evrptw.fileOut.close();
@@ -585,15 +435,9 @@ public class Experiments {
 		return realTime;
 	}
 
-    public static void run_experiments(int gamma, String experiment){
-
-        run_experiments("", gamma, experiment);
-
-    }
-
     public static void main(String[] args){
 
-        run_backward_robustness_experiments(args[0], args[1]);
+        run_forward_robustness_experiments(args[0], args[1]);
     
     }
 

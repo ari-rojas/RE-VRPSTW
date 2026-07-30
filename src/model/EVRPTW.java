@@ -112,12 +112,15 @@ public final class EVRPTW implements ModelInterface {
 	public int lenAR1;
 	public PPArc dummyPPArc;
 
+	public final double lowerBound;
+	public double lowerBoundDual;
+
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
-	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment, String en_dev) throws IOException {
+	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment, String en_dev, double lower_bound) throws IOException {
 		
 		//Properties
 		Properties properties = new Properties();
@@ -126,6 +129,8 @@ public final class EVRPTW implements ModelInterface {
 		this.config = Configuration.getConfiguration();
 
 		this.en_dev = en_dev;
+		this.lowerBound = lower_bound;
+		this.lowerBoundDual = 0;
 		
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
@@ -159,6 +164,7 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Number of Routing Graph arcs: "+this.numArcsRoadNetwork);
 			System.out.println(" - Number of arcs in AR0, AR1: "+this.lenAR0+", "+this.lenAR1);
 			System.out.println(" - Number of PP arcs: "+this.numArcs);
+			System.out.println(" - Objective lower bound: "+this.lowerBound);
 		}
 
 		/* for (int arcID = 0; arcID < this.numArcs; arcID++){

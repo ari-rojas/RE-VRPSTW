@@ -11,10 +11,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.function.BiPredicate;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
@@ -240,6 +238,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (remainingTime>vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
 
 		double reducedCost = currentLabel.reducedCost+modifiedCost;
+		reducedCost -= routing_arc.cost*dataModel.lowerBoundDual;
 		boolean[] eta = currentLabel.eta.clone();
 		HashSet<Integer> srcIndices = new HashSet<Integer>(currentLabel.srcIndices);
 		for(int srcIndex: vertices[source].SRCIndices) {
