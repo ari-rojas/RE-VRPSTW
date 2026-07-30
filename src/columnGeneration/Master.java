@@ -59,6 +59,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			cplex.setParam(IloCplex.Param.RandomSeed, 30);
 			cplex.setParam(IloCplex.Param.Threads, 1);
 
+			if (dataModel.lowerBound > 0) cplex.setParam(IloCplex.Param.Read.Scale, -1);
+
 			obj= cplex.addMinimize();		//objective
 			//Partitioning constraints
 			int totalLoad = 0;
