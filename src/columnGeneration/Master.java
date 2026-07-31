@@ -55,11 +55,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			cplex.setOut(null); 			//disable CPLEX output
 			//			System.out.println(cplex.getVersion());
 			cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
-			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-9);
+			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
 			cplex.setParam(IloCplex.Param.RandomSeed, 30);
 			cplex.setParam(IloCplex.Param.Threads, 1);
 
-			if (dataModel.lowerBound > 0) cplex.setParam(IloCplex.Param.Read.Scale, -1);
+			//if (dataModel.lowerBound > 0) cplex.setParam(IloCplex.Param.Read.Scale, -1);
 
 			obj= cplex.addMinimize();		//objective
 			//Partitioning constraints
@@ -106,6 +106,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				if(masterData.cplex.getCplexStatus()==IloCplex.CplexStatus.AbortTimeLim) 		//Aborted due to time limit
 					throw new TimeLimitExceededException();
 				else
+					masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 					throw new RuntimeException("Master problem solve failed! Status: "+ masterData.cplex.getStatus());
 			}else{
 				masterData.objectiveValue= masterData.cplex.getObjValue();
