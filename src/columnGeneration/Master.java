@@ -56,6 +56,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			//			System.out.println(cplex.getVersion());
 			cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal); //Primal Simplex
 			cplex.setParam(IloCplex.Param.Simplex.Tolerances.Feasibility, 1e-6);
+			//cplex.setParam(IloCplex.Param.Emphasis.Numerical, true);
 			cplex.setParam(IloCplex.Param.RandomSeed, 30);
 			cplex.setParam(IloCplex.Param.Threads, 1);
 
@@ -109,6 +110,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 					throw new RuntimeException("Master problem solve failed! Status: "+ masterData.cplex.getStatus());
 			}else{
+				//masterData.cplex.writeSolution("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/solution.lp");
+				//masterData.cplex.exportModel("./results/log/"+dataModel.algorithm+"/"+dataModel.experiment+"/model.lp");
 				masterData.objectiveValue= masterData.cplex.getObjValue();
 				//Print solution
 				logger.debug("Number of iterations: "+masterData.cplex.getNiterations());
@@ -235,8 +238,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				}
 			}
 
-			iloColumn = iloColumn.and(masterData.cplex.column(objectiveLowerBoundInequality, column.cost));
 			if(!column.isArtificialColumn) {
+
+				iloColumn = iloColumn.and(masterData.cplex.column(objectiveLowerBoundInequality, column.cost));
 
 				// register column with rounded capacity inequality
 				iloColumn = iloColumn.and(masterData.cplex.column(roundedCapacityInequality, 1));
@@ -257,6 +261,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					iloColumn = iloColumn.and(masterData.cplex.column(branchConstraint,1));
 				}
 
+			} else {
+				iloColumn = iloColumn.and(masterData.cplex.column(objectiveLowerBoundInequality, dataModel.lowerBound));
 			}
 
 			// create the variable and store it

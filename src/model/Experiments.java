@@ -89,7 +89,7 @@ public class Experiments {
                     EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev, lb);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
-                    Solver.solve(43200000L); evrptw.fileOut.close();
+                    Solver.solve(86400000L); evrptw.fileOut.close();
                     ArrayList<Route> solution = Solver.close();
 
                     double obj = Solver.upperBound;
