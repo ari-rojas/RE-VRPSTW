@@ -261,7 +261,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	
 	public void runForwardLabeling(long timeLimit) {
 
-		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.PPvertices.length-dataModel.C, new SortForwardVertices());
+		this.nodesToProcess = new PriorityQueue<PPVertex>(2*dataModel.C, new SortForwardVertices());
 
 		// Initialization
 		int[] remain_energy = new int[dataModel.gamma + 1]; Arrays.fill(remain_energy, dataModel.E);
@@ -318,12 +318,12 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.fwC1Sequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++){
 				ArrayList<ForwardLabel> labels = new ArrayList<ForwardLabel>(PPvertices[dataModel.C1_startID+i].processedForwardLabels);
-				ArrayList<ForwardLabel> labels_to_remove = new ArrayList<>();
+				/* ArrayList<ForwardLabel> labels_to_remove = new ArrayList<>();
 				for (int ix = 0; ix < labels.size(); ix++){
 					ForwardLabel l1 = labels.get(ix);
-					for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedRouting(l1, labels.get(ix2))) {
+					for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedRoutingForward(l1, labels.get(ix2))) {
 						labels_to_remove.add(l1); break; }
-				} labels.removeAll(labels_to_remove);
+				} labels.removeAll(labels_to_remove); */
 
 				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
 				for (ForwardLabel label: labels){
@@ -346,11 +346,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		} else {
 			if (dataModel.print_log) logger.debug("Caught timeout while running the forward labeling algorithm");
 		}
-		
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.exactPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
 
 	}
 
@@ -569,6 +564,27 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		}
 
 		return true;
+	}
+
+	private PartialForwardSequence get_forward_sequence(ForwardLabel fwL){
+
+		ArrayList<Integer> aSeq = new ArrayList<>();
+		
+		ForwardLabel currentLabel = fwL.clone();
+		while(PPvertices[currentLabel.vertex].vertex_type > C0) {
+			PPArc previousArc = dataModel.PParcs[currentLabel.previousArc];
+			aSeq.add(previousArc.routing_arc.id);
+			currentLabel = PPvertices[previousArc.tail_vertex_id].processedForwardLabels.get(currentLabel.previousLabelIndex);
+		}
+		aSeq.add(dataModel.graph.getEdge(0,PPvertices[currentLabel.vertex].node_number).id);
+
+		ArrayList<Integer> worst_energy_deviations = new ArrayList<>();
+		for (int g = 0; g < Gamma; g++){ worst_energy_deviations.add(fwL.remainingEnergy[g] - fwL.remainingEnergy[g+1]); }
+
+		BitSet ng = new BitSet();
+		for (int i = 0; i < dataModel.C; i++) if (fwL.ng_path.get(i)) ng.set(i);
+
+		return new PartialForwardSequence(fwL.reducedCost, aSeq, dataModel.E - fwL.remainingEnergy[0], worst_energy_deviations, fwL.cumulativeLoad, fwL.cumulativeTime, ng, fwL.eta);
 	}
 
 	public boolean isDominatedBackwardRouting(Label L1, Label L2) {
