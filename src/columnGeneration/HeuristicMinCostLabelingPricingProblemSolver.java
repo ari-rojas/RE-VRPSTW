@@ -317,7 +317,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			extendedLabel.nextArc = pp_arc.id;
 			extendedLabel.dominanceVertex = superDepotID;
 
-			pricingProblem.frcRouteLabels.add(extendedLabel);
+			//pricingProblem.frcRouteLabels.add(extendedLabel);
 			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
 			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
 			if (min_col_rc >= -dataModel.precision) return null;
