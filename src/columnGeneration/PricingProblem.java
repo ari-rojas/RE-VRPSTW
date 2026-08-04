@@ -105,7 +105,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				
 				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost, arc.id);
 
-				if (min_rc - bestReducedCost - dataModel.precision > FRC_gap) arcsToRemove.put(arc.id, min_rc);
+				if (min_rc - bestReducedCost <= FRC_gap + dataModel.precision) continue;
+				arcsToRemove.put(arc.id, min_rc);
 
 			}
 
@@ -137,19 +138,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			for (int ixBw = 0; ixBw < nBw; ixBw++){
 				PartialBackwardSequence bwSeq = bwSequences.get(ixBw);
 				
-				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost;
-				route_rc = Math.floor(route_rc*10000)/10000;
-				if (route_rc - bestReducedCost > this.FRC_gap) continue;
+				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost; route_rc = Math.floor(route_rc*10000)/10000;
+				if (route_rc - bestReducedCost - dataModel.precision > this.FRC_gap) continue;
 				
 				if (bwSeq.ng.intersects(fwSeq.ng)) continue;										// ng-Elementarity
 				if (bwSeq.remainingTime - arc.time < fwSeq.cumulativeTime) continue; 				// Time feasibility
 				if (bwSeq.worstRemainEnergy - arc.energy <  fwSeq.nominalEnergy) continue; 			// Worst-case Energy of the backwards - rest of nominal energy
 				if (bwSeq.remainingLoad < fwSeq.cumulativeLoad) continue; 							// Load feasibility
         		
-				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta);
-				route_rc = Math.floor(route_rc*10000)/10000;
-				if (route_rc - bestReducedCost > this.FRC_gap) continue;
-				pq.add(new MergeState(ixFw, ixBw, Math.floor(route_rc*10000)/10000));
+				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta); route_rc = Math.floor(route_rc*10000)/10000;
+				if (route_rc - bestReducedCost - dataModel.precision > this.FRC_gap) continue;
+				pq.add(new MergeState(ixFw, ixBw, route_rc));
 			}
 		}
 
@@ -207,23 +206,14 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		/// LATEST DEPARTURE TIME
 		/////////////////////////////////
 		
-		int source = routing_arc.tail;
-		int remainingTime = bwSeq.remainingTime - routing_arc.time;
-		if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
+		int latestDeparture = fwSequence.latestDeparture;
+		if ((int)((bwSeq.remainingTime - fwSequence.travelTimes - routing_arc.time)/10) < latestDeparture) latestDeparture = (int)((bwSeq.remainingTime - fwSequence.travelTimes - routing_arc.time)/10);
 		
-		ArrayList<Integer> fwRoutingArcs = fwSequence.routingArcsSequence;
-		for (int arcID: fwRoutingArcs){ // Loop over the arc extensions leading up to a C0 vertex
-			Arc routeArc = dataModel.arcs[arcID];
-			source = routeArc.tail;
-			
-			remainingTime -= routeArc.time;
-			if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		}
-		
-		int departure = (int)(remainingTime/10);
-		if (chargingTime >= departure) return null; 	// Charging interval feasibility
+		if (chargingTime >= latestDeparture) return null; 	// Charging interval feasibility
 
-		return new MergedSequence(reducedCost, chargingTime, departure);
+		//logger.debug("Found one");
+
+		return new MergedSequence(reducedCost, chargingTime, latestDeparture);
 	}
 
 	private ArrayList<PartialBackwardSequence> get_specific_bwSequence(){
@@ -246,6 +236,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		for (int i = 1; i <= dataModel.C+1; i++){
 			ArrayList<Label> labels = this.bwLabels.get(i);
+			//logger.debug("Bw Labels at "+i+" : "+labels.size());
 			ArrayList<PartialBackwardSequence> allSequences = new ArrayList<PartialBackwardSequence>();
 			for (Label label: labels) allSequences.add(new PartialBackwardSequence(label.reducedCost, label.remainingEnergy, label.remainingLoad, label.remainingTime, label.ng_path, label.eta, get_backward_arcs_sequence(label)));
 			this.bwSequences.add(allSequences);
@@ -283,6 +274,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<ForwardLabel> labelsToProcessNext = routingLabelsToProcessNext();
+			//logger.debug("Processing vertex "+PPvertices[labelsToProcessNext.get(0).vertex].toString());
 			
 			ArrayList<ForwardLabel> labels_to_remove = new ArrayList<ForwardLabel>();
 			for (ForwardLabel currentLabel: labelsToProcessNext) {
@@ -297,9 +289,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0 || arc.head_vertex_id == depotID);
 			
 			for (PPArc a: outgoingArcs) {
-				for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
+				for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id)
 				//logger.debug("\tExtending through arc "+a.toString());
 			}
+
+			for (ForwardLabel currentLabel: labelsToProcessNext) PPvertices[currentLabel.vertex].processedForwardLabels.add(currentLabel);
 
 		}
 
@@ -318,6 +312,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			this.fwC1Sequences.add(null);
 			for (int i = 1; i <= dataModel.C; i++){
 				ArrayList<ForwardLabel> labels = new ArrayList<ForwardLabel>(PPvertices[dataModel.C1_startID+i].processedForwardLabels);
+				//logger.debug("Forward labels at "+i+": "+labels.size());
 				/* ArrayList<ForwardLabel> labels_to_remove = new ArrayList<>();
 				for (int ix = 0; ix < labels.size(); ix++){
 					ForwardLabel l1 = labels.get(ix);
@@ -581,10 +576,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		ArrayList<Integer> worst_energy_deviations = new ArrayList<>();
 		for (int g = 0; g < Gamma; g++){ worst_energy_deviations.add(fwL.remainingEnergy[g] - fwL.remainingEnergy[g+1]); }
 
-		BitSet ng = new BitSet();
-		for (int i = 0; i < dataModel.C; i++) if (fwL.ng_path.get(i)) ng.set(i);
-
-		return new PartialForwardSequence(fwL.reducedCost, aSeq, dataModel.E - fwL.remainingEnergy[0], worst_energy_deviations, fwL.cumulativeLoad, fwL.cumulativeTime, ng, fwL.eta);
+		return new PartialForwardSequence(fwL.reducedCost, aSeq, dataModel.E - fwL.remainingEnergy[0], worst_energy_deviations, fwL.cumulativeLoad, fwL.cumulativeTime, fwL.latestDeparture, fwL.travelTimes, fwL.ng_path, fwL.eta);
 	}
 
 	public boolean isDominatedBackwardRouting(Label L1, Label L2) {
@@ -649,16 +641,20 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		public final ArrayList<Integer> worstEnergyDevs;
 		public final int cumulativeLoad;
 		public final int cumulativeTime;
+		public final int latestDeparture;
+		public final int travelTimes;
 		public final BitSet ng;
 		public final boolean[] eta;
 
-		private PartialForwardSequence(double rc, ArrayList<Integer> aSeq, int nomEnergy, ArrayList<Integer> devs, int cumLoad, int cumTime, BitSet ng, boolean[] eta){
+		private PartialForwardSequence(double rc, ArrayList<Integer> aSeq, int nomEnergy, ArrayList<Integer> devs, int cumLoad, int cumTime, int depTime, int travTime, BitSet ng, boolean[] eta){
 			this.reducedCost = rc;
 			this.routingArcsSequence = aSeq;
 			this.nominalEnergy = nomEnergy;
 			this.worstEnergyDevs = devs;
 			this.cumulativeLoad = cumLoad; //iykyk
 			this.cumulativeTime = cumTime;
+			this.latestDeparture = depTime;
+			this.travelTimes = travTime;
 			this.ng = ng;
 			this.eta = eta;
 		}
