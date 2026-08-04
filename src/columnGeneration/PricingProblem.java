@@ -303,10 +303,50 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		}
 
-		for (int i = 1; i <= dataModel.C; i++){
-			PPvertices[dataModel.C0_startID+i].processedForwardLabels.clear();
-			PPvertices[dataModel.C1_startID+i].processedForwardLabels.clear();
+		if (System.currentTimeMillis()<timeLimit){
+			
+			this.fwDepotSequences.add(null);
+			for (int i = 1; i <= dataModel.C; i++) {
+				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
+				if (PPvertices[dataModel.C0_startID+i].processedForwardLabels.size() > 0){
+					ForwardLabel label = PPvertices[dataModel.C0_startID+i].processedForwardLabels.get(0);
+					allSequences.add(get_forward_sequence(label));
+				}
+				this.fwDepotSequences.add(allSequences);
+			}
+			
+			this.fwC1Sequences.add(null);
+			for (int i = 1; i <= dataModel.C; i++){
+				ArrayList<ForwardLabel> labels = new ArrayList<ForwardLabel>(PPvertices[dataModel.C1_startID+i].processedForwardLabels);
+				ArrayList<ForwardLabel> labels_to_remove = new ArrayList<>();
+				for (int ix = 0; ix < labels.size(); ix++){
+					ForwardLabel l1 = labels.get(ix);
+					for (int ix2 = ix+1; ix2 < labels.size(); ix2++) if (isDominatedRouting(l1, labels.get(ix2))) {
+						labels_to_remove.add(l1); break; }
+				} labels.removeAll(labels_to_remove);
+
+				ArrayList<PartialForwardSequence> allSequences = new ArrayList<PartialForwardSequence>();
+				for (ForwardLabel label: labels){
+					PartialForwardSequence debugFW = get_forward_sequence(label);
+					allSequences.add(debugFW);
+				}
+				//allSequences.sort( Comparator.comparing(l -> l.reducedCost) );
+				this.fwC1Sequences.add(allSequences);
+			}
+
+			for (int i = 1; i <= dataModel.C; i++){
+				PPvertices[dataModel.C0_startID+i].processedForwardLabels.clear();
+				PPvertices[dataModel.C1_startID+i].processedForwardLabels.clear();
+			}
+
+			long totalTime = System.currentTimeMillis()-startTime;
+			dataModel.exactPricingTime+=totalTime;
+			if (dataModel.print_log) logger.debug("Time running forward routing labeling algorithm: " + getTimeInSeconds(totalTime));
+				
+		} else {
+			if (dataModel.print_log) logger.debug("Caught timeout while running the forward labeling algorithm");
 		}
+		
 
 		long totalTime = System.currentTimeMillis()-startTime;
 		dataModel.exactPricingTime+=totalTime;
