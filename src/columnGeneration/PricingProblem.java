@@ -79,8 +79,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit, double UB, double LB){
 		
-		this.frcTimes ++;
-		
 		this.FRC_gap = UB-LB;
 		this.bwSequences = new ArrayList<ArrayList<PartialBackwardSequence>>();
 		this.fwDepotSequences = new ArrayList<ArrayList<PartialForwardSequence>>();
@@ -88,58 +86,39 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 		Map<Integer, Double> arcsToRemove = new HashMap<Integer, Double>();
 
-		//////////////////////////////////////////////////
-		/// Identify some non-fixable arcs
-		//////////////////////////////////////////////////
-
-		long startTime = System.currentTimeMillis();
-		for (Label label: this.frcRouteLabels){
-			if (label.reducedCost + this.charging_bounds.get(label.chargingTime).get(label.remainingTime) > this.FRC_gap + dataModel.precision) continue;
-
-			Label nextLabel = label;
-			while(nextLabel.vertex != depotID) {
-				this.nonFixablePPArcs.set(nextLabel.nextArc);
-				PPArc nextArc = dataModel.PParcs[nextLabel.nextArc];
-				int j = PPvertices[nextArc.head_vertex_id].node_number;
-				if (j == 0) j = dataModel.C+1;
-				nextLabel = this.bwLabels.get(j).get(nextLabel.nextLabelIndex);
-			}
-		}
-
-		long totalTime = System.currentTimeMillis()-startTime;
-		if (dataModel.print_log) {
-			logger.debug("Identified " + this.nonFixablePPArcs.cardinality()+"/"+(dataModel.lenAR0+dataModel.lenAR1-this.infeasiblePPArcsPointer.cardinality()) + " non-fixable PP Arcs");
-			logger.debug("Time identifying first non-fixable PP Arcs: " + getTimeInSeconds(totalTime));
-		}
-
-		//////////////////////////////////////////////////
-		/// Backward Candidate-Aware Labeling
-		//////////////////////////////////////////////////
-
 		this.cleanBackwardLabels();
-
-		//////////////////////////////////////////////////
-		/// Forward Candidate-Aware-Bounded Labeling
-		//////////////////////////////////////////////////
+		this.runForwardLabeling(timeLimit);
 		
-		if (System.currentTimeMillis()<timeLimit) this.runForwardLabeling(timeLimit);
-
-		//////////////////////////////////////////////////
-		/// Variable Fixing by Reduced Cost
-		//////////////////////////////////////////////////
-		
+		long startTime = System.currentTimeMillis();
 		for (int j = 1; j <= dataModel.C+1; j++){
+			ArrayList<PartialBackwardSequence> backwardSequences = bwSequences.get(j);
+
 			for (PPArc arc: dataModel.PPgraph.incomingEdgesOf(PPvertices[dataModel.C1_startID+j].id)){
 
 				if (System.currentTimeMillis()>timeLimit) break;
-				if (infeasiblePPArcs[arc.id] > 0 || this.nonFixablePPArcs.get(arc.id)) continue;
+				if (infeasiblePPArcs[arc.id] > 0) continue;
 				
-				arcsToRemove.put(arc.id, 1e5);
+				ArrayList<PartialForwardSequence> forwardSequences;
+				int i = PPvertices[arc.tail_vertex_id].node_number;
+				if (arc.arc_type == AR0) forwardSequences = this.fwDepotSequences.get(i);
+				else forwardSequences = this.fwC1Sequences.get(i);
+				
+				double min_rc = findMinimumRCPath_acc(backwardSequences, forwardSequences, arc.routing_arc, arc.modifiedCost, arc.id);
+
+				if (min_rc - bestReducedCost - dataModel.precision > FRC_gap) arcsToRemove.put(arc.id, min_rc);
 
 			}
+
+			backwardSequences.clear();
 		}
 
 		this.bwSequences.clear(); this.fwC1Sequences.clear(); this.fwDepotSequences.clear();
+
+		long totalTime = System.currentTimeMillis()-startTime;
+		dataModel.exactPricingTime+=totalTime;
+		if (dataModel.print_log) {
+			logger.debug("Time merging forward and backward labels: " + getTimeInSeconds(totalTime));
+		}
 
 		return arcsToRemove;
 
@@ -160,7 +139,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				
 				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost;
 				route_rc = Math.floor(route_rc*10000)/10000;
-				if (route_rc - 1 - bestReducedCost > this.FRC_gap) continue;
+				if (route_rc - bestReducedCost > this.FRC_gap) continue;
 				
 				if (bwSeq.ng.intersects(fwSeq.ng)) continue;										// ng-Elementarity
 				if (bwSeq.remainingTime - arc.time < fwSeq.cumulativeTime) continue; 				// Time feasibility
@@ -169,7 +148,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
         		
 				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta);
 				route_rc = Math.floor(route_rc*10000)/10000;
-				if (route_rc - 1 - bestReducedCost > this.FRC_gap) continue;
+				if (route_rc - bestReducedCost > this.FRC_gap) continue;
 				pq.add(new MergeState(ixFw, ixBw, Math.floor(route_rc*10000)/10000));
 			}
 		}
@@ -315,76 +294,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			
 			Set<PPArc> outgoingArcs = new HashSet<PPArc>(dataModel.PPgraph.outgoingEdgesOf(labelsToProcessNext.get(0).vertex));
 			//logger.debug("Processing Vertex "+PPvertices[labelsToProcessNext.get(0).vertex].toString());
-			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0);
-			boolean foundNewNonFixables = false; Set<Integer> newNonFixableArcs = new HashSet<Integer>();
+			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0 || arc.head_vertex_id == depotID);
 			
 			for (PPArc a: outgoingArcs) {
-
-				if (this.nonFixablePPArcs.get(a.id)){
-					if (a.head_vertex_id != depotID) for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
-					//logger.debug("\tExtending through arc "+a.toString());
-				} else {
-
-					Arc routing_arc = a.routing_arc;
-					int j = vertices[routing_arc.head].node_id; if (j == 0) j = dataModel.C+1;
-					ArrayList<PartialBackwardSequence> bwSeqs = this.bwSequences.get(j);
-					
-					for (PartialBackwardSequence bwSeq: bwSeqs){
-						for (ForwardLabel currentLabel: labelsToProcessNext){
-							
-							double route_rc = currentLabel.reducedCost + a.modifiedCost + bwSeq.reducedCost;
-							if (route_rc - bestReducedCost > this.FRC_gap + dataModel.precision) continue;
-							
-							if (bwSeq.ng.intersects(currentLabel.ng_path)) continue;															// ng-Elementarity
-							if (bwSeq.remainingTime - routing_arc.time < currentLabel.cumulativeTime) continue; 								// Time feasibility
-							if (bwSeq.worstRemainEnergy - routing_arc.energy <  dataModel.E-currentLabel.remainingEnergy[0]) continue; 			// Worst-case Energy of the backwards - rest of nominal energy
-							if (bwSeq.remainingLoad < currentLabel.cumulativeLoad) continue; 													// Load feasibility
-							
-							route_rc += getMergeSRCs_RC(currentLabel.eta, bwSeq.eta);
-							route_rc = Math.floor(route_rc*10000)/10000;
-							if (route_rc - bestReducedCost > this.FRC_gap + dataModel.precision) continue;
-
-							int routeWorstCaseEnergy = mergeIsEnergyFeasible(currentLabel, routing_arc, bwSeq);
-							if (routeWorstCaseEnergy < 0) continue;
-
-							int latestDeparture = currentLabel.latestDeparture;
-							if ((int)((bwSeq.remainingTime - currentLabel.travelTimes - routing_arc.time)/10) < latestDeparture) latestDeparture = (int)((bwSeq.remainingTime - currentLabel.travelTimes - routing_arc.time)/10);
-
-							int chargingTime = dataModel.f_inverse[dataModel.E - routeWorstCaseEnergy];
-							if (chargingTime >= latestDeparture) continue;
-
-							double chargingBound = this.charging_bounds.get(chargingTime).get(latestDeparture);
-							if (route_rc + chargingBound - bestReducedCost <= this.FRC_gap + dataModel.precision){
-								//logger.debug("Found non-fixable arcs evaluating arc: "+a.toString());
-								newNonFixableArcs.add(a.id);
-								newNonFixableArcs.addAll(get_forward_arcs_sequence(currentLabel));
-								newNonFixableArcs.addAll(bwSeq.arcSequence);
-								foundNewNonFixables = true;
-							}
-
-						}
-					}
-
-
-				}	
-				
-			}
-
-			for (ForwardLabel currentLabel: labelsToProcessNext) {
-				currentLabel.index = PPvertices[currentLabel.vertex].processedForwardLabels.size();
-				PPvertices[currentLabel.vertex].processedForwardLabels.add(currentLabel);
-			}
-
-			if (foundNewNonFixables){
-						
-				for (Integer arcID: newNonFixableArcs){
-					PPArc arc = dataModel.PParcs[arcID];
-					if (this.nonFixablePPArcs.get(arcID)) continue; // No need to extend to the returning depot
-					
-					this.nonFixablePPArcs.set(arcID);
-					if (arc.head_vertex_id == depotID) continue;
-					for (ForwardLabel processedLabel: PPvertices[arc.tail_vertex_id].processedForwardLabels) extendForwardLabel(processedLabel, arc, arc.routing_arc, arc.modifiedCost, arc.head_vertex_id);
-				}
+				for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
+				//logger.debug("\tExtending through arc "+a.toString());
 			}
 
 		}
