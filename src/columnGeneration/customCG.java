@@ -184,8 +184,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
 			if (dataModel.rollbackTrigger){
 				this.perform_rollback(solutionMemory); break; }
-			else if (boundOnMasterExceedsCutoffValue()) break;
-			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
+			else if (boundOnMasterExceedsCutoffValue()) {
+				this.boundOnMasterObjective = Math.ceil(this.boundOnMasterObjective - config.PRECISION);
+				break;
+			} else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException(); }
 			else if (dataModel.CUTSENABLED && !foundNewColumns){ 		//check for inequalities. This can only be done if the master problem hasn't changed (no columns can be added).
