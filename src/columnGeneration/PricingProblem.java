@@ -289,7 +289,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			outgoingArcs.removeIf(arc -> infeasiblePPArcs[arc.id] > 0 || arc.head_vertex_id == depotID);
 			
 			for (PPArc a: outgoingArcs) {
-				for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id)
+				for (ForwardLabel currentLabel: labelsToProcessNext) extendForwardLabel(currentLabel, a, a.routing_arc, a.modifiedCost, a.head_vertex_id);
 				//logger.debug("\tExtending through arc "+a.toString());
 			}
 
