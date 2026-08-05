@@ -144,118 +144,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		return arcsToRemove;
 
 	}
-
-	private double findMinimumRCPath_acc(ArrayList<PartialBackwardSequence> bwSequences, ArrayList<PartialForwardSequence> fwSequences, Arc arc, double modifiedCost, int ppid) {
-
-		int nFw = fwSequences.size(); int nBw = bwSequences.size();
-		PriorityQueue<MergeState> pq = new PriorityQueue<>( (s1, s2) -> Double.compare(s1.rc, s2.rc) );
-		
-		for (int ixFw = 0; ixFw < nFw; ixFw++){
-			PartialForwardSequence fwSeq = fwSequences.get(ixFw);
-
-			//fwSeq.routingArcsSequence.equals(new ArrayList<>(List.of(551, 611, 583, 627, 675, 43)));
-
-			for (int ixBw = 0; ixBw < nBw; ixBw++){
-				PartialBackwardSequence bwSeq = bwSequences.get(ixBw);
-				
-				double route_rc = fwSeq.reducedCost + modifiedCost + bwSeq.reducedCost;
-				route_rc = Math.floor(route_rc*10000)/10000;
-				if (route_rc - 1 - bestReducedCost > this.FRC_gap) continue;
-				
-				if (bwSeq.ng.intersects(fwSeq.ng)) continue;										// ng-Elementarity
-				if (bwSeq.remainingTime - arc.time < fwSeq.cumulativeTime) continue; 				// Time feasibility
-				if (bwSeq.worstRemainEnergy - arc.energy <  fwSeq.nominalEnergy) continue; 			// Worst-case Energy of the backwards - rest of nominal energy
-				if (bwSeq.remainingLoad < fwSeq.cumulativeLoad) continue; 							// Load feasibility
-        		
-				route_rc += getMergeSRCs_RC(fwSeq.eta, bwSeq.eta);
-				route_rc = Math.floor(route_rc*10000)/10000;
-				if (route_rc - 1 - bestReducedCost > this.FRC_gap) continue;
-				pq.add(new MergeState(ixFw, ixBw, Math.floor(route_rc*10000)/10000));
-			}
-		}
-
-		double min_merged_rc = this.FRC_gap+1+2*dataModel.precision;
-        while (!pq.isEmpty()) {
-			
-            MergeState current = pq.poll();
-            
-			int fw = current.f; PartialForwardSequence fwSeq = fwSequences.get(fw);
-			int bw = current.b; PartialBackwardSequence bwSeq = bwSequences.get(bw);
-
-			if (min_merged_rc <= current.rc + dataModel.precision){ return min_merged_rc; }
-			else {
-				MergedSequence mergedPath = mergeLabel_acc(fwSeq, bwSeq, arc, current.rc, ppid);
-				if (mergedPath != null){ // If found a feasible merged label
-					double chBound = this.charging_bounds.get(mergedPath.chargingTime).get(mergedPath.departureTime);
-					double complete_rc = mergedPath.reducedCost + chBound;
-					
-					if (complete_rc < min_merged_rc - dataModel.precision){
-						min_merged_rc = complete_rc;
-						// If found a feasible column with lower RC than the gap, the arc won't be fixed
-						// If the charging bound is 0, the column's reduced cost is optimal for the FRC expression
-						if (min_merged_rc - bestReducedCost <= this.FRC_gap + dataModel.precision || chBound <= dataModel.precision)  return min_merged_rc; 
-					}
-				}
-			}
-        }
-
-        return 1e5;
-    }
-
-	private MergedSequence mergeLabel_acc(PartialForwardSequence fwSequence, PartialBackwardSequence bwSeq, Arc routing_arc, double reducedCost, int ppid){
-		
-		///////////////////////////////////
-		/// MERGE FEASIBILITY ASSESSMENT
-		///////////////////////////////////
-		
-		// Worst-case energy feasibility
-		int remainingEnergy = bwSeq.remNominalEnergy - routing_arc.energy - fwSequence.nominalEnergy; // Nominal energy consumption
-		
-		ArrayList<Integer> fwDevs = fwSequence.worstEnergyDevs;
-		ArrayList<Integer> bwDevs = new ArrayList<>(bwSeq.worstEnergyDevs);
-		for (int g = 0; g < Gamma; g++) if (routing_arc.energy_deviation >= bwDevs.get(g)) { bwDevs.add(g, routing_arc.energy_deviation); break; }
-
-		int ixFw = 0; int ixBw = 0;
-		for (int g = 1; g <= Gamma; g++){
-			if (fwDevs.get(ixFw) >= bwDevs.get(ixBw)) { remainingEnergy -= fwDevs.get(ixFw); ixFw ++; }
-			else { remainingEnergy -= bwDevs.get(ixBw); ixBw ++; }
-			if (remainingEnergy < 0) return null;
-		}
-		
-		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy];
-		
-		/////////////////////////////////
-		/// LATEST DEPARTURE TIME
-		/////////////////////////////////
-		
-		int source = routing_arc.tail;
-		int remainingTime = bwSeq.remainingTime - routing_arc.time;
-		if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		
-		ArrayList<Integer> fwRoutingArcs = fwSequence.routingArcsSequence;
-		for (int arcID: fwRoutingArcs){ // Loop over the arc extensions leading up to a C0 vertex
-			Arc routeArc = dataModel.arcs[arcID];
-			source = routeArc.tail;
-			
-			remainingTime -= routeArc.time;
-			if (remainingTime > vertices[source].closing_tw) remainingTime = vertices[source].closing_tw;
-		}
-		
-		int departure = (int)(remainingTime/10);
-		if (chargingTime >= departure) return null; 	// Charging interval feasibility
-
-		return new MergedSequence(reducedCost, chargingTime, departure);
-	}
-
-	private ArrayList<PartialBackwardSequence> get_specific_bwSequence(){
-
-		ArrayList<PartialBackwardSequence> lista = new ArrayList<>();
-		for (PartialBackwardSequence bwS: this.bwSequences.get(1)){
-			if (Math.abs(bwS.reducedCost-1671)<1e-2) lista.add(bwS);
-		}
-
-		return lista;
-	}
 	
 	private void cleanBackwardLabels() {
 
@@ -357,7 +245,6 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 							if (route_rc + chargingBound - bestReducedCost <= this.FRC_gap + dataModel.precision){
 								//logger.debug("Found non-fixable arcs evaluating arc: "+a.toString());
 								newNonFixableArcs.add(a.id);
-								newNonFixableArcs.addAll(get_forward_arcs_sequence(currentLabel));
 								newNonFixableArcs.addAll(bwSeq.arcSequence);
 								foundNewNonFixables = true;
 							}
@@ -739,11 +626,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		ArrayList<Integer> aSeq = new ArrayList<>();
 
 		Label currentLabel = bwL;
-		while (true) {
+		while (currentLabel.vertex != depotID) {
 			PPArc nextArc = dataModel.PParcs[currentLabel.nextArc];
-			aSeq.add(nextArc.id);
-			if (nextArc.head_vertex_id == depotID) break;
-			currentLabel = this.bwLabels.get(PPvertices[nextArc.head_vertex_id].node_number).get(currentLabel.nextLabelIndex);
+			int j = PPvertices[nextArc.head_vertex_id].node_number;
+			if (j == 0) j = dataModel.C+1;
+			currentLabel = this.bwLabels.get(j).get(currentLabel.nextLabelIndex);
 		}
 
 		return aSeq;

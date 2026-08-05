@@ -263,7 +263,7 @@ public final class EVRPTWSolver {
 		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC-1GR25-RB50"+energy_deviation, args[2], args[3]);
-		//EVRPTW evrptw = new EVRPTW("RC105-50", 5, 0, true, "NF", "Debug", "");
+		//EVRPTW evrptw = new EVRPTW("RC207-50", 0, 0, true, "FRC-1GR25-RB50", "Debug", "");
 
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
