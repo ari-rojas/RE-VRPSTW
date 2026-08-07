@@ -351,7 +351,13 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	public void close() {
 		
 		// Save information of the routing subgraph for Fixing by Reduced Cost
-		for (int i = 1; i <= dataModel.C; i++) pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
+		pricingProblem.bwCCRLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
+		pricingProblem.bwCCRLabels.add(null); pricingProblem.SRCIndices.add(null);
+		for (int i = 1; i <= dataModel.C; i++){
+			pricingProblem.bwCCRLabels.add(new ArrayList<>(vertices[dataModel.C1_startID+i].processedLabels));
+			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
+		}
+		pricingProblem.bwCCRLabels.add(new ArrayList<>(vertices[dataModel.C+1].processedLabels));
 
 		for (int i = 0; i < vertices.length; i++) {
 			vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
@@ -359,6 +365,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 		if (!this.pricingProblemInfeasible) for (int i = 0; i < vertices.length; i++) vertices[i].SRCIndices = new ArrayList<>(); 
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
+
 	}
 
 	/**
