@@ -81,9 +81,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Double> fixByReducedCosts(long timeLimit, double UB, double LB){
 		
 		this.frcTimes ++;
-		
 		this.FRC_gap = UB-LB;
-		this.bwSequences = new ArrayList<ArrayList<PartialBackwardSequence>>();
 		
 		if (this.frcEC2FCLabels.isEmpty()) runBackwardLabeling(timeLimit); 				// Backward Labeling (only when FRC has not been called before)
 		
@@ -379,10 +377,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	
 	private void cleanBackwardLabels() {
 
-		//////////////////////////////////
-		/// C1 vertices labels
-		//////////////////////////////////
-		
+		this.bwSequences = new ArrayList<ArrayList<PartialBackwardSequence>>();
 		this.bwSequences.add(null);
 
 		for (int i = 1; i <= dataModel.C+1; i++){
