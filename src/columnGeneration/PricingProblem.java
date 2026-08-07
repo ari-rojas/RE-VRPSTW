@@ -35,7 +35,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public Map<Integer, Map<Integer,Double>> charging_bounds;
 
 	// Information for Fixing by Reduced Costs procedure
-	public ArrayList<ArrayList<BackwardLabel>> bwLabels;
+	public ArrayList<ArrayList<BackwardLabel>> bwEC2FCLabels;
 	public ArrayList<ArrayList<PartialBackwardSequence>> bwSequences;
 	public ArrayList<ArrayList<PartialForwardSequence>> fwDepotSequences;
 	public ArrayList<ArrayList<PartialForwardSequence>> fwC1Sequences;
@@ -43,7 +43,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 	public double[] bwCandidateBounds;
 
 	public BitSet nonFixablePPArcs;
-	public ArrayList<BackwardLabel> frcRouteLabels;
+	public ArrayList<CCRLabel> frcCCRLabels;
+	public ArrayList<BackwardLabel> frcEC2FCLabels;
 
 	public ArrayList<ArrayList<Integer>> SRCIndices = new ArrayList<>();
 	public int[] infeasiblePPArcs;
@@ -73,7 +74,8 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		this.infeasiblePPArcs = new int[dataModel.numArcs];
 		this.infeasiblePPArcsPointer = new BitSet();
 		this.nonFixablePPArcs = new BitSet();
-		this.frcRouteLabels = new ArrayList<BackwardLabel>();
+		this.frcCCRLabels = new ArrayList<CCRLabel>();
+		this.frcEC2FCLabels = new ArrayList<BackwardLabel>();
 		this.frcTimes = 0;
 	}
 
@@ -93,7 +95,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		//////////////////////////////////////////////////
 
 		long startTime = System.currentTimeMillis();
-		for (BackwardLabel label: this.frcRouteLabels){
+		for (BackwardLabel label: this.frcEC2FCLabels){
 			if (label.reducedCost + this.charging_bounds.get(label.chargingTime).get(label.remainingTime) > this.FRC_gap + dataModel.precision) continue;
 
 			BackwardLabel nextLabel = label;
@@ -102,7 +104,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 				PPArc nextArc = dataModel.PParcs[nextLabel.nextArc];
 				int j = PPvertices[nextArc.head_vertex_id].node_number;
 				if (j == 0) j = dataModel.C+1;
-				nextLabel = this.bwLabels.get(j).get(nextLabel.nextLabelIndex);
+				nextLabel = this.bwEC2FCLabels.get(j).get(nextLabel.nextLabelIndex);
 			}
 		}
 
@@ -154,13 +156,13 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		this.bwSequences.add(null);
 
 		for (int i = 1; i <= dataModel.C+1; i++){
-			ArrayList<BackwardLabel> labels = this.bwLabels.get(i);
+			ArrayList<BackwardLabel> labels = this.bwEC2FCLabels.get(i);
 			ArrayList<PartialBackwardSequence> allSequences = new ArrayList<PartialBackwardSequence>();
 			for (BackwardLabel label: labels) allSequences.add(new PartialBackwardSequence(label.reducedCost, label.remainingEnergy, label.remainingLoad, label.remainingTime, label.ng_path, label.eta, get_backward_arcs_sequence(label)));
 			this.bwSequences.add(allSequences);
 		}
 
-		this.bwLabels.clear();
+		this.bwEC2FCLabels.clear();
 
 	}
 
@@ -627,11 +629,11 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		ArrayList<Integer> aSeq = new ArrayList<>();
 
 		BackwardLabel currentLabel = bwL;
-		while (true) {
+		while (currentLabel.vertex != depotID) {
 			PPArc nextArc = dataModel.PParcs[currentLabel.nextArc];
-			aSeq.add(nextArc.id);
-			if (nextArc.head_vertex_id == depotID) break;
-			currentLabel = this.bwLabels.get(PPvertices[nextArc.head_vertex_id].node_number).get(currentLabel.nextLabelIndex);
+			int j = PPvertices[nextArc.head_vertex_id].node_number;
+			if (j == 0) j = dataModel.C+1;
+			currentLabel = this.bwEC2FCLabels.get(j).get(currentLabel.nextLabelIndex);
 		}
 
 		return aSeq;

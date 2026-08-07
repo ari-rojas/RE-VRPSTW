@@ -330,13 +330,7 @@ public final class EC2FC_ExactPPSolver_CB extends AbstractPricingProblemSolver<E
 	public void close() {
 
 		// Save information of the routing subgraph for Fixing by Reduced Cost
-		pricingProblem.bwLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
-		pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[superDepotID].processedLabels));
-		for (int i = 1; i <= dataModel.C; i++) {
-			pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
-			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
-		}
-		pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
+		for (int i = 1; i <= dataModel.C; i++) pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
 
 		for (int i = 0; i < PPvertices.length; i++) {
 			PPvertices[i].processedLabels = new ArrayList<BackwardLabel>(dataModel.numArcs);

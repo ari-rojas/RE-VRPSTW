@@ -154,7 +154,8 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	@Override
 	public void initializePricingProblem(PricingProblem pricingProblem){
 		
-		pricingProblem.frcRouteLabels.clear();
+		pricingProblem.frcCCRLabels.clear(); pricingProblem.frcEC2FCLabels.clear();
+
 		try {
 
 			double[] dualsPartition= masterData.cplex.getDuals(visitCustomerConstraints);

@@ -501,6 +501,8 @@ public final class EC2FC_HeuristicPPSolver extends AbstractPricingProblemSolver<
 				arc.modifiedCost = -pricingProblem.dualCosts[dataModel.C+t-1];
 			}
 		}
+
+		logger.debug("Using the EC2FC Formulation to solve the PP");
 	
 	}
 

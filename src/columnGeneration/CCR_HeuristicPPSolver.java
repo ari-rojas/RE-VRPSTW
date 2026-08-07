@@ -467,6 +467,8 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
 			else arc.modifiedCost = 0;
 		}
+
+		logger.debug("Using the CCR Formulation to solve the PP");
 	}
 
 	public boolean checkRoutingDominance(CCRLabel newLabel) {

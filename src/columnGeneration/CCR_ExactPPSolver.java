@@ -15,8 +15,6 @@ import java.util.Set;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
-import branchAndPrice.FixArc;
-import branchAndPrice.RemoveArc;
 
 
 /**
@@ -278,6 +276,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 			extendedLabel.vertex = source;
 			extendedLabel.nextArc = arc.id;
 
+			pricingProblem.frcCCRLabels.add(extendedLabel);
 			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
 			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
 			if (min_col_rc >= -dataModel.precision) return null;
@@ -350,18 +349,15 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	 */
 	@Override
 	public void close() {
-		if(this.pricingProblemInfeasible) {
-			for (int i = 0; i < vertices.length; i++) {
-				vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V));
-			}
-		}else {
-			for (int i = 0; i < vertices.length; i++) {
-				vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V));
-				vertices[i].SRCIndices = new ArrayList<>(); 
-			}
-		}
+		
+		// Save information of the routing subgraph for Fixing by Reduced Cost
+		for (int i = 1; i <= dataModel.C; i++) pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
+
+		for (int i = 0; i < vertices.length; i++) {
+			vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
+			vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V)); }
+
+		if (!this.pricingProblemInfeasible) for (int i = 0; i < vertices.length; i++) vertices[i].SRCIndices = new ArrayList<>(); 
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 	}
 
@@ -374,6 +370,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 			vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V));
 		}
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
+		pricingProblem.frcCCRLabels.clear();
 	}
 
 	/**

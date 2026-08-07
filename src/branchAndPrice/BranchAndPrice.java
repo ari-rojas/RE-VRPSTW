@@ -261,7 +261,11 @@ public final class BranchAndPrice {
 		customCG cg=null;
 		try {
 			dataModel.cleanSRCs(); // MODIFICATION
-			cg = new customCG(dataModel, master, pricingProblems, solvers, null, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, this.chargingNodes.contains(bapNode.nodeID), this.extendedNotifier, this.pricingProblemBundles, this.cPricingProblemManager); //Solve the node
+			int ppSolverRequirement;
+			if (bapNode.nodeID == 0) ppSolverRequirement = 0;
+			else if (this.chargingNodes.contains(bapNode.nodeID)) ppSolverRequirement = 2;
+			else ppSolverRequirement = 1;
+			cg = new customCG(dataModel, master, pricingProblems, solvers, null, bapNode.getInitialColumns(), objectiveIncumbentSolution, bapNode.getBound(), bapNode.nodeID, ppSolverRequirement, this.extendedNotifier, this.pricingProblemBundles, this.cPricingProblemManager); //Solve the node
 			for(CGListener listener : columnGenerationEventListeners) cg.addCGEventListener(listener);
 			cg.solve(timeLimit);
 		} finally {

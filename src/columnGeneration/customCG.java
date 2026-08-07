@@ -39,7 +39,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public int incumbentSolutionObjective = (int) Double.MAX_VALUE; 		// stores the incumbent solution objective found throughout the CG
 	
 	public int BBnodeID;
-	public boolean needsChargingBranchingPricing;
+	public int PPSolverRequirement;
 	public int contExact;
 
 	public OptimalSolutionMemory solutionMemory;
@@ -52,23 +52,26 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
 	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 
-	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Boolean> solverCapabilities = new HashMap<>();
+	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Integer> solverCapabilities = new HashMap<>();
 	static {
-		solverCapabilities.put(EC2FC_HeuristicPPSolver.class, false);
-		solverCapabilities.put(EC2FC_ExactPPSolver.class, false);
+		solverCapabilities.put(CCR_HeuristicPPSolver.class, 0);
+		solverCapabilities.put(CCR_ExactPPSolver.class, 0);
 
-		solverCapabilities.put(EC2FC_HeuristicPPSolver_CB.class, true);
-		solverCapabilities.put(EC2FC_ExactPPSolver_CB.class, true);
+		solverCapabilities.put(EC2FC_HeuristicPPSolver.class, 1);
+		solverCapabilities.put(EC2FC_ExactPPSolver.class, 1);
+
+		solverCapabilities.put(EC2FC_HeuristicPPSolver_CB.class, 2);
+		solverCapabilities.put(EC2FC_ExactPPSolver_CB.class, 2);
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
 			PricingProblem pricingProblem,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
-			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier,
+			List<Route> initSolution, int cutoffValue, double boundOnMasterObjective, int nodeID, int ppSolverReq, ExtendBAPNotifier notifier,
 			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager) {
 		super(dataModel, master, pricingProblem, solvers, initSolution, cutoffValue, boundOnMasterObjective);
 		this.BBnodeID = nodeID;
-		this.needsChargingBranchingPricing = needsCB;
+		this.PPSolverRequirement = ppSolverReq;
 		this.extendedNotifier = notifier;
 		this.branchingFRC = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 		
@@ -80,11 +83,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			List<PricingProblem> pricingProblems,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers,
 			PricingProblemManager<EVRPTW, Route, PricingProblem> pricingProblemManager, List<Route> initSolution,
-			int cutoffValue, double boundOnMasterObjective, int nodeID, boolean needsCB, ExtendBAPNotifier notifier,
+			int cutoffValue, double boundOnMasterObjective, int nodeID, int ppSolverReq, ExtendBAPNotifier notifier,
 			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles, customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager) {
 		super(dataModel, master, pricingProblems, solvers, pricingProblemManager, initSolution, cutoffValue, boundOnMasterObjective);
 		this.BBnodeID = nodeID;
-		this.needsChargingBranchingPricing = needsCB;
+		this.PPSolverRequirement = ppSolverReq;
 		this.extendedNotifier = notifier;
 		this.branchingFRC = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 
@@ -95,11 +98,11 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	public customCG(EVRPTW arg0, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> arg1,
 			List<PricingProblem> arg2,
 			List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> arg3, List<Route> arg4,
-			int arg5, double arg6, int arg7, boolean arg8, ExtendBAPNotifier arg9,
+			int arg5, double arg6, int arg7, int arg8, ExtendBAPNotifier arg9,
 			Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> arg10, customPricingProblemManager<EVRPTW, Route, PricingProblem> arg11) {
 		super(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		this.BBnodeID = arg7;
-		this.needsChargingBranchingPricing = arg8;
+		this.PPSolverRequirement = arg8;
 		this.extendedNotifier = arg9;
 		this.branchingFRC = new ArrayList<BranchingDecision<EVRPTW, Route>>();
 		
@@ -271,7 +274,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		dataModel.exactPricing = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			
-			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
+			if (PPSolverRequirement == solverCapabilities.get(solver)) {
 				newColumns = cPricingProblemManager.solvePricingProblems(solver);
 				if (dataModel.rollbackTrigger) break;
 				//Stop when we found new columns
@@ -291,7 +294,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
 			
 			if (!newColumns.isEmpty()) {
-				pricingProblems.get(0).frcRouteLabels.clear();
+				pricingProblems.get(0).frcCCRLabels.clear(); pricingProblems.get(0).frcEC2FCLabels.clear();
 				this.boundOnMasterObjective = (optimizationSenseMaster == OptimizationSense.MINIMIZE ? Math.max(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))) : Math.min(boundOnMasterObjective,this.calculateBoundOnMasterObjective(solvers.get(1))));
 			} else this.boundOnMasterObjective = master.getObjective(); // Update the Bound before adding cuts
 		
@@ -319,10 +322,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
 			this.gapReduction = (master.getObjective()-this.solutionMemory.previousMPBound)/(this.cutoffValue-this.solutionMemory.previousMPBound);
 			
-			if (!needsChargingBranchingPricing && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - dataModel.precision) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
-				perform_fixing_by_reduced_cost(timeLimit);}
+			if (this.PPSolverRequirement < 2 && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - config.PRECISION) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+				perform_fixing_by_reduced_cost(timeLimit); this.PPSolverRequirement = 1; }
 			
-			pricingProblems.get(0).frcRouteLabels.clear();
+			pricingProblems.get(0).frcCCRLabels.clear(); pricingProblems.get(0).frcEC2FCLabels.clear();
 			
 		}
 

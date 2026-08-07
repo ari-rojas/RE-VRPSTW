@@ -11,10 +11,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.function.BiPredicate;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
@@ -317,7 +315,7 @@ public final class EC2FC_ExactPPSolver extends AbstractPricingProblemSolver<EVRP
 			extendedLabel.nextArc = pp_arc.id;
 			extendedLabel.dominanceVertex = superDepotID;
 
-			pricingProblem.frcRouteLabels.add(extendedLabel);
+			pricingProblem.frcEC2FCLabels.add(extendedLabel);
 			double min_col_rc = reducedCost + pricingProblem.charging_bounds.get(chargingTime).get(remainingTime);
 			if (min_col_rc < this.bestReducedCost - dataModel.precision) this.bestReducedCost = min_col_rc;
 			if (min_col_rc >= -dataModel.precision) return null;
@@ -393,13 +391,13 @@ public final class EC2FC_ExactPPSolver extends AbstractPricingProblemSolver<EVRP
 	public void close() {
 
 		// Save information of the routing subgraph for Fixing by Reduced Cost
-		pricingProblem.bwLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
-		pricingProblem.bwLabels.add(null); pricingProblem.SRCIndices.add(null);
+		pricingProblem.bwEC2FCLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
+		pricingProblem.bwEC2FCLabels.add(null); pricingProblem.SRCIndices.add(null);
 		for (int i = 1; i <= dataModel.C; i++) {
-			pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
+			pricingProblem.bwEC2FCLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
 			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
 		}
-		pricingProblem.bwLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
+		pricingProblem.bwEC2FCLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
 		
 		// Clean the labeling information
 		for (int i = 0; i < PPvertices.length; i++) {
@@ -420,7 +418,7 @@ public final class EC2FC_ExactPPSolver extends AbstractPricingProblemSolver<EVRP
 			PPvertices[i].unprocessedLabels =  new PriorityQueue<BackwardLabel>(dataModel.numArcs, new BackwardLabel.SortLabels(superDepotID, dataModel.T_startID));
 		}
 		this.nodesToProcess = new PriorityQueue<PPVertex>(new SortVertices());
-		pricingProblem.frcRouteLabels.clear();
+		pricingProblem.frcEC2FCLabels.clear();
 	}
 
 	/**
