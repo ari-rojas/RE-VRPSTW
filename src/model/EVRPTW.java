@@ -24,7 +24,7 @@ import org.w3c.dom.NodeList;
 
 import columnGeneration.CCRLabel;
 import columnGeneration.ForwardLabel;
-import columnGeneration.Label;
+import columnGeneration.BackwardLabel;
 
 /**
  * The Electric Vehicle Routing and Overnight Charging Scheduling Problem on a Multigraph
@@ -254,7 +254,7 @@ public final class EVRPTW implements ModelInterface {
 		
 		int auxNumArcs = 2*(V*V-V);
 		for (int ix = 0; ix <= superDepotID; ix ++) {
-			this.PPvertices[ix].unprocessedLabels = new PriorityQueue<Label>(auxNumArcs, new Label.SortLabels(superDepotID, T_startID));
+			this.PPvertices[ix].unprocessedLabels = new PriorityQueue<BackwardLabel>(auxNumArcs, new BackwardLabel.SortLabels(superDepotID, T_startID));
 			this.PPvertices[ix].unprocessedForwardLabels = new PriorityQueue<ForwardLabel>(auxNumArcs, new ForwardLabel.SortForwardLabels());
 		}
 		
@@ -536,10 +536,10 @@ public final class EVRPTW implements ModelInterface {
 			this.vertices[i].SRCIndices = new ArrayList<>();
 
 			int C0_ix = this.C0_startID + i;
-			this.PPvertices[C0_ix].processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.PPvertices[C0_ix].processedLabels = new ArrayList<BackwardLabel>(auxNumArcs);
 
 			int C1_ix = this.C1_startID + i;
-			this.PPvertices[C1_ix].processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.PPvertices[C1_ix].processedLabels = new ArrayList<BackwardLabel>(auxNumArcs);
 		}
 	}
 
@@ -715,8 +715,8 @@ public final class EVRPTW implements ModelInterface {
 		
 		public final int node_number;
 
-		public ArrayList<Label> processedLabels; 					//labels that have reached the vertex and are non-dominated
-		public PriorityQueue<Label> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
+		public ArrayList<BackwardLabel> processedLabels; 					//labels that have reached the vertex and are non-dominated
+		public PriorityQueue<BackwardLabel> unprocessedLabels; 				//labels that have reached the vertex but have not yet been processed
 
 		public ArrayList<ForwardLabel> processedForwardLabels;
 		public PriorityQueue<ForwardLabel> unprocessedForwardLabels;
@@ -732,7 +732,7 @@ public final class EVRPTW implements ModelInterface {
 			this.node_number = number;
 
 			int auxNumArcs = 2*(V*V-V);
-			this.processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.processedLabels = new ArrayList<BackwardLabel>(auxNumArcs);
 			this.processedForwardLabels = new ArrayList<ForwardLabel>(auxNumArcs);
 		}
 
@@ -747,7 +747,7 @@ public final class EVRPTW implements ModelInterface {
 			this.node_number = number;
 
 			int auxNumArcs = 2*(V*V-V);
-			this.processedLabels = new ArrayList<Label>(auxNumArcs);
+			this.processedLabels = new ArrayList<BackwardLabel>(auxNumArcs);
 			this.processedForwardLabels = new ArrayList<>(auxNumArcs);
 		}
 

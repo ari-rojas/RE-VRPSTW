@@ -81,7 +81,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
-		Label initialLabel = new Label(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
+		BackwardLabel initialLabel = new BackwardLabel(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
 		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.dominanceVertex = depotID; initialLabel.nextArc = depotID;
 		this.nodesToProcess.add(PPvertices[depotID]);
 		PPvertices[depotID].unprocessedLabels.add(initialLabel);
@@ -89,8 +89,8 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 		//Labeling algorithm
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
-			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
-			for(Label currentLabel: labelsToProcessNext) {
+			ArrayList<BackwardLabel> labelsToProcessNext = labelsToProcessNext();
+			for(BackwardLabel currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
 				if(isDominated) continue;
 				else {
@@ -101,7 +101,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 				
 				for(PPArc a: dataModel.PPgraph.incomingEdgesOf(currentLabel.vertex)) {
 					if(infeasibleArcs[a.id] > 0) continue;
-					Label extendedLabel;
+					BackwardLabel extendedLabel;
 					if(a.arc_type <= AR1) extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
 					else extendedLabel = extendLabelChargingTime(currentLabel, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
@@ -124,19 +124,19 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
 	 */
-	public ArrayList<Label> labelsToProcessNext(){
+	public ArrayList<BackwardLabel> labelsToProcessNext(){
 
-		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
+		ArrayList<BackwardLabel> labelsToProcessNext = new ArrayList<BackwardLabel>();
 		PPVertex currentVertex = nodesToProcess.poll();
 		byte vertex_type = currentVertex.vertex_type;
-		BiPredicate<Label, Label> isDominatedMethod = getDominanceChecker(vertex_type);
+		BiPredicate<BackwardLabel, BackwardLabel> isDominatedMethod = getDominanceChecker(vertex_type);
 
 		while(true) {
-			Label currentLabel = currentVertex.unprocessedLabels.poll();
+			BackwardLabel currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);
 			else {
 				boolean isDominated = false;
-				for(Label L2: labelsToProcessNext) {
+				for(BackwardLabel L2: labelsToProcessNext) {
 					
 					isDominatedMethod.test(currentLabel, L2);
 					if(isDominated) break;
@@ -154,7 +154,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	/**
 	 * Given a new (non-dominated) label, updates the nodes to be processed
 	 */
-	public void updateNodesToProcess(Label extendedLabel) {
+	public void updateNodesToProcess(BackwardLabel extendedLabel) {
 		PPVertex currentVertex = PPvertices[extendedLabel.dominanceVertex];
 		if(currentVertex.vertex_type == Source) currentVertex.unprocessedLabels.add(extendedLabel);
 		else if(currentVertex.unprocessedLabels.isEmpty()) {currentVertex.unprocessedLabels.add(extendedLabel); nodesToProcess.add(currentVertex);}
@@ -196,7 +196,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	/**
 	 * Label extension procedure
 	 */
-	public Label extendLabel(Label currentLabel, Arc routing_arc, byte arc_type, double modifiedCost) {
+	public BackwardLabel extendLabel(BackwardLabel currentLabel, Arc routing_arc, byte arc_type, double modifiedCost) {
 
 		int source = routing_arc.tail;
 		if (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1]) return null;
@@ -262,7 +262,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 			remainingTime = (int) (remainingTime/10);
 		}
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
+		BackwardLabel extendedLabel = new BackwardLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
 		return extendedLabel;
 
 	}
@@ -270,7 +270,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	/**
 	 * Label extension procedure
 	 */
-	public Label extendLabelChargingTime(Label currentLabel, int t, byte arc_type, double modifiedCost) {
+	public BackwardLabel extendLabelChargingTime(BackwardLabel currentLabel, int t, byte arc_type, double modifiedCost) {
 
 		// If t is a finishing charging time period and is not a value between b_r and d_r-1, it's not feasible
 		if(arc_type == AC1 && (t < currentLabel.chargingTime || t >= currentLabel.remainingTime)) return null;
@@ -288,7 +288,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 			if (reducedCost > -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		}
 
-		Label extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+		BackwardLabel extendedLabel = new BackwardLabel(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 		return extendedLabel;
 	}
 
@@ -316,8 +316,8 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	public void close() {
 
 		for (int i = 0; i < PPvertices.length; i++) {
-			PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(superDepotID, dataModel.T_startID)); }
+			PPvertices[i].processedLabels = new ArrayList<BackwardLabel>(dataModel.numArcs);
+			PPvertices[i].unprocessedLabels =  new PriorityQueue<BackwardLabel>(dataModel.numArcs, new BackwardLabel.SortLabels(superDepotID, dataModel.T_startID)); }
 
 		if (!this.pricingProblemInfeasible) for (int i = 0; i < vertices.length; i++) vertices[i].SRCIndices = new ArrayList<>(); 
 		this.nodesToProcess = new PriorityQueue<PPVertex>(new SortVertices());
@@ -328,8 +328,8 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	 */
 	public void restart() {
 		for (int i = 0; i < PPvertices.length; i++) {
-			PPvertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			PPvertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(superDepotID, dataModel.T_startID));
+			PPvertices[i].processedLabels = new ArrayList<BackwardLabel>(dataModel.numArcs);
+			PPvertices[i].unprocessedLabels =  new PriorityQueue<BackwardLabel>(dataModel.numArcs, new BackwardLabel.SortLabels(superDepotID, dataModel.T_startID));
 		}
 		this.nodesToProcess = new PriorityQueue<PPVertex>(new SortVertices());
 	}
@@ -350,7 +350,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 			this.pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
 		} else {
 			this.pricingProblemInfeasible=false;
-			for (Label label: PPvertices[0].unprocessedLabels) {
+			for (BackwardLabel label: PPvertices[0].unprocessedLabels) {
 				if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
 					
 					int load = dataModel.Q - label.remainingLoad;
@@ -449,7 +449,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	
 	}
 
-	public BiPredicate<Label, Label> getDominanceChecker(byte vx_type){
+	public BiPredicate<BackwardLabel, BackwardLabel> getDominanceChecker(byte vx_type){
 
 		switch (vx_type){
 
@@ -464,7 +464,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 		}
 	}
 
-	public boolean checkDominance(Label newLabel) {
+	public boolean checkDominance(BackwardLabel newLabel) {
 		
 		/* // DELETE BLOCK LATER
 		int[] lookup_route = new int[]{0,12,9,3,20,10,1}; // DELETE LATER
@@ -475,10 +475,10 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 			} */
 		
 		PPVertex currentVertex = PPvertices[newLabel.dominanceVertex];
-		BiPredicate<Label, Label> isDominatedChecker = getDominanceChecker(currentVertex.vertex_type);
+		BiPredicate<BackwardLabel, BackwardLabel> isDominatedChecker = getDominanceChecker(currentVertex.vertex_type);
 
-		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
-		for(Label existingLabel: currentVertex.unprocessedLabels) {
+		ArrayList<BackwardLabel> labelsToDelete = new ArrayList<BackwardLabel>();
+		for(BackwardLabel existingLabel: currentVertex.unprocessedLabels) {
 
 			/* // DELETE BLOCK LATER
 			boolean existing_is_discarded = false; 
@@ -498,7 +498,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
 
 		//boolean new_is_discarded = false; // DELETE LATER
-		for(Label existingLabel: currentVertex.processedLabels) {
+		for(BackwardLabel existingLabel: currentVertex.processedLabels) {
 			//int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
 			if(isDominatedChecker.test(newLabel, existingLabel)) return true;
 		}
@@ -510,7 +510,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
 	 */
-	public boolean isDominatedDepot(Label L1, Label L2) {
+	public boolean isDominatedDepot(BackwardLabel L1, BackwardLabel L2) {
 		
 		/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
@@ -529,7 +529,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
 	 */
-	public boolean isDominatedRouting(Label L1, Label L2) {
+	public boolean isDominatedRouting(BackwardLabel L1, BackwardLabel L2) {
 		
 		/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
@@ -562,7 +562,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 		return true;
 	}
 
-	public boolean isDominatedCharging(Label L1, Label L2) {
+	public boolean isDominatedCharging(BackwardLabel L1, BackwardLabel L2) {
 		
 		if (L2.chargingTime>L1.chargingTime) return false;
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false;
@@ -570,7 +570,7 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 
 	}
 
-	public BitSet get_feasible_finishing_ts(Label label){
+	public BitSet get_feasible_finishing_ts(BackwardLabel label){
 
 		BitSet bs = new BitSet();	
 
@@ -580,9 +580,9 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 		return bs;
 	}
 
-	public int[] get_route_sequence(Label label) {
+	public int[] get_route_sequence(BackwardLabel label) {
 
-		Label new_label = label.clone();
+		BackwardLabel new_label = label.clone();
 
 		ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
 		while(new_label.vertex != depotID) {	
@@ -722,8 +722,8 @@ public final class EC2FC_HeuristicPPSolver_CB extends AbstractPricingProblemSolv
 			if(vertex2.vertex_type==Tt) return -1;
 			if(vertex1.vertex_type==Tt) return 1;
 			
-			Label L1 = vertex1.unprocessedLabels.peek();
-			Label L2 = vertex2.unprocessedLabels.peek();
+			BackwardLabel L1 = vertex1.unprocessedLabels.peek();
+			BackwardLabel L2 = vertex2.unprocessedLabels.peek();
 
 			// If both vertices are C1, choose according the current unprocessed labels
 			if(L1.remainingLoad>L2.remainingLoad) return -1;

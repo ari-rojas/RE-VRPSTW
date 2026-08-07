@@ -9,7 +9,7 @@ import java.util.BitSet;
 /**
  * Class that represents a Label for the Labeling Algorithm
  */
-public class Label{
+public class BackwardLabel{
 
 	public int vertex; 						//current vertex of the label
 	public int dominanceVertex;				//vertex id for dominance checks
@@ -29,7 +29,7 @@ public class Label{
 	public boolean frcHasCandidate;
 
 	/** Creates a new Label.*/
-	public Label(int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
+	public BackwardLabel(int nextLabelIndex, double reducedCost, int remainingLoad, int remainingTime, int[] remainingEnergy, int chargingTime, boolean[] unreachable, boolean[] ng_path, boolean[] eta, HashSet<Integer> srcIndices) {
 		this.nextLabelIndex = nextLabelIndex;
 		this.reducedCost = reducedCost;
 		this.remainingLoad = remainingLoad;
@@ -48,16 +48,16 @@ public class Label{
 		return "l("+vertex+"): r="+reducedCost+",q="+remainingLoad+",t="+remainingTime+", e="+Arrays.toString(remainingEnergy) + ", b="+chargingTime + ", unreach="+ Arrays.toString(unreachable) + ", ng=" + Arrays.toString(ng_path) + ", eta=" + Arrays.toString(eta);
 	}
 
-	public Label clone(){
+	public BackwardLabel clone(){
 		
-		Label newLab = new Label(this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices);
+		BackwardLabel newLab = new BackwardLabel(this.nextLabelIndex, this.reducedCost, this.remainingLoad, this.remainingTime, this.remainingEnergy, this.chargingTime, this.unreachable, this.ng_path, this.eta, this.srcIndices);
 		newLab.vertex = this.vertex;
 		newLab.nextArc = this.nextArc;
 		return newLab;
 	}
 
 	/** @return a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object. */
-	public static class SortLabels implements Comparator<Label> {
+	public static class SortLabels implements Comparator<BackwardLabel> {
 
 		public int superDepotID;
 		public int T_startID;
@@ -68,7 +68,7 @@ public class Label{
 		}
 
 		@Override
-		public int compare(Label L1, Label L2) {
+		public int compare(BackwardLabel L1, BackwardLabel L2) {
 
 			// If the labels are at the Super Depot Node
 			if (L1.dominanceVertex == superDepotID) {

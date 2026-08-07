@@ -2,6 +2,7 @@ package columnGeneration;
 
 import model.EVRPTW;
 import model.EVRPTW.Arc;
+import model.EVRPTW.PPArc;
 import model.EVRPTW.Vertex;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,9 +27,6 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 	public Vertex[] vertices = dataModel.vertices; 			//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 			//labels that need be processed
-	public final int numCols = 400; 						//maximum number of routes (columns) allowed
-	public int[] infeasibleArcs; 						//arcs that cannot be used by branching
-	public final int similarityThreshold = 5; 				//diversification of columns
 
 	public double bestReducedCost;
 	private int Gamma;
@@ -44,10 +42,9 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	public CCR_ExactPPSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
 		this.name="ExactLabelingSolver"; //Set a name for the solver
-		this.infeasibleArcs = new int[dataModel.numArcs];
 		this.nodesToProcess = new PriorityQueue<Vertex>(dataModel.V, new SortVertices());
 		this.Gamma = dataModel.gamma;
-		this.depotID = dataModel.C+1;
+		this.depotID = dataModel.T_startID;
 	}
 
 	/**
@@ -61,10 +58,10 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 		// Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
-		Label initialLabel = new Label(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
-		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.vertex = depotID; initialLabel.nextArc = depotID;
-		this.nodesToProcess.add(vertices[depotID]);
-		vertices[depotID].unprocessedLabels.add(initialLabel);
+		CCRLabel initialLabel = new CCRLabel(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
+		initialLabel.index = 0; initialLabel.vertex = dataModel.C+1; initialLabel.nextArc = 0;
+		this.nodesToProcess.add(vertices[dataModel.C+1]);
+		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
 		
 		////////////////////////////////////////////
 		/// Routing Labeling
@@ -73,11 +70,10 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		this.nLabels = 0;
 		long startTime = System.currentTimeMillis();
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
-			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
+			ArrayList<CCRLabel> labelsToProcessNext = routingLabelsToProcessNext();
 			Set<Arc> incomingArcs = new HashSet<Arc>(dataModel.graph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
-			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
 			
-			for (Label currentLabel: labelsToProcessNext) {
+			for (CCRLabel currentLabel: labelsToProcessNext) {
 				
 				boolean isDominated = checkRoutingDominance(currentLabel);
 				if(isDominated) continue;
@@ -91,14 +87,14 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		}
 
 		////////////////////////////////////////////
-		/// SuperDepot Labels
+		/// Depot Labels
 		////////////////////////////////////////////
 		
-		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) vertices[0].unprocessedLabels.clear();
+		if (System.currentTimeMillis()>=timeLimit) vertices[0].unprocessedLabels.clear();
 		
 		while (!vertices[0].unprocessedLabels.isEmpty()){
 
-			Label currentLabel = vertices[0].unprocessedLabels.poll();
+			CCRLabel currentLabel = vertices[0].unprocessedLabels.poll();
 			boolean isDominated = checkDepotDominance(currentLabel);
 			if(isDominated) continue;
 			
@@ -115,9 +111,9 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		////////////////////////////////////
 		
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
-			ArrayList<Label> labelsToProcessNext = chargingLabelsToProcessNext();
+			ArrayList<CCRLabel> labelsToProcessNext = chargingLabelsToProcessNext();
 			
-			for (Label currentLabel: labelsToProcessNext) {
+			for (CCRLabel currentLabel: labelsToProcessNext) {
 				
 				boolean isDominated = checkChargingDominance(currentLabel);
 				if(isDominated) continue;
@@ -137,17 +133,17 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	/**
 	 * Selects a set of labels to process (the one with the most remaining load)
 	 */
-	public ArrayList<Label> routingLabelsToProcessNext(){
+	public ArrayList<CCRLabel> routingLabelsToProcessNext(){
 
-		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
+		ArrayList<CCRLabel> labelsToProcessNext = new ArrayList<CCRLabel>();
 		Vertex currentVertex = nodesToProcess.poll();
 		
 		while(true) {
-			Label currentLabel = currentVertex.unprocessedLabels.poll();
+			CCRLabel currentLabel = currentVertex.unprocessedLabels.poll();
 			if(labelsToProcessNext.isEmpty()) labelsToProcessNext.add(currentLabel);
 			else {
 				boolean isDominated = false;
-				for(Label L2: labelsToProcessNext) {
+				for(CCRLabel L2: labelsToProcessNext) {
 					
 					isDominatedRouting(currentLabel, L2);
 					if(isDominated) break;
@@ -161,9 +157,9 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		return labelsToProcessNext;
 	}
 
-	public ArrayList<Label> chargingLabelsToProcessNext(){
+	public ArrayList<CCRLabel> chargingLabelsToProcessNext(){
 
-		ArrayList<Label> labelsToProcessNext = new ArrayList<Label>();
+		ArrayList<CCRLabel> labelsToProcessNext = new ArrayList<CCRLabel>();
 		Vertex currentVertex = nodesToProcess.poll();
 		
 		while (!currentVertex.unprocessedLabels.isEmpty()) labelsToProcessNext.add(currentVertex.unprocessedLabels.poll());
@@ -204,12 +200,13 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	}
 
 	/**
-	 * Label extension procedure
+	 * CCRLabel extension procedure
 	 */
-	public Label extendLabel(Label currentLabel, Arc arc) {
+	public CCRLabel extendLabel(CCRLabel currentLabel, Arc arc) {
 
 		int source = arc.tail;
-		if ((source >= 1 && source <= dataModel.C) && (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1])) return null;
+		if (source>=1 && source<=dataModel.C)
+			if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 
@@ -243,17 +240,15 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 		// Unreachable resources
 		boolean[] unreachable = null;
-		boolean[] ng_path = null;
-		Label extendedLabel = null;
+		CCRLabel extendedLabel = null;
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source > 0) {
 
 			// Mark unreachable customers and ng-path cycling restrictions
 			unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
-			ng_path = new boolean[dataModel.C];
 
-			ng_path[source-1] = true;
+			unreachable[source-1] = true;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
@@ -262,13 +257,9 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 					remainingEnergy[dataModel.gamma]-c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy<0) {
 					unreachable[c.tail-1] = true;
 				}
-
-				//ng-path
-				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
-				else ng_path[c.tail-1] = false;
 			}
 
-			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
 			extendedLabel.vertex = source;
 			extendedLabel.nextArc = arc.id;
 			vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
@@ -283,7 +274,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 			/// Bounding Procedure
 			////////////////////////////////////////////
 
-			extendedLabel = new Label(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
+			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
 			extendedLabel.vertex = source;
 			extendedLabel.nextArc = arc.id;
 
@@ -295,16 +286,14 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		
 		}
 
-		nLabels++;
-		
 		return extendedLabel;
 
 	}
 
 	/**
-	 * Label extension procedure
+	 * CCRLabel extension procedure
 	 */
-	public Label extendLabelChargingTime(Label currentLabel, Arc arc) {
+	public CCRLabel extendLabelChargingTime(CCRLabel currentLabel, Arc arc) {
 
 		int source = arc.tail;
 
@@ -315,19 +304,19 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		if (reducedCost >= -dataModel.precision) return null; // Only negative reduced costs labels will get to the source node
 		
 		int chargingTime = currentLabel.chargingTime;
-		Label extendedLabel = null;
+		CCRLabel extendedLabel = null;
 		if(source != dataModel.V) {
 			chargingTime -= 1;
 			if (chargingTime < 0) return null;
 
-			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 			vertices[source].unprocessedLabels.add(extendedLabel);
 			if (vertices[source].unprocessedLabels.size() == 1) nodesToProcess.add(vertices[source]);
 
 		} else {
 			if (chargingTime > 0) return null;
 
-			extendedLabel = new Label(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
+			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, currentLabel.remainingLoad, currentLabel.remainingTime, currentLabel.remainingEnergy, chargingTime , currentLabel.unreachable, currentLabel.ng_path, currentLabel.eta, currentLabel.srcIndices);
 			vertices[source].unprocessedLabels.add(extendedLabel);
 		
 		}
@@ -363,13 +352,13 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	public void close() {
 		if(this.pricingProblemInfeasible) {
 			for (int i = 0; i < vertices.length; i++) {
-				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(Gamma, dataModel.C));
+				vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
+				vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V));
 			}
 		}else {
 			for (int i = 0; i < vertices.length; i++) {
-				vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-				vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(Gamma, dataModel.C));
+				vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
+				vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V));
 				vertices[i].SRCIndices = new ArrayList<>(); 
 			}
 		}
@@ -381,8 +370,8 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	 */
 	public void restart() {
 		for (int i = 0; i < vertices.length; i++) {
-			vertices[i].processedLabels = new ArrayList<Label>(dataModel.numArcs);
-			vertices[i].unprocessedLabels =  new PriorityQueue<Label>(dataModel.numArcs, new Label.SortLabels(Gamma, dataModel.C));
+			vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
+			vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V));
 		}
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 	}
@@ -399,8 +388,8 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
-		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
-		List<Route> nonElementaryRoutes=new ArrayList<>(this.numCols);  //list of nonelementary routes
+		List<Route> newRoutes = new ArrayList<>();  			//list of routes
+		List<Route> nonElementaryRoutes = new ArrayList<>();  //list of nonelementary routes
 
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			this.runLabeling();
@@ -417,39 +406,67 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 				
 			} else {
 				this.pricingProblemInfeasible=false;
-				for (Label label: vertices[dataModel.V].unprocessedLabels) {
+				for (CCRLabel label: vertices[dataModel.V].unprocessedLabels) {
 					int departureTime = label.remainingTime;
 					int load = dataModel.Q - label.remainingLoad;
 					if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
 						boolean isElementary = true;
-						HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C); int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
-						ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-						int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
-						int currentVertex = label.vertex;
-						while(currentVertex!=dataModel.C+1) {
-							Arc currentArc = dataModel.arcs[label.nextArc];
-							cost+=currentArc.cost;
-							int nextVertex = currentArc.head;
-							if (currentVertex>=1 && currentVertex<=dataModel.C) {
-								if(route.containsKey(currentVertex)) {route.replace(currentVertex, route.get(currentVertex)+1); isElementary = false; } 
-								else route.put(currentVertex, 1);
-							}else if(currentVertex!=dataModel.V && currentVertex!=0) chargingTime++;
+						double reducedCost = label.reducedCost; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+					
+					HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
+					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+					int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
+					int i = label.vertex;
+					while(i != 0) {
+						Arc currentArc = dataModel.arcs[label.nextArc];
+						int j = currentArc.head;
+						if (i != dataModel.V) chargingTime++;
 
-							label = vertices[nextVertex].processedLabels.get(label.nextLabelIndex);
-							if(currentArc.tail>=0 && currentArc.tail<=dataModel.C) arcs.add(currentArc.id);
-							currentVertex = nextVertex;
-						}
+						label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+					}
 
-						//Gets the route sequence (of customers)
-						int[] routeSequence = new int[arcs.size()-1];
-						int counter = 0;
-						for(Integer arc: arcs) {
-							if(counter>=routeSequence.length) break;
-							routeSequence[counter] = dataModel.arcs[arc].head;
-							counter++;
-						}
-						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
-						if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
+					int last_t = initialChargingTime + chargingTime - 1;
+					ArrayList<Integer> PParcs = new ArrayList<Integer>();
+
+					// Retrieve first customer visited in the route, and the corresponding EC2FC arc
+					int cost = 0; 
+					Arc currentArc = dataModel.arcs[label.nextArc];
+					cost += currentArc.cost; int j = currentArc.head;
+					PPArc currentPPArc = dataModel.PPgraph.getEdge(dataModel.T_startID+last_t, dataModel.C0_startID+j);
+					arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
+					label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+
+					// Retrieve second customer visited in the route, and the corresponding AR0 arc
+					currentArc = dataModel.arcs[label.nextArc];
+					cost += currentArc.cost; j = currentArc.head;
+					int j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
+					currentPPArc = dataModel.PPgraph.getEdge(dataModel.C0_startID+i, j_PPix);
+					route.put(i, 1); arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
+					label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+
+					while(i != dataModel.C+1) {
+						currentArc = dataModel.arcs[label.nextArc];
+						cost += currentArc.cost; j = currentArc.head;
+						j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
+						currentPPArc = dataModel.PPgraph.getEdge(dataModel.C1_startID+i, j_PPix);
+						if(route.containsKey(i)) {route.replace(i, route.get(i)+1); isElementary = false; } 
+						else route.put(i, 1);
+						arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
+
+						label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+					}
+
+					//Gets the route sequence (of customers)
+					int[] routeSequence = new int[arcs.size()-1];
+					int counter = 0;
+					for(Integer arc: arcs) {
+						if(counter>=routeSequence.length) break;
+						routeSequence[counter] = dataModel.arcs[arc].head;
+						counter++;
+					}
+					Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
+					
+					if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
 						else {nonElementaryRoutes.add(column);}
 					}
 				}
@@ -482,31 +499,14 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		//Already done by the heuristic labeling (must be invoked first)
 	}
 
-	public boolean checkRoutingDominance(Label newLabel) {
-		
-		/* // DELETE BLOCK LATER
-		int[] lookup_route = new int[]{0,12,9,3,20,10,1}; // DELETE LATER
-		int[] nl_sequence = get_route_sequence(newLabel); // DELETE LATER
-		boolean is_nl_subset = false; // DELETE LATER
-		if (nl_sequence.length <= lookup_route.length){
-			is_nl_subset = sequence_is_subset(nl_sequence, lookup_route);
-			} */
+	public boolean checkRoutingDominance(CCRLabel newLabel) {
 		
 		Vertex currentVertex = vertices[newLabel.vertex];
 
-		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
-		for(Label existingLabel: currentVertex.unprocessedLabels) {
-
-			/* // DELETE BLOCK LATER
-			boolean existing_is_discarded = false; 
-			int[] el_sequence = get_route_sequence(existingLabel); 
-			boolean is_el_subset = false;
-			if (el_sequence.length <= lookup_route.length){ 
-				is_el_subset = sequence_is_subset(el_sequence, lookup_route);
-			} */
+		ArrayList<CCRLabel> labelsToDelete = new ArrayList<CCRLabel>();
+		for(CCRLabel existingLabel: currentVertex.unprocessedLabels) {
 
 			if(isDominatedRouting(existingLabel, newLabel)) {
-				//existing_is_discarded = true; // DELETE LATER
 				labelsToDelete.add(existingLabel);
 			}
 			
@@ -514,39 +514,37 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
 
-		//boolean new_is_discarded = false; // DELETE LATER
-		for(Label existingLabel: currentVertex.processedLabels) {
-			//int[] el_sequence = get_route_sequence(existingLabel); // DELETE LATER
+		for(CCRLabel existingLabel: currentVertex.processedLabels) {
 			if(isDominatedRouting(newLabel, existingLabel)) return true;
 		}
 
 		return false;
 	}
 
-	public boolean checkDepotDominance(Label newLabel) {
+	public boolean checkDepotDominance(CCRLabel newLabel) {
 		
 		Vertex currentVertex = vertices[0];
 
-		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
-		for(Label existingLabel: currentVertex.unprocessedLabels)  if(isDominatedDepot(existingLabel, newLabel))  labelsToDelete.add(existingLabel);
+		ArrayList<CCRLabel> labelsToDelete = new ArrayList<CCRLabel>();
+		for(CCRLabel existingLabel: currentVertex.unprocessedLabels)  if(isDominatedDepot(existingLabel, newLabel))  labelsToDelete.add(existingLabel);
 		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
 
-		for(Label existingLabel: currentVertex.processedLabels) if(isDominatedDepot(newLabel, existingLabel)) return true;
+		for(CCRLabel existingLabel: currentVertex.processedLabels) if(isDominatedDepot(newLabel, existingLabel)) return true;
 
 		return false;
 	}
 
-	public boolean checkChargingDominance(Label newLabel) {
+	public boolean checkChargingDominance(CCRLabel newLabel) {
 		
 		Vertex currentVertex = vertices[newLabel.vertex];
 
-		ArrayList<Label> labelsToDelete = new ArrayList<Label>();
-		for(Label existingLabel: currentVertex.unprocessedLabels) if(isDominatedCharging(existingLabel, newLabel)) labelsToDelete.add(existingLabel);
+		ArrayList<CCRLabel> labelsToDelete = new ArrayList<CCRLabel>();
+		for(CCRLabel existingLabel: currentVertex.unprocessedLabels) if(isDominatedCharging(existingLabel, newLabel)) labelsToDelete.add(existingLabel);
 		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
 
-		for(Label existingLabel: currentVertex.processedLabels) if(isDominatedCharging(newLabel, existingLabel)) return true;
+		for(CCRLabel existingLabel: currentVertex.processedLabels) if(isDominatedCharging(newLabel, existingLabel)) return true;
 
 		return false;
 	}
@@ -555,7 +553,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
 	 */
-	public boolean isDominatedDepot(Label L1, Label L2) {
+	public boolean isDominatedDepot(CCRLabel L1, CCRLabel L2) {
 		
 		/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
@@ -571,7 +569,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	 * Verifies if L1 is (strongly) dominated by L2
 	 * @param L1, L2 labels
 	 */
-	public boolean isDominatedRouting(Label L1, Label L2) {
+	public boolean isDominatedRouting(CCRLabel L1, CCRLabel L2) {
 		
 		/* int[] nl_sequence = get_route_sequence(L1); // DELETE LATER
 		int[] el_sequence = get_route_sequence(L2); // DELETE LATER */
@@ -601,7 +599,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 		// Ng-paths and unreachable resources
 		Vertex currentVertex = vertices[L1.vertex];
-		for(int i: vertices[currentVertex.id].neighbors) {
+		for(int i: currentVertex.neighbors) {
 			
 			//boolean check_binaries = (L2.ng_path[i-1] || L2.unreachable[i-1]) && !(L1.ng_path[i-1] || L1.unreachable[i-1]);
 			boolean other_way = L2.ng_path[i-1] && (!L1.unreachable[i-1] && !L1.ng_path[i-1]); // Dani's way
@@ -613,7 +611,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		return true;
 	}
 
-	public boolean isDominatedCharging(Label L1, Label L2) {
+	public boolean isDominatedCharging(CCRLabel L1, CCRLabel L2) {
 		
 		if (L2.chargingTime>L1.chargingTime) return false;
 		if (L2.reducedCost-L1.reducedCost>dataModel.precision) return false;
@@ -621,9 +619,9 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 	}
 
-	public int[] get_route_sequence(Label label) {
+	public int[] get_route_sequence(CCRLabel label) {
 
-		Label new_label = label.clone();
+		CCRLabel new_label = label.clone();
 
 		ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
 		int currentVertex = new_label.vertex;
@@ -676,13 +674,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	 */
 	@Override
 	public void branchingDecisionPerformed(BranchingDecision bd) {
-		if(bd instanceof FixArc) { 			//Fixing one arc
-			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasibleArcs) this.infeasibleArcs[infeasibleArc] ++;
-		}else if(bd instanceof RemoveArc) {//Removing one arc
-			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arc] ++;
-		}
+		
 	}
 
 	/**
@@ -691,13 +683,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	 */
 	@Override
 	public void branchingDecisionReversed(BranchingDecision bd) {
-		if(bd instanceof FixArc) { 			//Fixing one arc
-			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasibleArcs) this.infeasibleArcs[infeasibleArc] --;
-		}else if(bd instanceof RemoveArc) {//Removing one arc
-			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arc] --;
-		}
+		
 	}
 
 	/**
@@ -717,18 +703,18 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		@Override
 		public int compare(Vertex vertex1, Vertex vertex2) {
 
-			if(vertex2.id==0 && (vertex1.id>0 && vertex1.id<=dataModel.C)) return -1;
-			if(vertex1.id==0 && (vertex2.id>0 && vertex2.id<=dataModel.C)) return 1;
+			if(vertex2.node_id==0 && (vertex1.node_id>0 && vertex1.node_id<=dataModel.C)) return -1;
+			if(vertex1.node_id==0 && (vertex2.node_id>0 && vertex2.node_id<=dataModel.C)) return 1;
 
-			if(vertex1.id<dataModel.V && vertex2.id>=dataModel.V) return -1;
-			if(vertex1.id>=dataModel.V && vertex2.id<dataModel.V) return 1;
-			if(vertex1.id>=dataModel.V && vertex2.id>=dataModel.V) {
-				if(vertex1.id>vertex2.id) return -1;
+			if(vertex1.node_id<dataModel.V && vertex2.node_id>=dataModel.V) return -1;
+			if(vertex1.node_id>=dataModel.V && vertex2.node_id<dataModel.V) return 1;
+			if(vertex1.node_id>=dataModel.V && vertex2.node_id>=dataModel.V) {
+				if(vertex1.node_id>vertex2.node_id) return -1;
 				else return 1;
 			}
 
-			Label L1 = vertex1.unprocessedLabels.peek();
-			Label L2 = vertex2.unprocessedLabels.peek();
+			CCRLabel L1 = vertex1.unprocessedLabels.peek();
+			CCRLabel L2 = vertex2.unprocessedLabels.peek();
 			if(L1.remainingLoad>L2.remainingLoad) return -1;
 			if(L1.remainingLoad<L2.remainingLoad) return 1;
 			if(L1.remainingEnergy[dataModel.gamma]>L2.remainingEnergy[dataModel.gamma]) return -1;

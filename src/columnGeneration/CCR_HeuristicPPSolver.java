@@ -15,6 +15,7 @@ import branchAndPrice.FixArc;
 import branchAndPrice.RemoveArc;
 import model.EVRPTW;
 import model.EVRPTW.Arc;
+import model.EVRPTW.PPArc;
 import model.EVRPTW.Vertex;
 
 /**
@@ -25,9 +26,6 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 
 	public Vertex[] vertices = dataModel.vertices; 						//vertices of the instance
 	public PriorityQueue<Vertex> nodesToProcess; 						//labels that need be processed
-	public final int numCols = 400; 									//maximum number of routes (columns) allowed
-	public int[] infeasibleArcs; 										//arcs that cannot be used by branching
-	public final int similarityThreshold = 5; 							//for the disjoint columns diversification strategy
 
 	private int Gamma;
 	private int depotID;
@@ -36,10 +34,9 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 	public CCR_HeuristicPPSolver(EVRPTW dataModel, PricingProblem pricingProblem) {
 		super(dataModel, pricingProblem);
 		this.name="HeuristicLabelingSolver"; //Set a name for the solver
-		this.infeasibleArcs = new int[dataModel.numArcs];
 		this.nodesToProcess = new PriorityQueue<Vertex>(dataModel.V, new SortVertices());
 		this.Gamma = dataModel.gamma;
-		this.depotID = dataModel.C+1;
+		this.depotID = dataModel.T_startID;
 	}
 
 	/**
@@ -50,9 +47,9 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 		// Initialization
 		int[] remain_energy = new int[Gamma + 1]; Arrays.fill( remain_energy, dataModel.E);
 		CCRLabel initialLabel = new CCRLabel(0, -pricingProblem.dualCost, dataModel.Q, vertices[dataModel.C+1].closing_tw, remain_energy, 0,new boolean[dataModel.C], new boolean[dataModel.C], new boolean[pricingProblem.subsetRowCuts.size()], new HashSet<Integer>(pricingProblem.subsetRowCuts.size()));
-		initialLabel.index = 0; initialLabel.vertex = depotID; initialLabel.vertex = depotID; initialLabel.nextArc = depotID;
-		this.nodesToProcess.add(vertices[depotID]);
-		vertices[depotID].unprocessedLabels.add(initialLabel);
+		initialLabel.index = 0; initialLabel.vertex = dataModel.C+1; initialLabel.nextArc = 0;
+		this.nodesToProcess.add(vertices[dataModel.C+1]);
+		vertices[dataModel.C+1].unprocessedLabels.add(initialLabel);
 		
 		////////////////////////////////////////////
 		/// Routing Labeling
@@ -62,7 +59,6 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<CCRLabel> labelsToProcessNext = routingLabelsToProcessNext();
 			Set<Arc> incomingArcs = new HashSet<Arc>(dataModel.graph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
-			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
 			
 			for (CCRLabel currentLabel: labelsToProcessNext) {
 				
@@ -78,7 +74,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 		}
 
 		////////////////////////////////////////////
-		/// SuperDepot Labels
+		/// Depot Labels
 		////////////////////////////////////////////
 		
 		if (System.currentTimeMillis()>=timeLimit) vertices[0].unprocessedLabels.clear();
@@ -283,7 +279,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 	/**
 	 * CCRLabel extension procedure
 	 */
-	public CCRLabel extendLabelChargingTime(Label currentLabel, Arc arc) {
+	public CCRLabel extendLabelChargingTime(CCRLabel currentLabel, Arc arc) {
 
 		int source = arc.tail;
 
@@ -372,7 +368,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 	@Override
 	protected List<Route> generateNewColumns() {
 
-		List<Route> newRoutes=new ArrayList<>(this.numCols);  			//list of routes
+		List<Route> newRoutes = new ArrayList<>();  			//list of routes
 		
 		this.runLabeling();
 
@@ -386,6 +382,8 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 				int load = dataModel.Q - label.remainingLoad;
 				if (label.reducedCost<=-dataModel.precision) {		//generate new column if it has negative reduced cost
 					
+					double reducedCost = label.reducedCost; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
+					
 					HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
 					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
 					int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
@@ -398,12 +396,31 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 						label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
 					}
 
-					int cost = 0; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma]; double reducedCost = label.reducedCost;
+					int last_t = initialChargingTime + chargingTime - 1;
+					ArrayList<Integer> PParcs = new ArrayList<Integer>();
+
+					// Retrieve first customer visited in the route, and the corresponding EC2FC arc
+					int cost = 0; 
+					Arc currentArc = dataModel.arcs[label.nextArc];
+					cost += currentArc.cost; int j = currentArc.head;
+					PPArc currentPPArc = dataModel.PPgraph.getEdge(dataModel.T_startID+last_t, dataModel.C0_startID+j);
+					arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
+					label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+
+					// Retrieve second customer visited in the route, and the corresponding AR0 arc
+					currentArc = dataModel.arcs[label.nextArc];
+					cost += currentArc.cost; j = currentArc.head;
+					int j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
+					currentPPArc = dataModel.PPgraph.getEdge(dataModel.C0_startID+i, j_PPix);
+					route.put(i, 1); arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
+					label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+
 					while(i != dataModel.C+1) {
-						Arc currentArc = dataModel.arcs[label.nextArc];
-						cost += currentArc.cost;
-						int j = currentArc.head;
-						route.put(i, 1); arcs.add(currentArc.id);
+						currentArc = dataModel.arcs[label.nextArc];
+						cost += currentArc.cost; j = currentArc.head;
+						j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
+						currentPPArc = dataModel.PPgraph.getEdge(dataModel.C1_startID+i, j_PPix);
+						route.put(i, 1); arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
 
 						label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
 					}
@@ -567,13 +584,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 	 */
 	@Override
 	public void branchingDecisionPerformed(BranchingDecision bd) {
-		if(bd instanceof FixArc) { 			//Fixing one arc
-			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] ++;
-		}else if(bd instanceof RemoveArc) {//Removing one arc
-			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arcID] ++;
-		}
+		
 	}
 
 	/**
@@ -582,13 +593,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 	 */
 	@Override
 	public void branchingDecisionReversed(BranchingDecision bd) {
-		if(bd instanceof FixArc) { 			//Fixing one arc
-			FixArc fixArcDecision = (FixArc) bd;
-			for(int infeasibleArc: fixArcDecision.infeasiblePPArcs) this.infeasibleArcs[infeasibleArc] --;
-		}else if(bd instanceof RemoveArc) {	//Removing one arc
-			RemoveArc removeArcDecision= (RemoveArc) bd;
-			infeasibleArcs[removeArcDecision.arcID] --;
-		}
+		
 	}
 
 	/**
