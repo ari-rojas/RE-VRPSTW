@@ -210,6 +210,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			}
 
 		} while (foundNewColumns || hasNewCuts);
+
+		if (this.BBnodeID == 0 && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - config.PRECISION) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+			perform_fixing_by_reduced_cost(timeLimit);
+		}
 		
 		colGenSolveTime = System.currentTimeMillis() - colGenSolveTime;
 		notifier.fireFinishCGEvent();
@@ -322,10 +326,10 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			// If the IP found a better integer solution, the gap reduction is computed using the newly updated Upper Bound
 			this.gapReduction = (master.getObjective()-this.solutionMemory.previousMPBound)/(this.cutoffValue-this.solutionMemory.previousMPBound);
 			
-			if (this.PPSolverRequirement < 2 && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - config.PRECISION) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
-				perform_fixing_by_reduced_cost(timeLimit); this.PPSolverRequirement = 1; }
+			if (this.PPSolverRequirement == 1 && !masterSolutionIsInteger && (this.boundOnMasterObjective < this.cutoffValue - config.PRECISION) && (1-this.boundOnMasterObjective/this.cutoffValue) <= 0.05){
+				perform_fixing_by_reduced_cost(timeLimit);
+			}
 			
-			pricingProblems.get(0).frcCCRLabels.clear(); pricingProblems.get(0).frcEC2FCLabels.clear();
 			
 		}
 
