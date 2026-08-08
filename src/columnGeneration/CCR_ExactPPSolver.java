@@ -362,7 +362,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		pricingProblem.bwCCRLabels = new ArrayList<>(); pricingProblem.SRCIndices = new ArrayList<>();
 		pricingProblem.bwCCRLabels.add(null); pricingProblem.SRCIndices.add(null);
 		for (int i = 1; i <= dataModel.C; i++){
-			pricingProblem.bwCCRLabels.add(new ArrayList<>(vertices[dataModel.C1_startID+i].processedLabels));
+			pricingProblem.bwCCRLabels.add(new ArrayList<>(vertices[i].processedLabels));
 			pricingProblem.SRCIndices.add(new ArrayList<>(vertices[i].SRCIndices));
 		}
 		pricingProblem.bwCCRLabels.add(new ArrayList<>(vertices[dataModel.C+1].processedLabels));
