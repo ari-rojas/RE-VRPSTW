@@ -11,8 +11,6 @@ import java.util.Set;
 
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
-import branchAndPrice.FixArc;
-import branchAndPrice.RemoveArc;
 import model.EVRPTW;
 import model.EVRPTW.Arc;
 import model.EVRPTW.PPArc;
@@ -193,7 +191,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 
 		int source = arc.tail;
 		if (source > 0)
-			if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
+			if (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1]) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 

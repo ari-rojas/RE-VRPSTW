@@ -419,61 +419,61 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 						boolean isElementary = true;
 						double reducedCost = label.reducedCost; int energy = dataModel.E-label.remainingEnergy[dataModel.gamma];
 					
-					HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
-					ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
-					int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
-					int i = label.vertex;
-					while(i != 0) {
+						HashMap<Integer, Integer> route = new HashMap<Integer, Integer>(dataModel.C);
+						ArrayList<Integer> arcs = new ArrayList<Integer>(dataModel.C);
+						int initialChargingTime = dataModel.arcs[label.nextArc].head-dataModel.V; int chargingTime = 0;
+						int i = label.vertex;
+						while(i != 0) {
+							Arc currentArc = dataModel.arcs[label.nextArc];
+							int j = currentArc.head;
+							if (i != dataModel.V) chargingTime++;
+
+							label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+						}
+
+						int last_t = initialChargingTime + chargingTime - 1;
+						ArrayList<Integer> PParcs = new ArrayList<Integer>();
+
+						// Retrieve first customer visited in the route, and the corresponding EC2FC arc
+						int cost = 0; 
 						Arc currentArc = dataModel.arcs[label.nextArc];
-						int j = currentArc.head;
-						if (i != dataModel.V) chargingTime++;
-
+						cost += currentArc.cost; int j = currentArc.head;
+						PPArc currentPPArc = dataModel.PPgraph.getEdge(dataModel.T_startID+last_t, dataModel.C0_startID+j);
+						arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
 						label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
-					}
 
-					int last_t = initialChargingTime + chargingTime - 1;
-					ArrayList<Integer> PParcs = new ArrayList<Integer>();
-
-					// Retrieve first customer visited in the route, and the corresponding EC2FC arc
-					int cost = 0; 
-					Arc currentArc = dataModel.arcs[label.nextArc];
-					cost += currentArc.cost; int j = currentArc.head;
-					PPArc currentPPArc = dataModel.PPgraph.getEdge(dataModel.T_startID+last_t, dataModel.C0_startID+j);
-					arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
-					label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
-
-					// Retrieve second customer visited in the route, and the corresponding AR0 arc
-					currentArc = dataModel.arcs[label.nextArc];
-					cost += currentArc.cost; j = currentArc.head;
-					int j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
-					currentPPArc = dataModel.PPgraph.getEdge(dataModel.C0_startID+i, j_PPix);
-					route.put(i, 1); arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
-					label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
-
-					while(i != dataModel.C+1) {
+						// Retrieve second customer visited in the route, and the corresponding AR0 arc
 						currentArc = dataModel.arcs[label.nextArc];
 						cost += currentArc.cost; j = currentArc.head;
-						j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
-						currentPPArc = dataModel.PPgraph.getEdge(dataModel.C1_startID+i, j_PPix);
-						if(route.containsKey(i)) {route.replace(i, route.get(i)+1); isElementary = false; } 
-						else route.put(i, 1);
-						arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
-
+						int j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
+						currentPPArc = dataModel.PPgraph.getEdge(dataModel.C0_startID+i, j_PPix);
+						route.put(i, 1); arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
 						label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
-					}
 
-					//Gets the route sequence (of customers)
-					int[] routeSequence = new int[arcs.size()-1];
-					int counter = 0;
-					for(Integer arc: arcs) {
-						if(counter>=routeSequence.length) break;
-						routeSequence[counter] = dataModel.arcs[arc].head;
-						counter++;
-					}
-					Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
-					
-					if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
-						else {nonElementaryRoutes.add(column);}
+						while(i != dataModel.C+1) {
+							currentArc = dataModel.arcs[label.nextArc];
+							cost += currentArc.cost; j = currentArc.head;
+							j_PPix = dataModel.C1_startID+j; if (j == dataModel.C+1) j_PPix = depotID;
+							currentPPArc = dataModel.PPgraph.getEdge(dataModel.C1_startID+i, j_PPix);
+							if(route.containsKey(i)) {route.replace(i, route.get(i)+1); isElementary = false; } 
+							else route.put(i, 1);
+							arcs.add(currentArc.id); PParcs.add(currentPPArc.id);
+
+							label = vertices[j].processedLabels.get(label.nextLabelIndex); i = j;
+						}
+
+						//Gets the route sequence (of customers)
+						int[] routeSequence = new int[arcs.size()-1];
+						int counter = 0;
+						for(Integer arc: arcs) {
+							if(counter>=routeSequence.length) break;
+							routeSequence[counter] = dataModel.arcs[arc].head;
+							counter++;
+						}
+						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
+						
+						if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
+							else {nonElementaryRoutes.add(column);}
 					}
 				}
 				if (!existsElementaryRoute) {
