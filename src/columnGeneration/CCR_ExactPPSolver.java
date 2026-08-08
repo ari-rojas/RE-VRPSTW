@@ -473,13 +473,13 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, PParcs, initialChargingTime+chargingTime-1, chargingTime);
 						
 						if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
-							else {nonElementaryRoutes.add(column);}
+						else {nonElementaryRoutes.add(column);}
 					}
 				}
 				if (!existsElementaryRoute) {
 					maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes); 
 					if(!maxNeighborhoodSize) {
-						nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>();
+						nonElementaryRoutes = new ArrayList<Route>(); newRoutes = new ArrayList<>();
 						restart();} //restart //run again
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
@@ -519,9 +519,11 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		}
 		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
-
+		
 		for(CCRLabel existingLabel: currentVertex.processedLabels) {
-			if(isDominatedRouting(newLabel, existingLabel)) return true;
+			if(isDominatedRouting(newLabel, existingLabel)) {
+				return true;
+			}
 		}
 
 		return false;
@@ -664,6 +666,8 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 		int m = sequence.length;
         int n = lookup_sequence.length;
+
+		if (m > n) return false;
 
         // Compare the last m elements of n2 with n1
         for (int i = 0; i < m; i++) {
