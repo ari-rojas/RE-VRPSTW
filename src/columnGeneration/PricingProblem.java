@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblem;
 
@@ -182,6 +183,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public void runBackwardLabeling(long timeLimit) {
 
+		setObjective();
 		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.PPvertices.length-dataModel.C, new SortBackwardVertices());
 
 		// Initialization
@@ -214,18 +216,48 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			}
 		}
 
-		this.bwEC2FCLabels = new ArrayList<>(); this.bwEC2FCLabels.add(null);
-		for (int i = 1; i <= dataModel.C; i++) {
-			this.bwEC2FCLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
-			PPvertices[dataModel.C1_startID+i].processedLabels.clear();
+		if (System.currentTimeMillis() < timeLimit){
+			this.bwEC2FCLabels = new ArrayList<>(); this.bwEC2FCLabels.add(null);
+			for (int i = 1; i <= dataModel.C; i++) {
+				this.bwEC2FCLabels.add(new ArrayList<>(PPvertices[dataModel.C1_startID+i].processedLabels));
+				PPvertices[dataModel.C1_startID+i].processedLabels.clear();
+			}
+			this.bwEC2FCLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
+			PPvertices[depotID].processedLabels.clear();
+
+			long totalTime = System.currentTimeMillis()-startTime;
+			dataModel.exactPricingTime+=totalTime;
+			if (dataModel.print_log) logger.debug("Time running backward labeling algorithm: " + getTimeInSeconds(totalTime)); 
 		}
-		this.bwEC2FCLabels.add(new ArrayList<>(PPvertices[depotID].processedLabels));
-		PPvertices[depotID].processedLabels.clear();
 
-		long totalTime = System.currentTimeMillis()-startTime;
-		dataModel.exactPricingTime+=totalTime;
-		if (dataModel.print_log) logger.debug("Time running backward labeling algorithm: " + getTimeInSeconds(totalTime)); 
+	}
 
+	protected void setObjective() {
+
+		// Update the objective function with the new dual values
+		DirectedWeightedMultigraph<Integer, PPArc> PPgraph = dataModel.PPgraph;
+
+		// Routing Arcs
+		for (int i = 1; i <= dataModel.C; i++){
+			int vertex_id = dataModel.C0_startID+i;
+			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
+				arc.modifiedCost = dataModel.graph.getEdge(0,i).cost + arc.routing_arc.cost - this.dualCosts[i-1];
+			}
+
+			vertex_id = dataModel.C1_startID+i;
+			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
+				arc.modifiedCost = arc.routing_arc.cost - this.dualCosts[i-1];
+			}
+		}
+
+		// Charging Scheduling Arcs
+		for (int t = 1; t <= dataModel.last_charging_period; t++){
+			int vertex_id = dataModel.T_startID+t;
+			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
+				arc.modifiedCost = -this.dualCosts[dataModel.C+t-1];
+			}
+		}
+	
 	}
 
 	public ArrayList<BackwardLabel> routingBackwardLabelsToProcessNext(){
