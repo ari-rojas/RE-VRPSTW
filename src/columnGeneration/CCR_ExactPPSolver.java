@@ -238,6 +238,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 		// Unreachable resources
 		boolean[] unreachable = null;
+		boolean[] ng_path = null;
 		CCRLabel extendedLabel = null;
 
 		//Mark unreachable customers and ng-path cycling restrictions
@@ -245,8 +246,9 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 
 			// Mark unreachable customers and ng-path cycling restrictions
 			unreachable = Arrays.copyOf(currentLabel.unreachable.clone(), currentLabel.unreachable.length);
+			ng_path = new boolean[dataModel.C];
 
-			unreachable[source-1] = true;
+			ng_path[source-1] = true;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==0 || unreachable[c.tail-1]) continue;
 				//unreachable
@@ -255,9 +257,13 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 					remainingEnergy[dataModel.gamma]-c.min_energy - dataModel.graph.getEdge(0, c.tail).min_energy<0) {
 					unreachable[c.tail-1] = true;
 				}
+
+				//ng-path
+				if (currentLabel.ng_path[c.tail-1] && vertices[source].neighbors.contains(c.tail)) ng_path[c.tail-1] = true;
+				else ng_path[c.tail-1] = false;
 			}
 
-			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
+			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
 			extendedLabel.vertex = source;
 			extendedLabel.nextArc = arc.id;
 			vertices[extendedLabel.vertex].unprocessedLabels.add(extendedLabel);
@@ -272,7 +278,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 			/// Bounding Procedure
 			////////////////////////////////////////////
 
-			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, currentLabel.ng_path, eta, srcIndices);
+			extendedLabel = new CCRLabel(currentLabel.index, reducedCost, remainingLoad, remainingTime, remainingEnergy, chargingTime,unreachable, ng_path, eta, srcIndices);
 			extendedLabel.vertex = source;
 			extendedLabel.nextArc = arc.id;
 
@@ -519,7 +525,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		}
 		currentVertex.unprocessedLabels.removeAll(labelsToDelete);
 		if(currentVertex.unprocessedLabels.isEmpty()) nodesToProcess.remove(currentVertex);
-		
+
 		for(CCRLabel existingLabel: currentVertex.processedLabels) {
 			if(isDominatedRouting(newLabel, existingLabel)) {
 				return true;
