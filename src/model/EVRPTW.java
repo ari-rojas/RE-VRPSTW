@@ -48,6 +48,7 @@ public final class EVRPTW implements ModelInterface {
 	public Vertex[] vertices; 								//set of routing vertices
 	public Arc[] arcs; 										//set of routing arcs
 	public int numArcsRoadNetwork; 							//number of arcs in the road network
+	public int CCRnumArcs;
 	
 	public DirectedWeightedMultigraph<Integer, PPArc> PPgraph;	//pricing problem graph
 	public PPVertex[] PPvertices;
@@ -342,7 +343,7 @@ public final class EVRPTW implements ModelInterface {
 	public void build_routing_graph(Document doc){
 			
 		// Load vertices
-		this.vertices = new Vertex[this.V];
+		this.vertices = new Vertex[this.V+this.last_charging_period+1];
 		loadVertices(doc);
 		this.T_min = vertices[0].opening_tw;
 
@@ -496,7 +497,9 @@ public final class EVRPTW implements ModelInterface {
 		graph.addEdge(V+this.last_charging_period, 0, newArc); arcID ++;
 		
 		newArc = new Arc(arcID, V, V+last_charging_period); this.arcs[arcID] = newArc;
-		graph.addEdge(V, V+this.last_charging_period, newArc);
+		graph.addEdge(V, V+this.last_charging_period, newArc); arcID ++;
+
+		this.CCRnumArcs = arcID;
 
 	}
 
@@ -606,7 +609,7 @@ public final class EVRPTW implements ModelInterface {
 
 			this.minEnergy_DepotPath_Devs = null;
 			this.unreachable = null;
-			this.SRCIndices = null;
+			this.SRCIndices = new ArrayList<>();
 			this.neighbors = null;
 
 			int auxNumArcs = 2*(V*V-V);

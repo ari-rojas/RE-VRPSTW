@@ -192,7 +192,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 	public CCRLabel extendLabel(CCRLabel currentLabel, Arc arc) {
 
 		int source = arc.tail;
-		if (source>=1 && source<=dataModel.C)
+		if (source > 0)
 			if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
@@ -459,7 +459,7 @@ public final class CCR_HeuristicPPSolver extends AbstractPricingProblemSolver<EV
 		pricingProblem.reducedCostThreshold = 0.0;
 		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
 		//Update the objective function with the new dual values
-		for (int a = 0; a < dataModel.numArcs; a++) {
+		for (int a = 0; a < dataModel.CCRnumArcs; a++) {
 			Arc arc = dataModel.arcs[a];
 			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
 				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];

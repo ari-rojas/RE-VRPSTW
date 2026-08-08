@@ -88,7 +88,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		/// Depot Labels
 		////////////////////////////////////////////
 		
-		if (System.currentTimeMillis()>=timeLimit) vertices[0].unprocessedLabels.clear();
+		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) vertices[0].unprocessedLabels.clear();
 		
 		while (!vertices[0].unprocessedLabels.isEmpty()){
 
@@ -203,8 +203,8 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 	public CCRLabel extendLabel(CCRLabel currentLabel, Arc arc) {
 
 		int source = arc.tail;
-		if (source>=1 && source<=dataModel.C)
-			if (currentLabel.unreachable[source-1]|| currentLabel.ng_path[source-1]) return null;
+		if (source > 0)
+			if (currentLabel.unreachable[source-1] || currentLabel.ng_path[source-1]) return null;
 
 		double reducedCost = currentLabel.reducedCost+arc.modifiedCost;
 
@@ -285,6 +285,8 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 		
 		}
 
+		this.nLabels ++;
+
 		return extendedLabel;
 
 	}
@@ -363,7 +365,7 @@ public final class CCR_ExactPPSolver extends AbstractPricingProblemSolver<EVRPTW
 			vertices[i].processedLabels = new ArrayList<CCRLabel>(dataModel.numArcs);
 			vertices[i].unprocessedLabels =  new PriorityQueue<CCRLabel>(dataModel.numArcs, new CCRLabel.SortLabels(dataModel.V)); }
 
-		if (!this.pricingProblemInfeasible) for (int i = 0; i < vertices.length; i++) vertices[i].SRCIndices = new ArrayList<>(); 
+		if (!this.pricingProblemInfeasible) for (int i = 0; i <= dataModel.C; i++) vertices[i].SRCIndices = new ArrayList<>(); 
 		this.nodesToProcess = new PriorityQueue<Vertex>(new SortVertices());
 
 	}
