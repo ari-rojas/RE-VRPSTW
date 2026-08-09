@@ -52,16 +52,22 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	private final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, PricingProblemBundle<EVRPTW, Route, PricingProblem>> pricingProblemBundles;
 	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 
-	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Integer> solverCapabilities = new HashMap<>();
+	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Map<Integer,Boolean>> solverCapabilities = new HashMap<>();
+	private static final Map<Integer, Boolean> capabilities0 = new HashMap<>();
+	static { capabilities0.put(0,true); capabilities0.put(1,true); capabilities0.put(2,false); }
+	private static final Map<Integer, Boolean> capabilities1 = new HashMap<>();
+	static { capabilities1.put(0,false); capabilities1.put(1,true); capabilities1.put(2,false); }
+	private static final Map<Integer, Boolean> capabilities2 = new HashMap<>();
+	static { capabilities2.put(0,false); capabilities2.put(1,false); capabilities2.put(2,true); }
 	static {
-		solverCapabilities.put(CCR_HeuristicPPSolver.class, 0);
-		solverCapabilities.put(CCR_ExactPPSolver.class, 0);
+		solverCapabilities.put(CCR_HeuristicPPSolver.class, capabilities0);
+		solverCapabilities.put(CCR_ExactPPSolver.class, capabilities0);
 
-		solverCapabilities.put(EC2FC_HeuristicPPSolver.class, 1);
-		solverCapabilities.put(EC2FC_ExactPPSolver.class, 1);
+		solverCapabilities.put(EC2FC_HeuristicPPSolver.class, capabilities1);
+		solverCapabilities.put(EC2FC_ExactPPSolver.class, capabilities1);
 
-		solverCapabilities.put(EC2FC_HeuristicPPSolver_CB.class, 2);
-		solverCapabilities.put(EC2FC_ExactPPSolver_CB.class, 2);
+		solverCapabilities.put(EC2FC_HeuristicPPSolver_CB.class, capabilities2);
+		solverCapabilities.put(EC2FC_ExactPPSolver_CB.class, capabilities2);
 	}
 
 	public customCG(EVRPTW dataModel, AbstractMaster<EVRPTW, Route, PricingProblem, ? extends MasterData> master,
@@ -274,7 +280,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		dataModel.exactPricing = false;
 		for(Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>> solver : solvers){
 			
-			if (PPSolverRequirement == solverCapabilities.get(solver)) {
+			if (solverCapabilities.get(solver).get(PPSolverRequirement)) {
 				newColumns = cPricingProblemManager.solvePricingProblems(solver);
 				if (dataModel.rollbackTrigger) break;
 				//Stop when we found new columns
