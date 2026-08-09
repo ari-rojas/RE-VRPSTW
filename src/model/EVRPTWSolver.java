@@ -265,7 +265,7 @@ public final class EVRPTWSolver {
 		String energy_deviation = args[3];
 		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "PRO-1GR25-RB50"+energy_deviation, args[2], args[3]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "PRO2-1GR25-RB50"+energy_deviation, args[2], args[3]);
 		//EVRPTW evrptw = new EVRPTW("C208-50", 0, 0, true, "PRO-1GR25-RB50", "Debug", "");
 
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
