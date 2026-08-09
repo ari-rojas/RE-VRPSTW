@@ -53,18 +53,23 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 	private final customPricingProblemManager<EVRPTW, Route, PricingProblem> cPricingProblemManager;
 
 	private static final Map<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>, Map<Integer,Boolean>> solverCapabilities = new HashMap<>();
-	private static final Map<Integer, Boolean> capabilities0 = new HashMap<>();
-	static { capabilities0.put(0,true); capabilities0.put(1,true); capabilities0.put(2,false); }
-	private static final Map<Integer, Boolean> capabilities1 = new HashMap<>();
-	static { capabilities1.put(0,false); capabilities1.put(1,true); capabilities1.put(2,false); }
+	private static final Map<Integer, Boolean> capabilities1Heuristic = new HashMap<>();
+	static { capabilities1Heuristic.put(0,true); capabilities1Heuristic.put(1,true); capabilities1Heuristic.put(2,false); }
+	
+	private static final Map<Integer, Boolean> capabilities0Exact = new HashMap<>();
+	static { capabilities0Exact.put(0,true); capabilities0Exact.put(1,false); capabilities0Exact.put(2,false); }
+	private static final Map<Integer, Boolean> capabilities1Exact = new HashMap<>();
+	static { capabilities1Exact.put(0,false); capabilities1Exact.put(1,true); capabilities1Exact.put(2,false); }
+	
 	private static final Map<Integer, Boolean> capabilities2 = new HashMap<>();
 	static { capabilities2.put(0,false); capabilities2.put(1,false); capabilities2.put(2,true); }
+	
 	static {
-		solverCapabilities.put(CCR_HeuristicPPSolver.class, capabilities0);
-		solverCapabilities.put(CCR_ExactPPSolver.class, capabilities0);
+		solverCapabilities.put(CCR_HeuristicPPSolver.class, capabilities0Exact);
+		solverCapabilities.put(CCR_ExactPPSolver.class, capabilities0Exact);
 
-		solverCapabilities.put(EC2FC_HeuristicPPSolver.class, capabilities1);
-		solverCapabilities.put(EC2FC_ExactPPSolver.class, capabilities1);
+		solverCapabilities.put(EC2FC_HeuristicPPSolver.class, capabilities1Heuristic);
+		solverCapabilities.put(EC2FC_ExactPPSolver.class, capabilities1Exact);
 
 		solverCapabilities.put(EC2FC_HeuristicPPSolver_CB.class, capabilities2);
 		solverCapabilities.put(EC2FC_ExactPPSolver_CB.class, capabilities2);

@@ -103,10 +103,10 @@ public final class EVRPTWSolver {
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
 		
-		solvers.add(CCR_HeuristicPPSolver.class);
-		solvers.add(CCR_ExactPPSolver.class);
-
+		//solvers.add(CCR_HeuristicPPSolver.class);
+		
 		solvers.add(EC2FC_HeuristicPPSolver.class);
+		solvers.add(CCR_ExactPPSolver.class);
 		solvers.add(EC2FC_ExactPPSolver.class);
 
 		solvers.add(EC2FC_HeuristicPPSolver_CB.class);

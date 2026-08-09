@@ -183,7 +183,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 
 	public void runBackwardLabeling(long timeLimit) {
 
-		setObjective();
+		//setObjective();
 		this.nodesToProcess = new PriorityQueue<PPVertex>(dataModel.PPvertices.length-dataModel.C, new SortBackwardVertices());
 
 		// Initialization
