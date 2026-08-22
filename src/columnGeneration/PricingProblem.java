@@ -403,17 +403,17 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 		if (remainingEnergy[Gamma]-dataModel.graph.getEdge(head, dataModel.C+1).min_energy < 0) return null;
 
 		// Charging Time
-		int minEnergyRoute_remEn = remainingEnergy[0] - dataModel.graph.getEdge(head, dataModel.C+1).min_energy; // Nominal Energy
+		/* int minEnergyRoute_remEn = remainingEnergy[0] - dataModel.graph.getEdge(head, dataModel.C+1).min_energy; // Nominal Energy
 		int[] bwDevs = vertices[head].minEnergy_DepotPath_Devs;
 		int ixFw = 1; int ixBw = 0;
 		for (int g = 1; g <= Gamma; g++){
 			if (remainingEnergy[ixFw-1]-remainingEnergy[ixFw] >= bwDevs[ixBw]) { minEnergyRoute_remEn -= (remainingEnergy[ixFw-1]-remainingEnergy[ixFw]); ixFw ++; }
 			else { minEnergyRoute_remEn -= bwDevs[ixBw]; ixBw ++; }
-		} if (minEnergyRoute_remEn < 0) return null;
+		} if (minEnergyRoute_remEn < 0) return null; */
 		
-		int chargingTime = dataModel.f_inverse[dataModel.E-minEnergyRoute_remEn];
+		int chargingTime = dataModel.f_inverse[dataModel.E-remainingEnergy[Gamma]];
 		if (chargingTime >= latestDeparture) return null;
-		double chargingBound = Math.floor(this.charging_bounds.get(chargingTime).get(latestDeparture)*10000)/10000;
+		//double chargingBound = Math.floor(this.charging_bounds.get(chargingTime).get(latestDeparture)*10000)/10000;
 
 		// After confirming that the label is feasible, update the remaining load
 		int cumulativeLoad = currentLabel.cumulativeLoad+vertices[head].load;
@@ -434,7 +434,7 @@ public final class PricingProblem extends AbstractPricingProblem<EVRPTW> {
 			if (currentLabel.ng_path.get(c.head) && vertices[head].neighbors.contains(c.head)) ng_path.set(c.head);
 		}
 			
-		ForwardLabel extendedLabel = new ForwardLabel(currentLabel.index, reducedCost, chargingBound, cumulativeLoad, cumulativeTime, latestDeparture, travelTimes, remainingEnergy, chargingTime, unreachable, ng_path, eta, srcIndices);
+		ForwardLabel extendedLabel = new ForwardLabel(currentLabel.index, reducedCost, 0, cumulativeLoad, cumulativeTime, latestDeparture, travelTimes, remainingEnergy, chargingTime, unreachable, ng_path, eta, srcIndices);
 
 		extendedLabel.vertex = pp_arc.head_vertex_id;
 		extendedLabel.previousArc = pp_arc.id;
