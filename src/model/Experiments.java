@@ -89,7 +89,7 @@ public class Experiments {
                     EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev, lb);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
-                    Solver.solve(172800000L); evrptw.fileOut.close();
+                    Solver.solve(259200000L); evrptw.fileOut.close();
                     ArrayList<Route> solution = Solver.close();
 
                     double obj = Solver.upperBound;
@@ -172,7 +172,7 @@ public class Experiments {
                             for (int r = 0; r < nR; r++){
 
                                 Route route = solution.get(r);
-                                Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), (ArrayList<Integer>) route.PParcs.clone(), startingTimes[r], chargingTimes[r]);
+                                Route new_route = new Route("initSolution", false, (HashMap<Integer, Integer>) route.route.clone(), (int[]) route.routeSequence.clone(), route.associatedPricingProblem, route.cost, route.departureTime, worstCaseEnergy[r], route.load, route.reducedCost, (ArrayList<Integer>) route.arcs.clone(), (ArrayList<Integer>) route.PParcs.clone(), startingTimes[r]+chargingTimes[r]-1, chargingTimes[r]);
                                 new_route.value = 1;
 
                                 robust_solution.add(new_route);
@@ -216,7 +216,7 @@ public class Experiments {
                     EVRPTW evrptw = new EVRPTW(instance, gamma, 0, true, alg, "Gamma"+gamma, en_dev, 0);
                     EVRPTWSolver Solver = new EVRPTWSolver(evrptw, initialColumns);
 
-                    Solver.solve(32400000L); evrptw.fileOut.close();
+                    Solver.solve(259200000L); evrptw.fileOut.close();
                     ArrayList<Route> solution = Solver.close();
 
                     double new_obj = Solver.upperBound;
