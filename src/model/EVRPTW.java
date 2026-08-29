@@ -125,7 +125,7 @@ public final class EVRPTW implements ModelInterface {
 			
 			File xmlFile;
 			if (this.getName().substring(0, 2).equals("DY")) xmlFile = new File("./data/"+folder+"/" + this.getName() + ".xml");
-			else xmlFile = new File("./data/" + this.getName() + ".xml");
+			else xmlFile = new File("./data/"+folder+"/" + this.getName() + ".xml");
 			
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder builder = factory.newDocumentBuilder();
