@@ -73,7 +73,7 @@ public final class EVRPTW implements ModelInterface {
 	 * @param instanceName input instance.
 	 * @throws IOException Throws IO exception when the instance cannot be found.
 	 */
-	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String algorithm, String experiment) throws IOException {
+	public EVRPTW(String instanceName, int gamma, int num_chargers, boolean print_log, String data_folder, String algorithm, String experiment) throws IOException {
 		this.instanceName = instanceName.trim();
 		int start_ix = 0; int end_ix = 2;
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}
@@ -96,7 +96,7 @@ public final class EVRPTW implements ModelInterface {
 		}
 
 		//read the instance
-		readData();
+		readData(data_folder);
 		if (this.print_log){
 			System.out.println(" - Number of chargers: " + this.B);
 			System.out.println(" - Energy capacity: " + this.E);
@@ -114,7 +114,7 @@ public final class EVRPTW implements ModelInterface {
 	 * Reads an instance.
 	 * The file must be stored in ./data/instances and following the guidelines of the VRPREP. 
 	 */
-	private void readData() {
+	private void readData(String folder) {
 		try {
 
 			/** Reading input file **/
@@ -124,7 +124,7 @@ public final class EVRPTW implements ModelInterface {
 			}
 			
 			File xmlFile;
-			if (this.getName().substring(0, 2).equals("DY")) xmlFile = new File("./data/Yamin 2024/" + this.getName() + ".xml");
+			if (this.getName().substring(0, 2).equals("DY")) xmlFile = new File("./data/"+folder+"/" + this.getName() + ".xml");
 			else xmlFile = new File("./data/" + this.getName() + ".xml");
 			
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
