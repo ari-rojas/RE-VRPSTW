@@ -154,7 +154,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 
 		//Mark unreachable customers and ng-path cycling restrictions
 		if(source>0) {
-			for(int i: vertices[source].unreachable) unreachable[i-1] = true;
+			//for(int i: vertices[source].unreachable) unreachable[i-1] = true;
 			int lastTail = -1;
 			for (Arc c: dataModel.graph.incomingEdgesOf(source)) {
 				if(c.tail==lastTail || c.tail==0 || unreachable[c.tail-1]) continue;
