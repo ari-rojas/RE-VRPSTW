@@ -310,6 +310,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				//Enlarge ng-sets (neighborhoods)
 				if (!existsElementaryRoute) {
 					maxNeighborhoodSize = true;
+					//maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes);
 					if(!maxNeighborhoodSize) {nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>(); restart();} //restart //run again
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
@@ -317,6 +318,38 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		}
 		close();
 		return disjointBlocks(newRoutes);
+	}
+
+	/**
+	 * This class is invoked when only nonelementary routes are found. 
+	 * @return true if the maximum size per neighborhood has been reached
+	 */
+	public boolean enlargeNeighborhoods(List<Route> nonElementaryRoutes) {
+
+		boolean enlarged = false;
+		ArrayList<Integer> cyclingVertics = new ArrayList<Integer>();
+		for(Route route:nonElementaryRoutes) {
+			ArrayList<Integer> visitedCustomers = new ArrayList<Integer>(dataModel.C);
+			boolean[] visited = new boolean[dataModel.C];
+			for(int arc: route.arcs) {
+				int head = dataModel.arcs[arc].head;
+				if(head<dataModel.C) {
+					visitedCustomers.add(head);
+					if(visited[head-1]) { //there is a cycle
+						for (int i = visitedCustomers.size()-2; i >=0; i--) {
+							int node = visitedCustomers.get(i);
+							if(node == head) {cyclingVertics.add(head); break;}
+							else if(!dataModel.vertices[node].neighbors.contains(head) && dataModel.vertices[node].neighbors.size()<=dataModel.DeltaMax) { 
+								dataModel.vertices[node].neighbors.add(head); 
+								enlarged = true;
+								if (dataModel.print_log) logger.debug("Adding: " + head + " to the neighborhood of: "+node + " (size=" + dataModel.vertices[node].neighbors.size()+")");
+							}
+						}
+					}else visited[head-1] = true;
+				}
+			}
+		}
+		return enlarged;
 	}
 
 	/**
