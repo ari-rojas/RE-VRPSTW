@@ -90,8 +90,8 @@ public final class EVRPTWSolver {
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
 		solvers.add(HeuristicLabelingPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
-		solvers.add(HeuristicLabelingMultigraphPricingProblemSolver.class);
-		solvers.add(ExactLabelingMultigraphPricingProblemSolver.class);
+		//solvers.add(HeuristicLabelingMultigraphPricingProblemSolver.class);
+		//solvers.add(ExactLabelingMultigraphPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution=this.getInitialSolution(pricingProblem);

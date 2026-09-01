@@ -218,8 +218,13 @@ public final class EVRPTW implements ModelInterface {
 		//number of chargers, number of arcs, two alternatives pairs, and average number of alternatives
 		if (this.print_log) this.B = Integer.parseInt(infoElement.getElementsByTagName("num_chargers").item(0).getTextContent());
 		this.numArcsRoadNetwork = Integer.parseInt(infoElement.getElementsByTagName("num_arcs").item(0).getTextContent());
-		this.twoAlternativesPairs = Integer.parseInt(infoElement.getElementsByTagName("two_alternatives_pairs").item(0).getTextContent());
-		this.avgAlternatives = Double.parseDouble(infoElement.getElementsByTagName("avg_alternatives").item(0).getTextContent());
+		try {
+			this.twoAlternativesPairs = Integer.parseInt(infoElement.getElementsByTagName("two_alternatives_pairs").item(0).getTextContent());
+			this.avgAlternatives = Double.parseDouble(infoElement.getElementsByTagName("avg_alternatives").item(0).getTextContent());
+		} catch (Exception e){
+			this.twoAlternativesPairs = 0;
+			this.avgAlternatives = 0;
+		}
 	}
 
 	/** Defines the vertices (according to the information in the .xml file) */
