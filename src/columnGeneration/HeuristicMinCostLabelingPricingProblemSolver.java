@@ -310,7 +310,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 				//Enlarge ng-sets (neighborhoods)
 				if (!existsElementaryRoute) {
 					maxNeighborhoodSize = true;
-					maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes);
+					//maxNeighborhoodSize = !enlargeNeighborhoods(nonElementaryRoutes);
 					if(!maxNeighborhoodSize) {nonElementaryRoutes = new ArrayList<Route>();newRoutes=new ArrayList<>(); restart();} //restart //run again
 					else {newRoutes = nonElementaryRoutes; existsElementaryRoute = true;}
 				}
