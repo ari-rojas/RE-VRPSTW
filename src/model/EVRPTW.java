@@ -277,7 +277,10 @@ public final class EVRPTW implements ModelInterface {
 			int minimumCost = Integer.parseInt(customElements.getElementsByTagName("min_cost").item(0).getTextContent());
 			int minimumTime = Integer.parseInt(customElements.getElementsByTagName("min_time").item(0).getTextContent());
 			int minimumEnergy = Integer.parseInt(customElements.getElementsByTagName("min_energy").item(0).getTextContent());
-			boolean minCostAlternative = Boolean.parseBoolean(customElements.getElementsByTagName("is_min_cost").item(0).getTextContent());
+			
+			boolean minCostAlternative;
+			try {minCostAlternative = Boolean.parseBoolean(customElements.getElementsByTagName("is_min_cost").item(0).getTextContent());}
+			catch (Exception e) {minCostAlternative = true;}
 
 			Arc newArc = new Arc(id, tail, head, cost, time, energy, energy_deviation, minimumCost, minimumTime, minimumEnergy, minCostAlternative);
 			arcs[id] = newArc;
