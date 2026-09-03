@@ -381,7 +381,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 		double realTime = this.timeChargingBranching*0.001;
 		realTime = Math.floor(realTime*100)/100;
-		logger.debug("TIME BRANCHING - Total time is: "+realTime);
+		if (dataModel.print_log) logger.debug("TIME BRANCHING - Total time is: "+realTime);
 
 	}
 
