@@ -491,7 +491,7 @@ public final class EVRPTWSolver {
 				}
 			} else {
 
-				logger.debug("B = "+dataModel.B+", Objective = "+getScaledObjective(bap.getObjective())+", K = "+bap.getSolution().size()+", Optimal: "+bap.isOptimal());
+				logger.debug("B = "+dataModel.B+", Objective = "+getScaledObjective(bap.getObjective())+", K = "+bap.getSolution().size()+", Optimal: "+bap.isOptimal()+", Runtime: "+getTimeInSeconds(bap.getSolveTime()));
 			}
 
 		}

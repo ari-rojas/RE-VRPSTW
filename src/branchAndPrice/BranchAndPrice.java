@@ -620,8 +620,8 @@ public final class BranchAndPrice {
 			}
 		}
   
-		this.notifier.fireStopBAPEvent();
 		this.runtime = System.currentTimeMillis() - this.runtime;
+		this.notifier.fireStopBAPEvent();
 
 		double realTime = this.timeChargingBranching*0.001;
 		realTime = Math.floor(realTime*100)/100;

@@ -59,7 +59,7 @@ public class Experiments {
                 Element infoElement = (Element) doc.getElementsByTagName("info").item(0);
                 int B = Integer.parseInt(infoElement.getElementsByTagName("num_chargers").item(0).getTextContent());
         
-                boolean feasible = false; long timeLimit = 86400000L;
+                boolean feasible = false; long timeLimit = 86400000L; double last_obj = Double.MAX_VALUE;
                 while (!feasible){
                     
                     long time = System.currentTimeMillis();
@@ -69,10 +69,11 @@ public class Experiments {
                     Solver.solve(timeLimit);
         
                     Double obj = Solver.upperBound;
-                    if (obj.doubleValue() < 1e7 && System.currentTimeMillis()-time < timeLimit) feasible = true;
+                    if (obj.doubleValue() < 1e7 && System.currentTimeMillis()-time < timeLimit && Math.abs(obj - last_obj) < 1e-4) feasible = true;
                     else B++;
         
                     deleteStaticObject(Configuration.class, "instance");
+                    last_obj = obj;
         
                 }
             }
