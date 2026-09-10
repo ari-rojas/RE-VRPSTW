@@ -44,7 +44,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	public OptimalSolutionMemory solutionMemory;
 	private boolean masterSolutionIsInteger;
-	private boolean hasExceededPricingSoftThreshold = false;
 	private double gapReduction = 0;
 
 	public List<BranchingDecision<EVRPTW, Route>> branchingFRC;
@@ -149,8 +148,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 		int cg_iterations = 0;
 
-		if (this.BBnodeID == 0) { this.contExact = 0; dataModel.rollbackBaseLine = 0; }
-		dataModel.rollbackTrigger = false;
+		if (this.BBnodeID == 0) { this.contExact = 0; }
 		dataModel.cut_iterations = 1;
 
 		do{
@@ -182,9 +180,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			foundNewColumns=!newColumns.isEmpty();
 
 			//Check whether the boundOnMasterObjective exceeds the cutoff value
-			if (dataModel.rollbackTrigger){
-				this.perform_rollback(solutionMemory); break; }
-			else if (boundOnMasterExceedsCutoffValue()) break;
+			if (boundOnMasterExceedsCutoffValue()) break;
 			else if (System.currentTimeMillis() >= timeLimit){ 			//check whether we are still within the timeLimit
 				notifier.fireTimeLimitExceededEvent();
 				throw new TimeLimitExceededException(); }
@@ -192,7 +188,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 				// Check if the gap reduction was enough.
 				// In case the reduction was bad, break the Column and Cut Generation to branch directly
-				if (dataModel.cut_iterations > 1 && this.hasExceededPricingSoftThreshold && this.gapReduction < dataModel.gapReductionRequirement){
+				if (dataModel.cut_iterations > 1 && this.gapReduction < dataModel.gapReductionRequirement){
 					extendedNotifier.fireGapReductionEvent(this.gapReduction);
 					break; }
 				
@@ -275,14 +271,13 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 			
 			if (needsChargingBranchingPricing == solverCapabilities.get(solver)) {
 				newColumns = cPricingProblemManager.solvePricingProblems(solver);
-				if (dataModel.rollbackTrigger) break;
 				//Stop when we found new columns
 				if (!newColumns.isEmpty()) break;
 			}
 
 		}
 
-		boolean optimalBound = dataModel.exactPricing && newColumns.isEmpty() && !dataModel.rollbackTrigger;
+		boolean optimalBound = dataModel.exactPricing && newColumns.isEmpty();
 		
 		notifier.fireFinishPricingEvent(newColumns);
 		pricingSolveTime+=(System.currentTimeMillis()-time);
@@ -290,7 +285,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		
 		// Update of Lower Bound
 		if (dataModel.exactPricing){
-			this.hasExceededPricingSoftThreshold = this.hasExceededPricingSoftThreshold || (dataModel.rollbackExplosion >= dataModel.pricingSoftFactor*dataModel.rollbackBaseLine);
 			
 			if (!newColumns.isEmpty()) {
 				pricingProblems.get(0).frcRouteLabels.clear();
@@ -299,7 +293,6 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 		
 			if (this.BBnodeID == 0 && dataModel.cut_iterations == 1){
 				this.contExact ++;
-				dataModel.rollbackBaseLine = (dataModel.rollbackBaseLine*(contExact-1)+dataModel.rollbackExplosion)/contExact;
 			}
 		}
 
@@ -339,7 +332,8 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 	private void perform_rollback(OptimalSolutionMemory memory){
 
-		this.extendedNotifier.fireRollbackEvent(dataModel.rollbackBaseLine, dataModel.rollbackExplosion);
+		//this.extendedNotifier.fireRollbackEvent(dataModel.rollbackBaseLine, dataModel.rollbackExplosion);
+		this.extendedNotifier.fireRollbackEvent(0, 0);
 		this.objectiveMasterProblem = memory.previousMPObjective;
 		this.boundOnMasterObjective = memory.previousMPBound;
 

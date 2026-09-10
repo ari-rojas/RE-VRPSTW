@@ -72,7 +72,7 @@ public final class HeuristicLabelingThirdPricingProblemSolver extends AbstractPr
 	 */
 	public void runLabeling() {
 
-		dataModel.rollbackTrigger = false;
+		//dataModel.rollbackTrigger = false;
 		this.bestReducedCost = Double.MAX_VALUE;
 
 		// Initialization

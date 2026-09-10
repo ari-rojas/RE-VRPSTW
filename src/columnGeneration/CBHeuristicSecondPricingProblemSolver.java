@@ -76,7 +76,7 @@ public final class CBHeuristicSecondPricingProblemSolver extends AbstractPricing
 	 */
 	public void runLabeling() {
 
-		dataModel.rollbackTrigger = false;
+		//dataModel.rollbackTrigger = false;
 
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization

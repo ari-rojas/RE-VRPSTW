@@ -78,12 +78,10 @@ public final class EVRPTW implements ModelInterface {
 	public String experiment;
 
 	public boolean CUTSENABLED;
-	public boolean rollbackTrigger;
-	public int rollbackBaseLine;
-	public int rollbackExplosion;
-	public int rollbackFactor = 50;
+	//public boolean rollbackTrigger;
+	//public int rollbackBaseLine;
+	//public int rollbackExplosion;
 	public int cut_iterations;
-	public int pricingSoftFactor = 1;
 	public double gapReductionRequirement = 0.25;
 	public boolean exactPricing;
 
