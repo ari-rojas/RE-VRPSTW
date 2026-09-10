@@ -65,6 +65,8 @@ public final class EVRPTWSolver {
 
 	private final EVRPTW dataModel;  		//information about the instance
 	public Double upperBound; 				//upper bound on column generation solution (stronger is better).
+	public BranchAndPrice bap;
+	public CutHandler<EVRPTW, VRPMasterData> cutHandler;
 
 	public EVRPTWSolver(EVRPTW dataModel) throws FileNotFoundException{
 
@@ -76,7 +78,7 @@ public final class EVRPTWSolver {
 		Configuration.readFromFile(properties);
 
 		//Create a cutHandler, then create a SRC AbstractInequality Generator and add it to the handler
-		CutHandler<EVRPTW, VRPMasterData> cutHandler = new CutHandler<>();
+		this.cutHandler = new CutHandler<>();
 		SubsetRowInequalityGenerator cutGen = new SubsetRowInequalityGenerator(dataModel);
 		cutHandler.addCutGenerator(cutGen);
 
@@ -100,36 +102,12 @@ public final class EVRPTWSolver {
 		List<? extends AbstractBranchCreator<EVRPTW, Route, PricingProblem>> branchCreators= Collections.singletonList(new BranchingRules(dataModel, pricingProblem));
 
 		//Create a Branch-and-Price instance
-		BranchAndPrice bap = new BranchAndPrice(dataModel, master, pricingProblem, solvers, branchCreators, upperBound.intValue(), initSolution);
+		this.bap = new BranchAndPrice(dataModel, master, pricingProblem, solvers, branchCreators, upperBound.intValue(), initSolution);
 
 		//OPTIONAL: Attach a debugger
 		PersonalizedDebbuger debugger = new PersonalizedDebbuger(bap, cutHandler, false);
 		bap.addExtendCGEventListener(debugger);
 
-		//Solve the problem problem through Branch-and-Price
-		bap.runBranchAndPrice(System.currentTimeMillis()+10800000L);
-
-		//Print solution
-		/* PrintWriter out;
-		try {
-			out = new PrintWriter(new BufferedWriter(new FileWriter("./results/output.txt", true)));
-			out.print(dataModel.getName()+"\t"+bap.getSolution().size()+"\t"+	getScaledObjective(bap.getBoundRootNode())+"\t"+ dataModel.columnsRootNode + "\t"+ dataModel.cutsRootNode+ "\t"
-					+bap.getNumberOfProcessedNodes() +"\t" + getTimeInSeconds(bap.getMasterSolveTime())+"\t"+getTimeInSeconds(bap.getPricingSolveTime())+"\t"+getTimeInSeconds(bap.getSolveTime()) +"\t"+ getScaledObjective(bap.getObjective())
-					+ "\t");
-
-			double[] chargingInformation = getChargingInformation(bap.getSolution());
-			out.print(dataModel.B +  "\t" + chargingInformation[0] + "\t"+ chargingInformation[1] + "\t"+ chargingInformation[2]);
-			out.print("\n");
-			out.close();
-
-		} catch (IOException e) {
-			// Do nothing
-		} */
-
-		//Clean up:
-		bap.close(); 		//close master and pricing problems
-		cutHandler.close(); //close the cut handler. The close() call is propagated to all registered AbstractCutGenerator classes
-		this.upperBound = getScaledObjective(bap.getObjective());
 	}
 
 	/** Computes the charging schedule statistics for a given solution. */
@@ -171,6 +149,17 @@ public final class EVRPTWSolver {
 		double averageTimeAtFullCapacity = timestepsAtFullCapacity/(maxChargingTime-minChargingTime+1);
 		averageTimeAtFullCapacity = Math.floor(averageTimeAtFullCapacity*10000)/10000;
 		return new double[] {averageTimeInUse, averageVehiclesCharging, averageTimeAtFullCapacity};
+	}
+
+	public void solve(Long timeLimit){
+
+		//Solve the problem problem through Branch-and-Price
+		bap.runBranchAndPrice(System.currentTimeMillis()+timeLimit);
+
+		//Clean up:
+		bap.close(); 		//close master and pricing problems
+		cutHandler.close(); //close the cut handler. The close() call is propagated to all registered AbstractCutGenerator classes
+		this.upperBound = getScaledObjective(bap.getObjective());
 	}
 
 	/**
@@ -237,10 +226,10 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
+		/* int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, args[2], args[3], args[4]);
-		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
+		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw); */
 
 	}
 
@@ -421,7 +410,7 @@ public final class EVRPTWSolver {
 				}
 			} else {
 
-				logger.debug("B = "+dataModel.B+", Objective = "+getScaledObjective(bap.getObjective())+", K = "+bap.getSolution().size()+", Optimal: "+bap.isOptimal());
+				logger.debug("B = "+dataModel.B+", Objective = "+getScaledObjective(bap.getObjective())+", K = "+bap.getSolution().size()+", Optimal: " + bap.isOptimal() + ", Time: "+getTimeInSeconds(bap.getSolveTime()));
 			}
 
 		}

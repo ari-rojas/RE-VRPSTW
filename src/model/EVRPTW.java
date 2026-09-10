@@ -79,7 +79,9 @@ public final class EVRPTW implements ModelInterface {
 		if (this.instanceName.substring(0, 2).equals("DY")) {start_ix = 3; end_ix = 5;}
 		this.Delta = (this.instanceName.substring(start_ix, end_ix).equals("R1") || this.instanceName.substring(start_ix, end_ix).equals("C1") || this.instanceName.substring(start_ix, end_ix+1).equals("RC1")) ? 7 : 12;
 		this.DeltaMax = Delta+5;
-		this.C = Integer.parseInt(this.instanceName.substring(Math.max(this.instanceName.length() - 2, 0))); // Number of customers must be the last two
+		
+		if (this.instanceName.substring(this.instanceName.length()-3, this.instanceName.length()).equals("100")) this.C = 100;
+		else this.C = Integer.parseInt(this.instanceName.substring(Math.max(this.instanceName.length() - 2, 0))); // Number of customers must be the last two
 		this.V = C+2;
 		this.graph = new DirectedWeightedMultigraph<Integer, EVRPTW.Arc>(Arc.class);
 		this.numArcs = 0;

@@ -1,10 +1,5 @@
 package model;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -29,59 +24,35 @@ public class Experiments {
         }
     }
 
-    public static List<String> generateNames(String instance_prefix) {
-
-        HashMap<String, Integer> num = new HashMap<>();
-        num.put(instance_prefix+"C1", 9); num.put(instance_prefix+"C2", 8); num.put(instance_prefix+"R1", 12);
-        num.put(instance_prefix+"R2", 11); num.put(instance_prefix+"RC1", 8); num.put(instance_prefix+"RC2", 8);
-
-        // Create a list to store all names
-        List<String> names = new ArrayList<>();
-
-        // Outer loop for numeric values
-        for (int n : new int[]{50, 25}) {
-            // Loop through instances
-            for (String instance : num.keySet()) {
-                // Get the max number from the map
-                int maxNum = num.get(instance);
-                // Loop to generate names
-                for (int j = 1; j <= maxNum; j++) {
-                    // Format the number to 2 digits
-                    String number = String.format("%02d", j);
-                    // Create the name
-                    String name = instance + number + "-" + n;
-                    // Add to the list
-                    names.add(name);
-                }
-            }
-        }
-        // Return the list of names
-        return names;
-    }
-
-    public static void determine_number_of_chargers(String name){
+    public static void determine_number_of_chargers(String instance){
 
         try {
-            PrintStream fileOut = new PrintStream("./results/log/B-"+name+".log");
+            PrintStream fileOut = new PrintStream("./results/log/YaminTuneB/" + instance + ".log");
             System.setOut(fileOut);
 
-            if (!name.equals("")) {
-                System.out.println(" ========================== "+name+" ========================== ");
+            if (!instance.equals("")) {
+                System.out.println(" ========================== " + instance + " ========================== ");
                 
-                boolean same_obj = false;
-                Double last_obj = 0.;
+                File xmlFile = new File("./data/New-Yamin24-Tight/" + instance + ".xml");
+                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                DocumentBuilder builder = factory.newDocumentBuilder();
+                Document doc = builder.parse(xmlFile);
+
+                Element infoElement = (Element) doc.getElementsByTagName("info").item(0);
+                int B = Integer.parseInt(infoElement.getElementsByTagName("num_chargers").item(0).getTextContent());
         
-                int B = 1;
-                while (!same_obj){
-        
-                    EVRPTW evrptw = new EVRPTW(name, 0, B, false, "", "Yamin 2024","tuning");
+                boolean feasible = false; long timeLimit = 86400000L;
+                while (!feasible){
+                    
+                    long time = System.currentTimeMillis();
+                    EVRPTW evrptw = new EVRPTW(instance, 0, B, false, "New-Yamin24-Tight", "","");
                     EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
+
+                    Solver.solve(timeLimit);
         
                     Double obj = Solver.upperBound;
-                    if (obj.doubleValue() == last_obj.doubleValue() && obj.doubleValue() < 100000) same_obj = true;
-                    else {
-                        B++; last_obj = obj;
-                    }
+                    if (obj.doubleValue() < 1e7 && System.currentTimeMillis()-time < timeLimit) feasible = true;
+                    else B++;
         
                     deleteStaticObject(Configuration.class, "instance");
         
@@ -91,135 +62,12 @@ public class Experiments {
         } catch (Exception ex){
             ex.printStackTrace();
         }
-        
-
-    }
-
-    public static void test_number_of_chargers(String name){
-
-        try{
-            PrintStream fileOut = new PrintStream("./results/log/KB-"+name+".log");
-            System.setOut(fileOut);
-
-            // RUN ALL THE EXPERIMENTS AT ONCE
-
-            File xmlFile = new File("./results/tuning/Num_chargers.xml");
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(xmlFile);
-            Element num_chargers_element = (Element) doc.getElementsByTagName("tuning").item(0);
-
-            System.out.println(" ========================== "+name+" ========================== ");
-            
-            Element instance_element = (Element) num_chargers_element.getElementsByTagName(name).item(0);
-            Element unb_B = (Element) instance_element.getElementsByTagName("unb_B").item(0);
-            int B = Integer.parseInt(unb_B.getElementsByTagName("K").item(0).getTextContent());
-
-            EVRPTW evrptw = new EVRPTW(name, 0, B, false, "", "Yamin 2024", "tuning");
-            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
-
-            deleteStaticObject(Configuration.class, "instance");
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-
-    }
-
-    public static void tune_number_of_chargers(){
-
-        try{
-            PrintStream fileOut = new PrintStream("./results/log/1. Tune_num_chargers.log");
-            System.setOut(fileOut);
-
-            File xmlFile = new File("./data/1. Num_chargers.xml");
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(xmlFile);
-            Element num_chargers_element = (Element) doc.getElementsByTagName("num_chargers").item(0);
-
-            List<String> names = generateNames("");
-            for (String name : names){
-
-                try {
-                    
-                    Element instance_element = (Element) num_chargers_element.getElementsByTagName(name).item(0);
-                    boolean needs_tuning = Boolean.parseBoolean(instance_element.getElementsByTagName("needs_tuning").item(0).getTextContent());
-
-                    if (needs_tuning) {
-                        System.out.println(" ========================== "+name+" ========================== ");
-                        
-                        int max_chargers = Integer.parseInt(instance_element.getElementsByTagName("num_chargers").item(0).getTextContent());
-                        int min_chargers = Integer.parseInt(instance_element.getElementsByTagName("min_chargers").item(0).getTextContent());
-
-                        Double last_obj = 10000.;
-                        for (int B=max_chargers; B >= min_chargers; B--){
-                            EVRPTW evrptw = new EVRPTW(name, 0, B, false,"", "Yamin 2024", "tuning");
-                            EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
-
-                            Double obj = Solver.upperBound;
-                            if (obj.doubleValue() > last_obj.doubleValue()){
-                                deleteStaticObject(Configuration.class, "instance");
-                                break;
-                            } else{
-                                last_obj = obj;
-                            }
-                
-                            deleteStaticObject(Configuration.class, "instance");
-                        }
-                    }
-
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                    break;
-                }
-            }
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void run_experiments(String instances_prefix, int gamma, String experiment){
-
-        try{
-
-            // RUN ALL THE EXPERIMENTS AT ONCE
-            List<String> names = generateNames(instances_prefix);
-            for (String name : names){
-
-                try {
-                    if (!name.equals("")) {
-                        
-                        EVRPTW evrptw = new EVRPTW(name, gamma, 0, true, "", "Yamin 2024", experiment);
-                        EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
-            
-                        deleteStaticObject(Configuration.class, "instance");
-                    }
-
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                    break;
-                }
-            }
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-    }
-
-    public static void run_experiments(int gamma, String experiment){
-
-        run_experiments("", gamma, experiment);
 
     }
 
     public static void main(String[] args){
 
-        run_experiments(args[0], Integer.parseInt(args[1]), args[2]);
+        determine_number_of_chargers(args[0]);
     
     }
 }
