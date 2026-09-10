@@ -480,8 +480,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 							
 							time = System.currentTimeMillis();
 
-							foundBranches = findIntegerSolution(bapNode);
-							//foundBranches = false;
+							//foundBranches = findIntegerSolution(bapNode);
+							foundBranches = false;
 
 							if (foundBranches){
 
