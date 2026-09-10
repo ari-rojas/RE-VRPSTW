@@ -51,7 +51,7 @@ public class Experiments {
             if (!instance.equals("")) {
                 System.out.println(" ========================== " + instance + " ========================== ");
                 
-                File xmlFile = new File("./" + instance + ".xml");
+                File xmlFile = new File("./data/" + instance + ".xml");
                 DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                 DocumentBuilder builder = factory.newDocumentBuilder();
                 Document doc = builder.parse(xmlFile);
@@ -66,14 +66,14 @@ public class Experiments {
                     EVRPTW evrptw = new EVRPTW(instance, 0, B, false, "RojasTuneB", "","");
                     EVRPTWSolver Solver =  new EVRPTWSolver(evrptw, new ArrayList<>());
 
-                    Solver.solve(timeLimit);
+                    Solver.solve(timeLimit); ArrayList<Route> solution = Solver.close();
         
                     Double obj = Solver.upperBound;
-                    if (obj.doubleValue() < 1e7 && System.currentTimeMillis()-time < timeLimit && Math.abs(obj - last_obj) < 1e-4) feasible = true;
+                    if (obj.doubleValue() < 1e7 && System.currentTimeMillis()-time < timeLimit && Math.abs(obj-last_obj) < 1e-4) feasible = true;
                     else B++;
         
                     deleteStaticObject(Configuration.class, "instance");
-                    last_obj = obj;
+                    last_obj = obj+0;
         
                 }
             }
