@@ -470,8 +470,8 @@ public final class BranchAndPrice {
 			
 			time = System.currentTimeMillis();
 
-			foundBranches = this.findIntegerSolution(bapNode);
-			//foundBranches = false;
+			//foundBranches = this.findIntegerSolution(bapNode);
+			foundBranches = false;
 
 			if (foundBranches){
 				
