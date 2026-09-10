@@ -55,10 +55,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public final int depotID;
 	public final int superDepotID;
 
-	public boolean canTriggerRollback;
-	public int nLabels;
-	public int rollbackThreshold;
-
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
@@ -77,7 +73,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	public void runLabeling() {
 
-		dataModel.rollbackTrigger = false;
 		dataModel.exactPricing = true;
 		this.bestReducedCost = Double.MAX_VALUE;
 
@@ -92,9 +87,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		/// Routing Labeling
 		////////////////////////////////////////////
 		
-		this.nLabels = 0;
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = routingLabelsToProcessNext();
 			Set<PPArc> incomingArcs = new HashSet<PPArc>(dataModel.PPgraph.incomingEdgesOf(labelsToProcessNext.get(0).vertex));
 			incomingArcs.removeIf(arc -> infeasibleArcs[arc.id] > 0);
@@ -116,7 +110,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		/// SuperDepot Labels
 		////////////////////////////////////////////
 		
-		if (System.currentTimeMillis()>=timeLimit || (canTriggerRollback && nLabels >= rollbackThreshold)) PPvertices[superDepotID].unprocessedLabels.clear();
+		if (System.currentTimeMillis()>=timeLimit ) PPvertices[superDepotID].unprocessedLabels.clear();
 		
 		while (!PPvertices[superDepotID].unprocessedLabels.isEmpty()){
 
@@ -326,8 +320,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		
 		}
 		
-		nLabels ++;
-		
 		return extendedLabel;
 
 	}
@@ -429,9 +421,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	@Override
 	protected List<Route> generateNewColumns() {
 
-		this.canTriggerRollback = dataModel.cut_iterations > 1;
-		this.rollbackThreshold = dataModel.rollbackBaseLine*dataModel.rollbackFactor;
-
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
@@ -441,12 +430,6 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			this.runLabeling(); 										//runs the labeling algorithm
 
-			dataModel.rollbackExplosion = nLabels;
-			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
-				dataModel.rollbackTrigger = true;
-				dataModel.exactPricing = false;
-				this.close();
-				return new ArrayList<Route>(); }
 			if(PPvertices[0].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=false; this.objective=this.bestReducedCost;
 			} else {

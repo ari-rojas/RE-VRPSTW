@@ -54,9 +54,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	public final int superDepotID;
 
 	public int[][] CB_infeasibleTimes;
-	public boolean canTriggerRollback;
-	public int rollbackThreshold;
-	public int nLabels;
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -77,10 +74,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	 * Runs the labeling algorithm
 	 */
 	public void runLabeling() {
-
-		dataModel.rollbackTrigger = false;
 		dataModel.exactPricing = true;
-		this.nLabels = 0;
 
 		this.bestReducedCost = Double.MAX_VALUE;
 		//Initialization
@@ -92,7 +86,7 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 
 		//Labeling algorithm
 		long startTime = System.currentTimeMillis();
-		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit && (!canTriggerRollback || nLabels < rollbackThreshold)) {
+		while (!nodesToProcess.isEmpty() && System.currentTimeMillis()<timeLimit) {
 			ArrayList<Label> labelsToProcessNext = labelsToProcessNext();
 			for(Label currentLabel: labelsToProcessNext) {
 				boolean isDominated = checkDominance(currentLabel);
@@ -109,7 +103,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 					if(a.arc_type <= AR1) extendedLabel = extendLabel(currentLabel, a.routing_arc, a.arc_type, a.modifiedCost);
 					else extendedLabel = extendLabelChargingTime(currentLabel, PPvertices[a.tail_vertex_id].node_number, a.arc_type, a.modifiedCost);
 					if (extendedLabel!=null) { //verifies if the extension is feasible
-						if (a.arc_type <= AR1) nLabels ++;
 						extendedLabel.vertex = a.tail_vertex_id;
 						extendedLabel.nextArc = a.id;
 						if (a.arc_type == AR0) { extendedLabel.dominanceVertex = superDepotID; extendedLabel.feasible_Ts = get_feasible_finishing_ts(extendedLabel); }
@@ -363,9 +356,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 	@Override
 	protected List<Route> generateNewColumns() {
 
-		this.canTriggerRollback = dataModel.cut_iterations > 1;
-		this.rollbackThreshold = dataModel.rollbackBaseLine*dataModel.rollbackFactor;
-
 		//Solve the problem and check the solution
 		boolean existsElementaryRoute=false;
 		boolean maxNeighborhoodSize=false;
@@ -375,11 +365,6 @@ public final class CBHeuristicMinCostPricingProblemSolver extends AbstractPricin
 		while (!existsElementaryRoute && !maxNeighborhoodSize){
 			this.runLabeling(); 										//runs the labeling algorithm
 
-			if (canTriggerRollback && this.nLabels >= this.rollbackThreshold) { // If the rollback is triggered, return an empty list of columns
-				dataModel.rollbackTrigger = true;
-				this.close();
-				dataModel.rollbackExplosion = nLabels;
-				return new ArrayList<Route>(); } 
 			if(PPvertices[0].unprocessedLabels.isEmpty()) {
 				existsElementaryRoute = true; pricingProblemInfeasible=true; this.objective=Double.MAX_VALUE;
 				

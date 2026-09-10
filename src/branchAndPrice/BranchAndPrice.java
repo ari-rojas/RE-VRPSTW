@@ -470,8 +470,8 @@ public final class BranchAndPrice {
 			
 			time = System.currentTimeMillis();
 
-			foundBranches = this.findIntegerSolution(bapNode);
-			//foundBranches = false;
+			//foundBranches = this.findIntegerSolution(bapNode);
+			foundBranches = false;
 
 			if (foundBranches){
 				
@@ -498,10 +498,7 @@ public final class BranchAndPrice {
 
 		}
 
-		if (dataModel.rollbackTrigger){
-			this.comesFromRollback.put(newBranches.get(0).nodeID, true);
-			this.comesFromRollback.put(newBranches.get(1).nodeID,true);
-		} else if (!newBranches.isEmpty()) {
+		if (!newBranches.isEmpty()) {
 			this.comesFromRollback.put(newBranches.get(0).nodeID, false);
 			this.comesFromRollback.put(newBranches.get(1).nodeID,false);
 		}
