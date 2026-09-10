@@ -452,7 +452,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 				}
 
 				this.incumbentSolution = optimalSolution;
-			} else { logger.debug("Found the same solution to the current UB"); }
+			} else { if (dataModel.print_log) logger.debug("Found the same solution to the current UB"); }
 		} else {
 			if (dataModel.print_log) {
 				logger.debug("Status: "+cplex.getStatus().toString());

@@ -104,9 +104,9 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 			}else{
 				masterData.objectiveValue= masterData.cplex.getObjValue();
 				//Print solution
-				logger.debug("Number of iterations: "+masterData.cplex.getNiterations());
 				List<Route> solution=getSolution();
 				if (dataModel.print_log) {
+					logger.debug("Number of iterations: "+masterData.cplex.getNiterations());
 					logger.debug("Objective: "+ masterData.objectiveValue);
 					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
 					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size());

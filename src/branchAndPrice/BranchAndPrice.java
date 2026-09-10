@@ -313,7 +313,7 @@ public final class BranchAndPrice {
 				n ++;
 			}
 		}
-		logger.debug("There are "+n+" unique routes in the fractional solution.");
+		if (dataModel.print_log) logger.debug("There are "+n+" unique routes in the fractional solution.");
 
 		// Solve the charging scheduling problem
 		int maxT = dataModel.last_charging_period;
@@ -625,7 +625,7 @@ public final class BranchAndPrice {
 
 		double realTime = this.timeChargingBranching*0.001;
 		realTime = Math.floor(realTime*100)/100;
-		logger.debug("TIME BRANCHING - Total time is: "+realTime);
+		if (dataModel.print_log) logger.debug("TIME BRANCHING - Total time is: "+realTime);
 
 	}
 
