@@ -227,11 +227,11 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-GR45", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "SolvePricingsTSL", args[2]);
 		//EVRPTW evrptw = new EVRPTW("RC202-50", 5, 0, true, "TSL", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
-		Solver.solve(10800000L); evrptw.fileOut.close();
+		Solver.solve(86400000L); evrptw.fileOut.close();
 		Solver.close();
 
 	}
@@ -271,22 +271,22 @@ public final class EVRPTWSolver {
 
 		@Override
 		public void startBAP(StartEvent startEvent) {
-			this.instanceName = startEvent.instanceName;
+			/* this.instanceName = startEvent.instanceName;
 			this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
-			if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
+			if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution); */
 		}
 
 		@Override
 		public void startMaster(StartMasterEvent startMasterEvent) {
-      		if (dataModel.print_log) logger.debug("=============== MASTER {} ===============", startMasterEvent.columnGenerationIteration);
+      		//if (dataModel.print_log) logger.debug("=============== MASTER {} ===============", startMasterEvent.columnGenerationIteration);
    		}
 
 		@Override
 		public void finishMaster(FinishMasterEvent finishMasterEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("Finished master -> RMP objective: {}, LB: {}, UB: {}", new Object[]{finishMasterEvent.objective, finishMasterEvent.boundOnMasterObjective, finishMasterEvent.cutoffValue});
 				logger.debug("Total running time (s): " + getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
-			}
+			} */
 		}
 
 		@Override
@@ -298,19 +298,18 @@ public final class EVRPTWSolver {
 
 		@Override
 		public void startPricing(StartPricingEvent startPricing) {
-      		
 			if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
    		}
 
 		@Override
 		public void finishPricing(FinishPricingEvent finishPricingEvent) {
-			if (dataModel.print_log){
+			/* if (dataModel.print_log){
 				String solver = (finishPricingEvent.columns.size()==0) ? "exactLabeling": finishPricingEvent.columns.get(0).creator;
 				logger.debug("Finished pricing ({}, {} columns generated) -> CG objective: {}, CG bound: {}, CG cutoff: {}", new Object[]{solver, finishPricingEvent.columns.size(), finishPricingEvent.objective, finishPricingEvent.boundOnMasterObjective, finishPricingEvent.cutoffValue});
 				for(AbstractColumn<?, ?> column : finishPricingEvent.columns){
 					logger.debug(column.toString());
 				}
-			}
+			} */
 		}
 
 		@Override
@@ -362,12 +361,12 @@ public final class EVRPTWSolver {
 
 		@Override
 		public void startGeneratingCuts(StartGeneratingCutsEvent startGenerateCutsEvent) {
-      		if (dataModel.print_log) this.logger.debug("=============== GENERATING CUTS ===============");
+      		//if (dataModel.print_log) this.logger.debug("=============== GENERATING CUTS ===============");
    		}
 
 		@Override
 		public void finishGeneratingCuts(FinishGeneratingCutsEvent finishGenerateCutsEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				Map<AbstractCutGenerator, Integer> cutSummary = new LinkedHashMap();
 				if (finishGenerateCutsEvent.separatedInequalities.isEmpty()) {
 					this.logger.debug("No inequalities found!");
@@ -389,7 +388,7 @@ public final class EVRPTWSolver {
 					}).collect(Collectors.joining(", "));
 					this.logger.debug(summary);
 				}
-			}
+			} */
 		}
 
 		@Override
@@ -420,44 +419,44 @@ public final class EVRPTWSolver {
 
 		@Override
 		public void branchCreated(BranchEvent branchEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("================ BRANCHING ================");
 				logger.debug("Branching - {} new nodes: ",branchEvent.nrBranches);
 				for(BAPNode childNode : branchEvent.childNodes){
 					logger.debug("ChildNode {} - {}",childNode.nodeID, childNode.getBranchingDecision().toString());
 				}
-			}
+			} */
 		}
 
 		@Override
 		public void processNextNode(ProcessingNextNodeEvent processingNextNodeEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("================ PROCESSING NODE {} ================", processingNextNodeEvent.node.nodeID);
 				logger.debug("Nodes remaining in queue: {} - Node bound: {} - Incumbent solution: {}",new Object[]{processingNextNodeEvent.nodesInQueue, processingNextNodeEvent.node.getBound(), processingNextNodeEvent.objectiveIncumbentSolution});
-			}
+			} */
 		}
 
 		@Override
 		public void pruneNode(PruneNodeEvent pruneNodeEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("Pruning node {}. Bound: {}, best integer solution: {}", new Object[]{pruneNodeEvent.node.nodeID, pruneNodeEvent.nodeBound, pruneNodeEvent.bestIntegerSolution});
-			}
+			} */
 		}
 
 		@Override
 		public void nodeIsInfeasible(NodeIsInfeasibleEvent nodeIsInfeasibleEvent) {
-			if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
+			//if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
 		}
 
 		@Override
 		public void nodeIsInteger(NodeIsIntegerEvent nodeIsIntegerEvent) {
-			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
-			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
+			//this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
+			//if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
 		}
 
 		@Override
 		public void nodeIsFractional(NodeIsFractionalEvent nodeIsFractionalEvent) {
-			if (dataModel.print_log) logger.debug("Node {} is fractional. Objective: {}, bound: {}", new Object[]{nodeIsFractionalEvent.node.nodeID, nodeIsFractionalEvent.nodeValue, nodeIsFractionalEvent.nodeBound});
+			//if (dataModel.print_log) logger.debug("Node {} is fractional. Objective: {}, bound: {}", new Object[]{nodeIsFractionalEvent.node.nodeID, nodeIsFractionalEvent.nodeValue, nodeIsFractionalEvent.nodeBound});
 		}
 
 		@Override
