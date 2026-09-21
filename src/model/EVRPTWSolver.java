@@ -106,8 +106,8 @@ public final class EVRPTWSolver {
 		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 
-		solvers.add(CBHeuristicSecondPricingProblemSolver.class);
-		solvers.add(CBHeuristicMinCostPricingProblemSolver.class);
+		//solvers.add(CBHeuristicSecondPricingProblemSolver.class);
+		//solvers.add(CBHeuristicMinCostPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
 		List<Route> initSolution = this.getInitialSolution(pricingProblem, initialColumns);
@@ -262,8 +262,8 @@ public final class EVRPTWSolver {
 		String energy_deviation = args[3];
 		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "FRC-GR25"+energy_deviation, args[2], args[3]);
-		//EVRPTW evrptw = new EVRPTW("R201-50", 5, 0, true, "FRC-1GR25-RB50", "Debug", "");
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Pricings"+energy_deviation, args[2], args[3]);
+		//EVRPTW evrptw = new EVRPTW("R101-50", 6, 0, true, "Pricings", "Debug", "");
 
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
@@ -413,13 +413,13 @@ public final class EVRPTWSolver {
 		public void startBAP(StartEvent startEvent) {
 			this.instanceName = startEvent.instanceName;
 			this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
-			if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
+			//if (dataModel.print_log) this.logger.debug("BAP solving {} - Initial solution: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
 		}
 
 		public void finishedColumnGenerationForNode(FinishProcessingNodeEvent finishProcessingNodeEvent) {}
 
 		public void branchCreated(BranchEvent branchEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("================ BRANCHING ================");
 				logger.debug("Branching - {} new nodes: ",branchEvent.nrBranches);
 				for(BAPNode childNode : branchEvent.childNodes){
@@ -437,39 +437,39 @@ public final class EVRPTWSolver {
 					}
 					
 				}
-			}
+			} */
 		}
 
 		public void processNextNode(ProcessingNextNodeEvent processingNextNodeEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("================ PROCESSING NODE {} ================", processingNextNodeEvent.node.nodeID);
 				logger.debug("Nodes remaining in queue: {} - Node bound: {} - Incumbent solution: {}",new Object[]{processingNextNodeEvent.nodesInQueue, processingNextNodeEvent.node.getBound(), processingNextNodeEvent.objectiveIncumbentSolution});
-			}
+			} */
 		}
 
 		public void pruneNode(PruneNodeEvent pruneNodeEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("Pruning node {}. Bound: {}, best integer solution: {}", new Object[]{pruneNodeEvent.node.nodeID, pruneNodeEvent.nodeBound, pruneNodeEvent.bestIntegerSolution});
-			}
+			} */
 		}
 
 		public void nodeIsInfeasible(NodeIsInfeasibleEvent nodeIsInfeasibleEvent) {
-			if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
+			//if (dataModel.print_log) logger.debug("Node {} is infeasible.", nodeIsInfeasibleEvent.node.nodeID);
 		}
 
 		public void nodeIsInteger(NodeIsIntegerEvent nodeIsIntegerEvent) {
-			this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
-			if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
+			//this.bestIntegerSolution = Math.min(this.bestIntegerSolution, nodeIsIntegerEvent.nodeValue);
+			//if (dataModel.print_log) logger.debug("Node {} is integer. Objective: {} (best integer solution: {})", new Object[]{nodeIsIntegerEvent.node.nodeID, nodeIsIntegerEvent.nodeValue, this.bestIntegerSolution});
 		}
 
 		public void nodeIsFractional(NodeIsFractionalEvent nodeIsFractionalEvent) {
-			if (dataModel.print_log) logger.debug("Node {} is fractional. Objective: {}, bound: {}", new Object[]{nodeIsFractionalEvent.node.nodeID, nodeIsFractionalEvent.nodeValue, nodeIsFractionalEvent.nodeBound});
+			//if (dataModel.print_log) logger.debug("Node {} is fractional. Objective: {}, bound: {}", new Object[]{nodeIsFractionalEvent.node.nodeID, nodeIsFractionalEvent.nodeValue, nodeIsFractionalEvent.nodeBound});
 		}
 
 		public void timeLimitExceeded(TimeLimitExceededEvent timeLimitExceededEvent) {
-			if (timeLimitExceededEvent.node != null) {
+			/* if (timeLimitExceededEvent.node != null) {
 				this.logger.debug("Caught timeout exception while processing node {}", timeLimitExceededEvent.node.nodeID);
-			}
+			} */
 		}
 
 		public void finishBAP(FinishEvent finishEvent) {
@@ -501,19 +501,18 @@ public final class EVRPTWSolver {
 		////////////////////////////
 
 		public void startCG(StartEvent startEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				this.instanceName = startEvent.instanceName;
 				this.bestIntegerSolution = startEvent.objectiveIncumbentSolution;
 				this.logger.debug("CG solving {} - Initial upper bound: {}", this.instanceName, startEvent.objectiveIncumbentSolution);
-			}
+			} */
 
 		}
 
 		public void finishCG(FinishEvent finishEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				this.logger.debug("Finished Column Generation for instance {}", this.instanceName);
-			}
-
+			} */
 		}
 
 		public void startMaster(StartMasterEvent startMasterEvent) {
@@ -528,16 +527,16 @@ public final class EVRPTWSolver {
 		}
 
 		public void startPricing(StartPricingEvent startPricing) {
-			if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
+			//if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
    		}
 
 		public void finishPricing(FinishPricingEvent finishPricingEvent) {
 			if (dataModel.print_log){
-				String solver = (finishPricingEvent.columns.size()==0) ? "exactLabeling": finishPricingEvent.columns.get(0).creator;
+				/* String solver = (finishPricingEvent.columns.size()==0) ? "exactLabeling": finishPricingEvent.columns.get(0).creator;
 				logger.debug("Finished pricing ({}, {} columns generated) -> CG objective: {}, CG bound: {}, CG cutoff: {}", new Object[]{solver, finishPricingEvent.columns.size(), finishPricingEvent.objective, finishPricingEvent.boundOnMasterObjective, finishPricingEvent.cutoffValue});
 				for(AbstractColumn<?, ?> column : finishPricingEvent.columns){
 					logger.debug(column.toString());
-				}
+				} */
 			}
 		}
 

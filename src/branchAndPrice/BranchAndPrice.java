@@ -589,6 +589,8 @@ public final class BranchAndPrice {
 				++this.nodesProcessed;
 			  	}
 		   	}
+			
+			break;
 		}
   
 		if (this.queue.isEmpty()) { // If all the BAP tree was explored, the incumbent solution is optimal

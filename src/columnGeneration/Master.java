@@ -102,23 +102,11 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 				else
 					throw new RuntimeException("Master problem solve failed! Status: "+ masterData.cplex.getStatus());
 			}else{
-				masterData.objectiveValue= masterData.cplex.getObjValue();
-				//Print solution
-				List<Route> solution=getSolution();
+				masterData.objectiveValue = masterData.cplex.getObjValue();
 				if (dataModel.print_log) {
-					logger.debug("Number of iterations: "+masterData.cplex.getNiterations());
-					logger.debug("Objective: "+ masterData.objectiveValue);
-					logger.debug("Number of columns: " + masterData.getNrColumns() + " Number of SRC separated: " + masterData.subsetRowInequalities.size());
-					logger.debug("Number of vehicle branches: " + masterData.branchingNumberOfVehicles.size());
-					logger.debug("Columns (only non-zero columns are returned):");
-					for(Route route: solution)
-						logger.debug(route.toString());
 					
-					/* logger.debug("Printing dual variables");
+					logger.debug("Printing dual variables");
 					logger.debug("Capacity constraint: " + String.valueOf(masterData.cplex.getDual(roundedCapacityInequality)));
-					logger.debug("Vehicle branches: ");
-					for(NumberVehiclesInequalities branching: masterData.branchingNumberOfVehicles.keySet())
-						logger.debug(branching.toString()+": "+String.valueOf(masterData.cplex.getDual(masterData.branchingNumberOfVehicles.get(branching))));
 					logger.debug("Customer constraints: " + masterData.cplex.getDuals(visitCustomerConstraints).toString());
 					for(int i=0; i< dataModel.C; i++) {
 						logger.debug("Customer " + String.valueOf(i+1) + ": " +masterData.cplex.getDual(visitCustomerConstraints[i]));
@@ -127,16 +115,10 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 					for (int t = 0; t < dataModel.last_charging_period; t++) {
 						logger.debug("Period " + String.valueOf(t+1) + ": " + masterData.cplex.getDual(chargersCapacityConstraints[t]));
 					}
-					logger.debug("SRCs:");
+					/* logger.debug("SRCs:");
 					for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
 						double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
 						logger.debug(subsetRowInequality.toString() + ": " + dual);
-					} */
-					
-
-					/* logger.debug("---------------- PRINTING COLUMNS ----------------");
-					for (Route col: this.getColumns(pricingProblems.get(0))){
-						logger.debug(col.toString()+" BBNode: "+col.BBnode);
 					} */
 					
 				}
