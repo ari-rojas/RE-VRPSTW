@@ -34,6 +34,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	private int Gamma;
 	private int depotID;
 
+	public int nLabels;
+
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
 	 */
@@ -52,6 +54,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	public void runLabeling() {
 
 		//dataModel.rollbackTrigger = false;
+		this.nLabels = 0;
 		dataModel.exactPricing = true;
 		this.bestReducedCost = Double.MAX_VALUE;
 
@@ -289,6 +292,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			vertices[0].unprocessedLabels.add(extendedLabel);
 		
 		}
+
+		this.nLabels ++;
 		
 		return extendedLabel;
 
@@ -449,8 +454,9 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		pricingProblem.bestReducedCost = this.bestReducedCost;
 
 		if (dataModel.print_log) {
-				logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
-				logger.debug("Found " + newRoutes.size() + " columns");
+			logger.debug("Finished exact pricing: "+vertices[0].processedLabels.size()+" processed, "+vertices[0].unprocessedLabels.size()+" unprocessed.");
+			logger.debug("Found " + newRoutes.size() + " columns");
+			logger.debug("Generated "+this.nLabels+" in the routing subgraph");
 		}
 		
 		close();
@@ -462,7 +468,18 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	@Override
 	protected void setObjective() {
-		//Already done by the heuristic labeling (must be invoked first)
+		dataModel.exactPricing = false;
+		pricingProblem.reducedCostThreshold = 0.0;
+		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
+		//Update the objective function with the new dual values
+		for (int a = 0; a < dataModel.numArcs; a++) {
+			Arc arc = dataModel.arcs[a];
+			if (arc.tail>=1 && arc.tail<=dataModel.C) //routing arcs
+				arc.modifiedCost = arc.cost-pricingProblem.dualCosts[arc.tail-1];
+			else if(arc.tail== 0) arc.modifiedCost = arc.cost; //arcs from the depot source
+			else if(arc.tail>dataModel.V) arc.modifiedCost = -pricingProblem.dualCosts[arc.tail-3];
+			else arc.modifiedCost = 0;
+		}
 	}
 
 	public boolean checkRoutingDominance(Label newLabel) {

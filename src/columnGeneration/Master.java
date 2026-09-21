@@ -149,55 +149,55 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 	 */
 	@Override
 	public void initializePricingProblem(PricingProblem pricingProblem){
-		try {
+		//try {
 
-			pricingProblem.branchesOnChargingTimes = masterData.branchingChargingTimes.keySet();
-			double[] dualsPartition= masterData.cplex.getDuals(visitCustomerConstraints);
-			double[] dualsCapacity = masterData.cplex.getDuals(chargersCapacityConstraints);
-			double[] dualsSRC = new double[masterData.subsetRowInequalities.size()];
+		pricingProblem.branchesOnChargingTimes = masterData.branchingChargingTimes.keySet();
+		double[] dualsPartition= dataModel.customerDuals[dataModel.currentMasterIteration];
+		double[] dualsCapacity = dataModel.periodDuals[dataModel.currentMasterIteration];
+		//double[] dualsSRC = new double[masterData.subsetRowInequalities.size()];
 
-			ArrayList<SubsetRowInequality> SRCToConsider = new ArrayList<SubsetRowInequality>();
-			int s = 0;
-			for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
-				double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
-				if(dual<0) {
-					SRCToConsider.add(subsetRowInequality);
-					dualsSRC[s] = dual;
-					for(int i: subsetRowInequality.cutSet) dataModel.vertices[i].SRCIndices.add(s);
-					s++;
-				}
+		ArrayList<SubsetRowInequality> SRCToConsider = new ArrayList<SubsetRowInequality>();
+		int s = 0;
+		/* for(SubsetRowInequality subsetRowInequality: masterData.subsetRowInequalities.keySet()) {
+			double dual = masterData.cplex.getDual(masterData.subsetRowInequalities.get(subsetRowInequality));
+			if(dual<0) {
+				SRCToConsider.add(subsetRowInequality);
+				dualsSRC[s] = dual;
+				for(int i: subsetRowInequality.cutSet) dataModel.vertices[i].SRCIndices.add(s);
+				s++;
 			}
+		} */
 
-			double [] duals = new double[dualsPartition.length + dualsCapacity.length+ s + pricingProblem.branchesOnChargingTimes.size()];  //resultant array of size first array and second array  
-			for (int i = 0; i < dualsPartition.length; i++) 
-				duals[i] = dualsPartition[i];
+		double [] duals = new double[dualsPartition.length + dualsCapacity.length+ s + pricingProblem.branchesOnChargingTimes.size()];  //resultant array of size first array and second array  
+		for (int i = 0; i < dualsPartition.length; i++) 
+			duals[i] = dualsPartition[i];
 
-			for (int i = 0; i < dualsCapacity.length; i++) 
-				duals[dualsPartition.length+i] = dualsCapacity[i];
+		for (int i = 0; i < dualsCapacity.length; i++) 
+			duals[dualsPartition.length+i] = dualsCapacity[i];
 
-			for (int i = 0; i < s; i++)
-				duals[dualsPartition.length+dualsCapacity.length+i] = dualsSRC[i];
+		/* for (int i = 0; i < s; i++)
+			duals[dualsPartition.length+dualsCapacity.length+i] = dualsSRC[i]; */
 
-			pricingProblem.subsetRowCuts = SRCToConsider;
+		pricingProblem.subsetRowCuts = SRCToConsider;
 
-			int i = 0;
-			for(IloRange branching: masterData.branchingChargingTimes.values()) {
-				duals[dualsPartition.length+dualsCapacity.length+s+i] = masterData.cplex.getDual(branching);
-				i++;
-			}
+		/* int i = 0;
+		for(IloRange branching: masterData.branchingChargingTimes.values()) {
+			duals[dualsPartition.length+dualsCapacity.length+s+i] = masterData.cplex.getDual(branching);
+			i++;
+		} */
 
-			double dualConstant = 0; //constant dual values (not depending on the arc)
-			dualConstant+=masterData.cplex.getDual(roundedCapacityInequality);
+		double dualConstant = 0; //constant dual values (not depending on the arc)
+		dualConstant += dataModel.capacityDuals[dataModel.currentMasterIteration];
 
-			// branching on vehicles duals
-			for(NumberVehiclesInequalities branching: masterData.branchingNumberOfVehicles.keySet())
-				dualConstant+=masterData.cplex.getDual(masterData.branchingNumberOfVehicles.get(branching));
+		/* // branching on vehicles duals
+		for(NumberVehiclesInequalities branching: masterData.branchingNumberOfVehicles.keySet())
+			dualConstant+=masterData.cplex.getDual(masterData.branchingNumberOfVehicles.get(branching)); */
 
-			pricingProblem.initPricingProblem(duals, dualConstant);
+		pricingProblem.initPricingProblem(duals, dualConstant);
 
-		} catch (IloException e) {
+		/* } catch (IloException e) {
 			e.printStackTrace();
-		}
+		} */
 	}
 
 	/**
