@@ -110,6 +110,12 @@ public final class EVRPTW implements ModelInterface {
 	public int lenAR1;
 	public PPArc dummyPPArc;
 
+	public int currentMasterIteration;
+	public int numMasterIterations;
+	public double[] capacityDuals;
+	public double[][] customerDuals;
+	public double[][] periodDuals;
+
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.
@@ -159,6 +165,11 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Number of Routing Graph arcs: "+this.numArcsRoadNetwork);
 			System.out.println(" - Number of arcs in AR0, AR1: "+this.lenAR0+", "+this.lenAR1);
 			System.out.println(" - Number of PP arcs: "+this.numArcs);
+		}
+
+		try { readDuals(); }
+		catch (Exception ex) {
+			ex.printStackTrace();
 		}
 
 		/* for (int arcID = 0; arcID < this.numArcs; arcID++){
@@ -506,6 +517,52 @@ public final class EVRPTW implements ModelInterface {
 
 			int C1_ix = this.C1_startID + i;
 			this.PPvertices[C1_ix].processedLabels = new ArrayList<Label>(auxNumArcs);
+		}
+	}
+
+	public void readDuals() throws Exception {
+
+		// Open and parse the XML file once
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		Document document = builder.parse(new File("./data/" + this.getName() + ".xml"));
+
+		Element root = document.getDocumentElement();
+
+		int numIterations = Integer.parseInt(root.getAttribute("numIterations"));
+		int numCustomers = Integer.parseInt(root.getAttribute("numCustomers"));
+		int numPeriods = Integer.parseInt(root.getAttribute("numPeriods"));
+
+		// Allocate arrays
+		this.capacityDuals = new double[numIterations];
+		this.customerDuals = new double[numIterations][numCustomers];
+		this.periodDuals = new double[numIterations][numPeriods];
+
+		NodeList masters = root.getElementsByTagName("master");
+
+		// Read all iterations
+		for (int i = 0; i < numIterations; i++) {
+
+			Element master = (Element) masters.item(i);
+
+			// Capacity dual
+			Element capacityElement = (Element) master.getElementsByTagName("capacity").item(0);
+
+			capacityDuals[i] = Double.parseDouble(capacityElement.getTextContent().trim());
+
+			// Customer duals
+			Element customersElement = (Element) master.getElementsByTagName("customers").item(0);
+
+			String[] customers = customersElement.getTextContent().trim().split("\\s+");
+
+			for (int j = 0; j < numCustomers; j++)  customerDuals[i][j] = Double.parseDouble(customers[j]);
+
+			// Period duals
+			Element periodsElement = (Element) master.getElementsByTagName("periods").item(0);
+
+			String[] periods = periodsElement.getTextContent().trim().split("\\s+");
+
+			for (int j = 0; j < numPeriods; j++)  periodDuals[i][j] = Double.parseDouble(periods[j]);
 		}
 	}
 

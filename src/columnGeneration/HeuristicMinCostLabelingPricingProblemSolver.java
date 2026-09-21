@@ -16,6 +16,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
+import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import branchAndPrice.FixArc;
@@ -518,7 +519,32 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 */
 	@Override
 	protected void setObjective() {
-		//Already done by the heuristic labeling (must be invoked first)
+		
+		pricingProblem.reducedCostThreshold = 0.0;
+		pricingProblem.bestReducedCost = -Double.MAX_VALUE;
+		// Update the objective function with the new dual values
+		DirectedWeightedMultigraph<Integer, PPArc> PPgraph = dataModel.PPgraph;
+
+		// Routing Arcs
+		for (int i = 1; i <= dataModel.C; i++){
+			int vertex_id = dataModel.C0_startID+i;
+			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
+				arc.modifiedCost = dataModel.graph.getEdge(0,i).cost + arc.routing_arc.cost - pricingProblem.dualCosts[i-1];
+			}
+
+			vertex_id = dataModel.C1_startID+i;
+			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
+				arc.modifiedCost = arc.routing_arc.cost - pricingProblem.dualCosts[i-1];
+			}
+		}
+
+		// Charging Scheduling Arcs
+		for (int t = 1; t <= dataModel.last_charging_period; t++){
+			int vertex_id = dataModel.T_startID+t;
+			for (PPArc arc: PPgraph.outgoingEdgesOf(vertex_id)){
+				arc.modifiedCost = -pricingProblem.dualCosts[dataModel.C+t-1];
+			}
+		}
 	}
 
 	public boolean checkRoutingDominance(Label newLabel) {

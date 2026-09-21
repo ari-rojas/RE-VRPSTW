@@ -103,7 +103,7 @@ public final class EVRPTWSolver {
 	
 		//solvers.add(HeuristicLabelingThirdPricingProblemSolver.class);
 		//solvers.add(HeuristicLabelingPricingProblemSolver.class);
-		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
+		//solvers.add(HeuristicLabelingSecondPricingProblemSolver.class);
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 
 		//solvers.add(CBHeuristicSecondPricingProblemSolver.class);
@@ -516,18 +516,18 @@ public final class EVRPTWSolver {
 		}
 
 		public void startMaster(StartMasterEvent startMasterEvent) {
-      		if (dataModel.print_log) logger.debug("=============== MASTER {} ===============", startMasterEvent.columnGenerationIteration);
+      		//if (dataModel.print_log) logger.debug("=============== MASTER {} ===============", startMasterEvent.columnGenerationIteration);
    		}
 
 		public void finishMaster(FinishMasterEvent finishMasterEvent) {
-			if (dataModel.print_log) {
+			/* if (dataModel.print_log) {
 				logger.debug("Finished master -> RMP objective: {}, LB: {}, UB: {}", new Object[]{finishMasterEvent.objective, finishMasterEvent.boundOnMasterObjective, finishMasterEvent.cutoffValue});
 				logger.debug("Total running time (s): " + getTimeInSeconds(System.currentTimeMillis()-bap.getSolveTime()));
-			}
+			} */
 		}
 
 		public void startPricing(StartPricingEvent startPricing) {
-			//if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
+			if (dataModel.print_log) logger.debug("=============== PRICING {} ===============", startPricing.columnGenerationIteration);
    		}
 
 		public void finishPricing(FinishPricingEvent finishPricingEvent) {
