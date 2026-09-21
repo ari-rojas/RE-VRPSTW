@@ -87,7 +87,7 @@ public final class EVRPTWSolver {
 
 		//Define which solvers to use (one or more)
 		List<Class<? extends AbstractPricingProblemSolver<EVRPTW, Route, PricingProblem>>> solvers = new ArrayList<>(); // The solvers list of classes is restricted to subclasses of AbstractPricingProblemSolver with the specified parameters
-		solvers.add(HeuristicLabelingSecondPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
+		//solvers.add(HeuristicLabelingSecondPricingProblemSolver.class); // Adding the classes themselves, not instances of them.
 		solvers.add(HeuristicMinCostLabelingPricingProblemSolver.class);
 		
 		//Create a set of initial columns and use it as an upper bound
@@ -228,7 +228,7 @@ public final class EVRPTWSolver {
 		int gamma = Integer.parseInt(args[1]);
 
 		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "SolvePricingsTSL", args[2]);
-		//EVRPTW evrptw = new EVRPTW("RC202-50", 5, 0, true, "TSL", "Debug");
+		//EVRPTW evrptw = new EVRPTW("RC102-50", 0, 0, true, "SolvePricingsTSL", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 
 		Solver.solve(86400000L); evrptw.fileOut.close();
