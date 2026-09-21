@@ -154,7 +154,6 @@ public final class EVRPTWSolver {
 			if(route.lastChargingTime>maxChargingTime) maxChargingTime = route.lastChargingTime;
 		}
 
-
 		//number of vehicles charging each timestep
 		int[] vehiclesCharging = new int[maxChargingTime+1];
 		for (int t = minChargingTime; t <= maxChargingTime; t++) {
@@ -258,12 +257,12 @@ public final class EVRPTWSolver {
 	 * */
 	public static void main(String[] args) throws IOException{
 
-		int gamma = Integer.parseInt(args[1]);
-		String energy_deviation = args[3];
-		if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
+		//int gamma = Integer.parseInt(args[1]);
+		//String energy_deviation = args[3];
+		//if (!energy_deviation.equals("")) energy_deviation = "-"+energy_deviation;
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "Pricings"+energy_deviation, args[2], args[3]);
-		//EVRPTW evrptw = new EVRPTW("R101-50", 6, 0, true, "Pricings", "Debug", "");
+		//EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "SolvePricings"+energy_deviation, args[2], args[3]);
+		EVRPTW evrptw = new EVRPTW("RC101-50", 0, 0, true, "SolvePricings", "Debug", "");
 
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 

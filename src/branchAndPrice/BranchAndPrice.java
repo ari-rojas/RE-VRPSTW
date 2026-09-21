@@ -276,9 +276,9 @@ public final class BranchAndPrice {
 			}
 		}
 
-		ArrayList<Route> solution = new ArrayList<Route>(cg.getSolution().size()); //if not, it overwrites the value
+		/* ArrayList<Route> solution = new ArrayList<Route>(cg.getSolution().size()); //if not, it overwrites the value
 		for(Route route: cg.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
-		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts());
+		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts()); */
 
 		dataModel.infeasiblePPArcs = pricingProblem.infeasiblePPArcs;
 

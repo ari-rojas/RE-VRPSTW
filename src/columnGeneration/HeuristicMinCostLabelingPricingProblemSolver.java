@@ -55,6 +55,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 
 	public final int depotID;
 	public final int superDepotID;
+	public int nLabels;
 
 	/**
 	 * Labeling algorithm to solve the ng-SPPRC
@@ -73,6 +74,8 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 	 * Runs the labeling algorithm
 	 */
 	public void runLabeling() {
+
+		this.nLabels = 0;
 
 		//dataModel.rollbackTrigger = false;
 		dataModel.exactPricing = true;
@@ -321,7 +324,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 			PPvertices[superDepotID].unprocessedLabels.add(extendedLabel);
 		
 		}
-		
+		this.nLabels ++;
 		return extendedLabel;
 
 	}
@@ -508,6 +511,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 		if (dataModel.print_log) {
 			logger.debug("Finished exact pricing: "+PPvertices[0].processedLabels.size()+" processed, "+PPvertices[0].unprocessedLabels.size()+" unprocessed.");
 			logger.debug("Found " + newRoutes.size() + " columns");
+			logger.debug("Generated "+this.nLabels+" in the routing subgraph");
 		}
 		
 		close();

@@ -172,6 +172,8 @@ public final class EVRPTW implements ModelInterface {
 			ex.printStackTrace();
 		}
 
+		int aver = 1;
+
 		/* for (int arcID = 0; arcID < this.numArcs; arcID++){
 			System.out.println(PParcs[arcID].toString());
 		} */
@@ -525,7 +527,7 @@ public final class EVRPTW implements ModelInterface {
 		// Open and parse the XML file once
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder builder = factory.newDocumentBuilder();
-		Document document = builder.parse(new File("./data/" + this.getName() + ".xml"));
+		Document document = builder.parse(new File("./data/Pricings_" + this.getName() + ".xml"));
 
 		Element root = document.getDocumentElement();
 
@@ -564,6 +566,8 @@ public final class EVRPTW implements ModelInterface {
 
 			for (int j = 0; j < numPeriods; j++)  periodDuals[i][j] = Double.parseDouble(periods[j]);
 		}
+
+		this.numMasterIterations = numIterations;
 	}
 
 	/** Class that represents a vertex. */
