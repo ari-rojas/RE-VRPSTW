@@ -223,9 +223,9 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 			}
 		}
 
-		ArrayList<Route> solution = new ArrayList<Route>(cg.getSolution().size()); //if not, it overwrites the value
+		/* ArrayList<Route> solution = new ArrayList<Route>(cg.getSolution().size()); //if not, it overwrites the value
 		for(Route route: cg.getSolution()) {Route newRoute = route.clone(); newRoute.value = route.value; solution.add(newRoute);}
-		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts());
+		bapNode.storeSolution(cg.getObjective(), cg.getBound(), solution, cg.getCuts()); */
 
 		return new CGResult(cg.incumbentSolution, cg.incumbentSolutionObjective);
 	}
@@ -521,6 +521,8 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 				++this.nodesProcessed;
 			  	}
 		   	}
+		
+			break;
 		}
   
 		if (this.queue.isEmpty()) { // If all the BAP tree was explored, the incumbent solution is optimal
