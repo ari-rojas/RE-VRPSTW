@@ -266,7 +266,7 @@ public final class EVRPTWSolver {
 
 		EVRPTWSolver Solver = new EVRPTWSolver(evrptw, new ArrayList<>());
 
-		Solver.solve(10800000L); evrptw.fileOut.close();
+		Solver.solve(86400000L); evrptw.fileOut.close();
 		Solver.close();
 
 	}
