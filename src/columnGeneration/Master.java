@@ -209,7 +209,7 @@ public final class Master extends AbstractMaster<EVRPTW, Route, PricingProblem, 
 		try {
 
 			// register column with objective
-			IloColumn iloColumn= masterData.cplex.column(obj,column.cost);
+			IloColumn iloColumn= masterData.cplex.column(obj,column.routing_cost+column.energy_cost);
 
 			// register column with partitioning constraint
 			for(int i: column.route.keySet())

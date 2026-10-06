@@ -383,7 +383,7 @@ public final class HeuristicLabelingPricingProblemSolver extends AbstractPricing
 						routeSequence[counter] = dataModel.arcs[arc].head;
 						counter++;
 					}
-					Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
+					Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, dataModel.energy_costs[chargingTime][initialChargingTime+chargingTime-1], departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
 					newRoutes.add(column);
 				}
 			}

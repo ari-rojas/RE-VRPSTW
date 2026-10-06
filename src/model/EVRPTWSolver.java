@@ -173,7 +173,7 @@ public final class EVRPTWSolver {
 		int[] routeSequence = new int[dataModel.C];
 		for(int i=0; i< dataModel.C; i++) {route.put(i+1, 1); routeSequence[i] = i+1;}
 		upperBound = Math.pow(10, 20);
-		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
+		initSolution.add(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
 
 		//Dummy routes (feasible)
 		for(int i=1; i<=dataModel.C; i++){ //a route for each customer
@@ -208,7 +208,7 @@ public final class EVRPTWSolver {
 			// Add the route
 			int initial_t = latestDeparture - chargingTime; int cont = 0;
 			while (initial_t > 0 && cont < 1) {
-				Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initial_t, chargingTime);
+				Route column=new Route("initSolution", false, route, routeSequence, pricingProblem, cost, dataModel.energy_costs[chargingTime][latestDeparture-1], latestDeparture, energy, dataModel.vertices[i].load, 0.0, arcs, initial_t, chargingTime);
 				column.BBnode=0;
 				initSolution.add(column);
 				initial_t -= chargingTime; cont ++;
@@ -227,7 +227,7 @@ public final class EVRPTWSolver {
 
 		int gamma = Integer.parseInt(args[1]);
 
-		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "TSL-GR45", args[2]);
+		EVRPTW evrptw = new EVRPTW(args[0], gamma, 0, true, "EnergyCosts", args[2]);
 		//EVRPTW evrptw = new EVRPTW("RC202-50", 5, 0, true, "TSL", "Debug");
 		EVRPTWSolver Solver =  new EVRPTWSolver(evrptw);
 

@@ -431,7 +431,7 @@ public final class HeuristicMinCostLabelingPricingProblemSolver extends Abstract
 							routeSequence[counter] = dataModel.arcs[arc].head;
 							counter++;
 						}
-						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
+						Route column = new Route("exactLabeling", false, route, routeSequence, pricingProblem, cost, dataModel.energy_costs[chargingTime][initialChargingTime+chargingTime-1], departureTime, energy, load, reducedCost, arcs, initialChargingTime, chargingTime);
 						if (isElementary) {existsElementaryRoute = true; newRoutes.add(column);}
 						else {nonElementaryRoutes.add(column);}
 					}

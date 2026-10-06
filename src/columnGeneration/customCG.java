@@ -320,7 +320,7 @@ public class customCG extends ColGen<EVRPTW, Route, PricingProblem> {
 
 			if (route.isArtificialColumn) continue;
 			Route column = route.clone();
-			IloColumn iloColumn = cplex.column(obj,column.cost);
+			IloColumn iloColumn = cplex.column(obj,column.routing_cost + column.energy_cost);
 
 			for(int i: route.route.keySet())
 				iloColumn = iloColumn.and(cplex.column(visitCustomerConstraints[i-1], column.route.get(i)));

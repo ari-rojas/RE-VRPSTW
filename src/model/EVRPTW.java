@@ -6,7 +6,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.PriorityQueue;
 import java.util.Properties;
 
@@ -78,6 +80,14 @@ public final class EVRPTW implements ModelInterface {
 	public double gapReductionRequirement = 0.45;
 	public boolean exactPricing;
 
+	public int[] charging_currents;
+	public int[] charging_powers;
+	public int[] g_pieces;
+	public int[] energy_costs_ts;
+	public int[][] energy_costs;
+	public int max_current_cost = 0;
+	public int tau = 1;
+
 	/**
 	 * Constructs a new mE-VRSPTW instance. 
 	 * @param instanceName input instance.
@@ -119,6 +129,36 @@ public final class EVRPTW implements ModelInterface {
 			System.out.println(" - Energy capacity: " + this.E);
 			System.out.println(" - Full recharging time: " + this.f_inverse[this.E]);
 		}
+
+		this.charging_powers = new int[]{0,1100,582,163};
+		this.charging_currents = new int[]{0,110,58,16};
+		
+		Map<Integer, Integer> f_timesteps = new HashMap<>();
+		f_timesteps.put(0, 0);
+		f_timesteps.put(1,76);
+		f_timesteps.put(2,93);
+		f_timesteps.put(3,123);
+
+		this.g_pieces = new int[124];
+		for (int p = 1; p < f_timesteps.size(); p++){
+			for (int t = f_timesteps.get(p-1)+1; t <= f_timesteps.get(p); t++) this.g_pieces[t] = p;
+		}
+
+		this.energy_costs_ts = new int[this.last_charging_period+1];
+		this.energy_costs = new int[124][this.last_charging_period+1];
+		for (int b = 1; b <= 123; b++ ){
+			for (int t = b; t <= this.last_charging_period; t++){
+
+				int energy_cost = 0;
+				for (int tt = t; tt >= t-b+1; t--){
+					int p = this.g_pieces[b-(t-tt)];
+					energy_cost += this.energy_costs_ts[tt]*this.charging_powers[p]*this.tau;
+				}
+				this.energy_costs[b][t] = energy_cost;
+
+			}
+		}
+
 	}
 
 	/** Name of the current instance */

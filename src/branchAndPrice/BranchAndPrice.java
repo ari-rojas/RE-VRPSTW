@@ -87,7 +87,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 		HashMap<Integer, Integer> route=new HashMap<Integer, Integer>(dataModel.C);
 		int[] routeSequence = new int[dataModel.C];
 		for(int i=0; i< dataModel.C; i++) {route.put(i+1, 1); routeSequence[i] = i+1;}
-		return Collections.singletonList(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
+		return Collections.singletonList(new Route("initSolution", true, route, routeSequence, pricingProblem, (int) Math.pow(10, 20), 0, 0, 0, 0, 0.0, new ArrayList<Integer>(), 0, 0)); //dummy 
 	}
 
 	/**
@@ -154,7 +154,7 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<EVRPTW,Route,Pr
 
 			Route column = route.clone();
 			//Register column with objective
-			IloColumn iloColumn= cplex.column(obj,column.cost);
+			IloColumn iloColumn= cplex.column(obj,column.routing_cost+ column.energy_cost);
 
 			//Register column with partitioning constraint
 			for(int i: route.route.keySet())
